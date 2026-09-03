@@ -1,0 +1,30 @@
+[
+  {
+    "id": "cornell",
+    "name": "康奈尔笔记",
+    "language": "markdown",
+    "text": "## 线索栏（关键词）\n- \n\n## 笔记主体\n- \n\n## 总结（一句话）\n",
+    "textEn": "## Cue Column (Keywords)\n- \n\n## Notes Body\n- \n\n## Summary (one sentence)\n"
+  },
+  {
+    "id": "feynman",
+    "name": "费曼学习法",
+    "language": "markdown",
+    "text": "## 概念\n\n## 用大白话解释\n> 像教给小学生一样\n\n## 卡壳点\n- \n\n## 修正理解\n",
+    "textEn": "## Concept\n\n## Explain in Plain Words\n> As if teaching a child\n\n## Stuck Points\n- \n\n## Revised Understanding\n"
+  },
+  {
+    "id": "mistake",
+    "name": "错题本模板",
+    "language": "markdown",
+    "text": "## 题目\n\n## 我的错误答案\n\n## 错误原因\n- \n\n## 正确解法\n\n## 同类题再练\n- \n",
+    "textEn": "## Problem\n\n## My Wrong Answer\n\n## Root Cause\n- \n\n## Correct Solution\n\n## Practice Again\n- \n"
+  },
+  {
+    "id": "book",
+    "name": "读书笔记模板",
+    "language": "markdown",
+    "text": "## 书名 / 作者\n\n## 核心观点\n- \n\n## 金句摘录\n> \n\n## 我的行动\n- \n",
+    "textEn": "## Book / Author\n\n## Core Ideas\n- \n\n## Notable Quotes\n> \n\n## My Actions\n- \n"
+  }
+]

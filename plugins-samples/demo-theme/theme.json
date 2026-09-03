@@ -1,0 +1,9 @@
+[
+  {
+    "id": "amber-forest",
+    "name": "琥珀森林",
+    "desc": "暖白底 + 琥珀绿 accent（插件示例）",
+    "cssFile": "amber-forest.css",
+    "swatchHex": "#2e8f5b"
+  }
+]

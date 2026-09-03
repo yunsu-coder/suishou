@@ -1,0 +1,15 @@
+/* 示例插件主题：暖白底 + 琥珀绿 accent */
+:root[data-theme="dawn"],
+:root[data-theme="night"] {
+  --bg: #f6f3ec;
+  --surface: #ffffff;
+  --text: #2c2a26;
+  --text-secondary: #6f6a60;
+  --accent: #2e8f5b;
+  --accent-soft: rgba(46, 143, 91, 0.14);
+  --note: #2e8f5b; --note-bg: rgba(46, 143, 91, 0.10);
+  --tip: #b58a2a;  --tip-bg:  rgba(181, 138, 42, 0.10);
+  --warn: #c47b1e; --warn-bg: rgba(196, 123, 30, 0.10);
+  --danger: #c0442a; --danger-bg: rgba(192, 68, 42, 0.08);
+  --info: #5a7bd8; --info-bg: rgba(90, 123, 216, 0.09);
+}

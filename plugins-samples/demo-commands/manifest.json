@@ -1,0 +1,14 @@
+{
+  "id": "demo-commands",
+  "name": "示例 · 常用命令包",
+  "version": "1.0.0",
+  "kind": "commands",
+  "desc": "常用宿主命令包（命令面板注册）",
+  "main": "commands.json",
+  "features": [
+    "插件: 显示/隐藏资源管理器",
+    "插件: 查看历史版本",
+    "插件: 快速打开"
+  ],
+  "author": "随手示例"
+}

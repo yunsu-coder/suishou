@@ -11,6 +11,10 @@ let package = Package(
             resources: [
                 .copy("Resources"),
             ]
+        ),
+        .testTarget(
+            name: "MarkNoteTests",
+            dependencies: ["MarkNote"]
         )
     ]
 )

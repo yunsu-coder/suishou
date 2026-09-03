@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 历史版本 Sheet —— 保存时自动快照（最多 10 份，与 start 一致）
+/// 历史版本 Sheet —— 保存时自动快照（最多 10 份）
 struct VersionsView: View {
     @Environment(NotesStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -21,10 +21,10 @@ struct VersionsView: View {
                     Image(systemName: "clock.arrow.circlepath")
                         .font(.system(size: 30))
                         .foregroundStyle(.tertiary)
-                    Text("暂无历史版本")
+                    Text(_LL("暂无历史版本", "No versions yet"))
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                    Text("每次保存前会自动快照当前内容，最多保留 10 份")
+                    Text(_LL("每次保存前会自动快照当前内容，最多保留 10 份", "Before each save, the current content is auto-snapshotted (up to 10 copies kept)"))
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -41,28 +41,28 @@ struct VersionsView: View {
         .frame(width: 560, height: 460)
         .onAppear { reload() }
         .confirmationDialog(
-            "恢复该版本？",
+            _LL("恢复该版本？", "Restore this version?"),
             isPresented: .init(get: { restoreTarget != nil }, set: { if !$0 { restoreTarget = nil } }),
             presenting: restoreTarget
         ) { _ in
-            Button("恢复", role: .destructive) {
+            Button(_LL("恢复", "Restore"), role: .destructive) {
                 if let t = restoreTarget {
                     store.restoreVersion(noteID, t.ts)
                     dismiss()
                 }
             }
-            Button("取消", role: .cancel) {}
+            Button(_LL("取消", "Cancel"), role: .cancel) {}
         } message: { _ in
-            Text("当前内容将被该版本替换（当前内容会先行保存为最新快照）")
+            Text(_LL("当前内容将被该版本替换（当前内容会先行保存为最新快照）", "Current content will be replaced by this version (current content is saved as the newest snapshot first)"))
         }
     }
 
     private var header: some View {
         HStack {
-            Text("历史版本")
+            Text(_LL("历史版本", "History"))
                 .font(.headline)
             Spacer()
-            Button("关闭") { dismiss() }
+            Button(_LL("关闭", "Close")) { dismiss() }
                 .keyboardShortcut(.cancelAction)
         }
         .padding(.horizontal, 16)
@@ -118,7 +118,7 @@ struct VersionsView: View {
                 .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 6))
                 .padding(.vertical, 8)
                 HStack {
-                    Button("恢复此版本") { restoreTarget = v }
+                    Button(_LL("恢复此版本", "Restore this Version")) { restoreTarget = v }
                         .buttonStyle(.borderedProminent)
                 }
             }

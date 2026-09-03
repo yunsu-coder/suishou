@@ -38,53 +38,49 @@ enum CommandRegistry {
     static func commands(_ store: NotesStore) -> [CommandItem] {
         var items: [CommandItem] = []
 
-        items.append(CommandItem(key: "file.new", title: "新建笔记…", category: "文件", icon: "square.and.pencil") { store.createNote() })
-        items.append(CommandItem(key: "file.newFolder", title: "新建文件夹…", category: "文件", icon: "folder.badge.plus") {
+        items.append(CommandItem(key: "file.new", title: _L("新建文件…", "New File…"), category: _L("文件", "File"), icon: "square.and.pencil") { store.createNote() })
+        items.append(CommandItem(key: "file.newFolder", title: _L("新建文件夹…", "New Folder…"), category: _L("文件", "File"), icon: "folder.badge.plus") {
             NotificationCenter.default.post(name: .requestNewCategory, object: nil)
         })
-        items.append(CommandItem(key: "file.importFiles", title: "导入文件…", category: "文件", icon: "square.and.arrow.down") {
+        items.append(CommandItem(key: "file.importFiles", title: _L("导入文件…", "Import Files…"), category: _L("文件", "File"), icon: "square.and.arrow.down") {
             NotificationCenter.default.post(name: .requestImportFiles, object: nil)
         })
-        items.append(CommandItem(key: "file.importFolder", title: "导入文件夹…", category: "文件", icon: "folder") {
+        items.append(CommandItem(key: "file.importFolder", title: _L("导入文件夹…", "Import Folder…"), category: _L("文件", "File"), icon: "folder") {
             NotificationCenter.default.post(name: .requestImportFolder, object: nil)
         })
-        items.append(CommandItem(key: "file.delete", title: "删除选中笔记（移入回收站）", category: "文件", icon: "trash") {
+        items.append(CommandItem(key: "file.delete", title: _L("删除选中文件（物理删除）", "Delete Selected File (Permanently)"), category: _L("文件", "File"), icon: "trash") {
             store.deleteSelection()
         })
-        items.append(CommandItem(key: "file.attachments", title: "打开附件面板", category: "文件", icon: "paperclip") {
-            NotificationCenter.default.post(name: .requestAttachments, object: nil)
-        })
-        items.append(CommandItem(key: "file.versions", title: "历史版本…", category: "文件", icon: "clock.arrow.circlepath") {
+        items.append(CommandItem(key: "file.versions", title: _L("历史版本…", "History Versions…"), category: _L("文件", "File"), icon: "clock.arrow.circlepath") {
             NotificationCenter.default.post(name: .requestVersions, object: nil)
         })
-        items.append(CommandItem(key: "export.md", title: "导出 Markdown…", category: "导出", icon: "square.and.arrow.up") { ExportService.exportMD(store) })
-        items.append(CommandItem(key: "export.txt", title: "导出纯文本…", category: "导出", icon: "doc.plaintext") { ExportService.exportTXT(store) })
-        items.append(CommandItem(key: "export.pdf", title: "导出 PDF…", category: "导出", icon: "doc.richtext") { ExportService.exportPDF(store) })
-        items.append(CommandItem(key: "export.html", title: "导出 HTML…", category: "导出", icon: "globe") { ExportService.exportHTML(store) })
+        items.append(CommandItem(key: "export.md", title: _L("导出 Markdown…", "Export Markdown…"), category: _L("导出", "Export"), icon: "square.and.arrow.up") { ExportService.exportMD(store) })
+        items.append(CommandItem(key: "export.txt", title: _L("导出纯文本…", "Export Plain Text…"), category: _L("导出", "Export"), icon: "doc.plaintext") { ExportService.exportTXT(store) })
+        items.append(CommandItem(key: "export.pdf", title: _L("导出 PDF…", "Export PDF…"), category: _L("导出", "Export"), icon: "doc.richtext") { ExportService.exportPDF(store) })
+        items.append(CommandItem(key: "export.html", title: _L("导出 HTML…", "Export HTML…"), category: _L("导出", "Export"), icon: "globe") { ExportService.exportHTML(store) })
 
-        items.append(CommandItem(key: "view.editor", title: "仅编辑", category: "视图", icon: "text.cursor") {
+        items.append(CommandItem(key: "view.editor", title: _L("仅编辑", "Editor Only"), category: _L("视图", "View"), icon: "text.cursor") {
             Self.setMode(EditorMode.editor.rawValue)
         })
-        items.append(CommandItem(key: "view.split", title: "分屏", category: "视图", icon: "rectangle.split.2x1") {
+        items.append(CommandItem(key: "view.split", title: _L("分屏", "Split"), category: _L("视图", "View"), icon: "rectangle.split.2x1") {
             Self.setMode(EditorMode.split.rawValue)
         })
-        items.append(CommandItem(key: "view.preview", title: "仅预览", category: "视图", icon: "doc.richtext") {
+        items.append(CommandItem(key: "view.preview", title: _L("仅预览", "Preview Only"), category: _L("视图", "View"), icon: "doc.richtext") {
             Self.setMode(EditorMode.preview.rawValue)
         })
 
-        for theme in Theme.allCases {
-            items.append(CommandItem(key: "theme." + theme.rawValue, title: "主题：\(theme.name)", category: "主题", icon: "paintpalette") {
-                store.setTheme(theme)
+
+        // AI 问答 / 选中文本快捷操作
+        items.append(CommandItem(key: "ai.panel", title: _L("AI 问答面板（显示/隐藏）", "AI Chat Panel (Show/Hide)"), category: _L("AI", "AI"), icon: "sparkles") {
+            NotificationCenter.default.post(name: .aiPanelToggle, object: nil)
+        })
+        for action in AIQuickAction.allCases {
+            items.append(CommandItem(key: "ai." + action.rawValue, title: _L("AI \(action.title)（选中内容）", "AI \(action.title) (Selected Text)"), category: _L("AI", "AI"), icon: action.icon) {
+                NotificationCenter.default.post(name: .aiQuickActionRequested, object: action)
             })
         }
 
-        for mode in NotesStore.SortMode.allCases {
-            items.append(CommandItem(key: "sort." + mode.rawValue, title: "排序：\(mode.name)", category: "排序", icon: "arrow.up.arrow.down") {
-                store.sortMode = mode
-            })
-        }
-
-        items.append(CommandItem(key: "help.shortcuts", title: "查看快捷键一览…", category: "帮助", icon: "keyboard") {
+        items.append(CommandItem(key: "help.shortcuts", title: _L("查看快捷键一览…", "View Shortcuts…"), category: _L("帮助", "Help"), icon: "keyboard") {
             NSAlert.helpShortcuts()
         })
 
@@ -98,11 +94,50 @@ enum CommandRegistry {
             (.attachment, "paperclip"),
         ]
         for (kind, icon) in insertItems {
-            items.append(CommandItem(key: "insert." + kind.rawValue, title: "插入：\(kind.title)", category: "插入", icon: icon) {
+            items.append(CommandItem(key: "insert." + kind.rawValue, title: _L("插入：\(kind.title)", "Insert: \(kind.title)"), category: _L("插入", "Insert"), icon: icon) {
                 NotificationCenter.default.post(name: .insertMarkdown, object: kind)
             })
         }
 
+        // 插件命令（P4：白名单 action 映射到宿主动作）
+        let pluginActions: [String: () -> Void] = [
+            "newNote": { store.createNote() },
+            "newFolder": { NotificationCenter.default.post(name: .requestNewCategory, object: nil) },
+            "importFiles": { NotificationCenter.default.post(name: .requestImportFiles, object: nil) },
+            "importFolder": { NotificationCenter.default.post(name: .requestImportFolder, object: nil) },
+            "toggleSidebar": { NotificationCenter.default.post(name: .toggleSidebarRequested, object: nil) },
+            "toggleAIPanel": { NotificationCenter.default.post(name: .aiPanelToggle, object: nil) },
+            "openSettings": { NSApp.sendAction(Selector("showSettingsWindow:"), to: nil, from: nil) },
+            "showVersions": { NotificationCenter.default.post(name: .requestVersions, object: nil) },
+            "showQuickOpen": { NotificationCenter.default.post(name: .quickOpenRequested, object: nil) },
+            "aiPanel": { NotificationCenter.default.post(name: .aiPanelToggle, object: nil) },
+            "aiTranslate": { NotificationCenter.default.post(name: .aiQuickActionRequested, object: AIQuickAction.translate) },
+            "aiRewrite": { NotificationCenter.default.post(name: .aiQuickActionRequested, object: AIQuickAction.rewrite) },
+            "aiPolish": { NotificationCenter.default.post(name: .aiQuickActionRequested, object: AIQuickAction.polish) },
+            "modeEditor": { CommandRegistry.setMode(EditorMode.editor.rawValue) },
+            "modeSplit": { CommandRegistry.setMode(EditorMode.split.rawValue) },
+            "modePreview": { CommandRegistry.setMode(EditorMode.preview.rawValue) },
+        ]
+        for c in PluginManager.shared.allCommands() {
+            if let action = pluginActions[c.actionID] {
+                items.append(CommandItem(key: c.id, title: c.name, category: c.category, icon: c.icon, action: action))
+            }
+        }
+        // 插件 snippets：插入模板
+        for sn in PluginManager.shared.allSnippets() where sn.language == "all" || sn.language == "markdown" || sn.language == "code" {
+            items.append(CommandItem(key: "sn.\(sn.id)", title: _L("插入：\(sn.name)", "Insert: \(sn.name)"), category: _L("模板", "Template"), icon: "text.insert") {
+                NotificationCenter.default.post(name: .aiInsertResult, object: sn.displayText)
+            })
+        }
+        // 轻量设定：按特性开关过滤（隐藏禁用项）
+        items = items.filter { item in
+            switch item.key {
+            case "export.pdf": return FeatureModules.isEnabled(FeatureModules.exportPDF)
+            case "export.html": return FeatureModules.isEnabled(FeatureModules.exportHTML)
+            case "ai.translate", "ai.rewrite", "ai.polish": return FeatureModules.isEnabled(FeatureModules.aiQuickActions)
+            default: return true
+            }
+        }
         return items
     }
 
@@ -152,7 +187,7 @@ struct CommandPalette: View {
                 Image(systemName: "command")
                     .font(.system(size: 14))
                     .foregroundStyle(.tertiary)
-                TextField("输入命令…", text: $query)
+                TextField(_LL("输入命令…", "Type a command…"), text: $query)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14))
                     .focused($inputFocused)
@@ -165,7 +200,7 @@ struct CommandPalette: View {
             .padding(.vertical, 12)
 
             if filtered.isEmpty {
-                Text("没有匹配命令")
+                Text(_L("没有匹配命令", "No matching commands"))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity)
@@ -248,21 +283,35 @@ private struct CommandRow: View {
 private extension NSAlert {
     static func helpShortcuts() {
         let a = NSAlert()
-        a.messageText = "快捷键一览"
-        a.informativeText = """
-        新建笔记                          ⌘N
-        保存                              ⌘S
-        删除选中笔记（回收站）              ⌘⌫
-        命令面板                          ⌃⇧P / ⇧⌘P
-        视图模式：编辑 / 分屏 / 预览        ⌘1 / ⌘2 / ⌘3
-        导入文件                          ⌘⇧I
-        上一篇 / 下一篇笔记                ⌥⌘↑ / ⌥⌘↓
-        切换笔记目录                       ⌘⇧O
-        设置（主题 / 字号 / 缩放）          ⌘,
-        插入语法（链接/代码/公式/表格）      ⌥⌘L · ⌥⌘C · ⌥⌘K · ⌥⌘F · ⌥⌘T
-        附件插入                          ⌥⌘P
-        """
-        a.addButton(withTitle: "好")
+        a.messageText = _L("快捷键一览", "Keyboard Shortcuts")
+        a.informativeText = _L("""
+新建文件                          ⌘N
+保存                              ⌘S
+删除选中文件（回收站）              ⌘⌫
+AI 问答面板                        ⇧⌘A / ⌥⌘A
+命令面板                          ⌃⇧P / ⇧⌘P
+视图模式：编辑 / 分屏 / 预览        ⌘1 / ⌘2 / ⌘3
+导入文件                          ⌘⇧I
+上一篇 / 下一篇文件                ⌥⌘↑ / ⌥⌘↓
+切换文件目录                       ⌘⇧O
+设置（主题 / 字号 / 缩放）          ⌘,
+插入语法（链接/代码/公式/表格）      ⌥⌘L · ⌥⌘C · ⌥⌘K · ⌥⌘F · ⌥⌘T
+附件插入                          ⌥⌘P
+""", """
+New File                          ⌘N
+Save                              ⌘S
+Delete Selected File (Trash)      ⌘⌫
+AI Chat Panel                     ⇧⌘A / ⌥⌘A
+Command Palette                   ⌃⇧P / ⇧⌘P
+View Mode: Editor / Split / Preview  ⌘1 / ⌘2 / ⌘3
+Import File                       ⌘⇧I
+Previous / Next File              ⌥⌘↑ / ⌥⌘↓
+Switch Workspace Directory        ⌘⇧O
+Settings (Theme / Font / Zoom)    ⌘,
+Insert Syntax (Link/Code/Math/Table)  ⌥⌘L · ⌥⌘C · ⌥⌘K · ⌥⌘F · ⌥⌘T
+Insert Attachment                 ⌥⌘P
+""")
+        a.addButton(withTitle: _L("好", "OK"))
         a.runModal()
     }
 }

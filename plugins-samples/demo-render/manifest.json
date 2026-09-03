@@ -1,0 +1,14 @@
+{
+  "id": "demo-render",
+  "name": "示例 · 小字段落扩展",
+  "version": "1.0.0",
+  "kind": "render",
+  "desc": "新语法：@@文字@@ → 小字（markdown-it 渲染插件）",
+  "main": "render.js",
+  "features": [
+    "注册 markdown-it 行内规则：@@小字@@",
+    "附带 CSS 样式（secondary 色 + 0.82em）",
+    "渲染层沙箱执行，失败不崩预览"
+  ],
+  "author": "随手示例"
+}

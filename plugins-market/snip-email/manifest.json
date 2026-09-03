@@ -1,0 +1,23 @@
+{
+  "id": "snip-email",
+  "name": "邮件模板包",
+  "version": "1.0.0",
+  "kind": "snippets",
+  "desc": "正式邮件 / 跟进邮件 / 请假邮件",
+  "features": [
+    "正式请求邮件",
+    "跟进催办邮件",
+    "请假/通知邮件"
+  ],
+  "author": "随手社区",
+  "main": "snippets.json",
+  "minAppVersion": "1.8.0",
+  "icon": "envelope",
+  "nameEn": "Email Template Pack",
+  "descEn": "Formal / follow-up / leave request emails",
+  "featuresEn": [
+    "Insert: formal request email",
+    "Insert: follow-up email",
+    "Insert: leave request email"
+  ]
+}

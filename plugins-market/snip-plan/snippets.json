@@ -1,0 +1,23 @@
+[
+  {
+    "id": "okr",
+    "name": "OKR 模板",
+    "language": "markdown",
+    "text": "## O（目标）\n\n## KR（关键结果）\n- [ ] KR1 \n- [ ] KR2 \n\n## 周检查\n- \n",
+    "textEn": "## Objective\n\n## Key Results\n- [ ] KR1 \n- [ ] KR2 \n\n## Weekly Check\n- \n"
+  },
+  {
+    "id": "project",
+    "name": "项目计划模板",
+    "language": "markdown",
+    "text": "## 目标 / 范围\n\n## 里程碑\n| 时间 | 交付 | 负责人 |\n| --- | --- | --- |\n|  |  |  |\n\n## 风险\n- \n",
+    "textEn": "## Goals / Scope\n\n## Milestones\n| Date | Deliverable | Owner |\n| --- | --- | --- |\n|  |  |  |\n\n## Risks\n- \n"
+  },
+  {
+    "id": "fitness-plan",
+    "name": "健身周计划",
+    "language": "markdown",
+    "text": "## 目标\n\n## 训练安排\n| 天 | 项目 | 组数x次数 |\n| --- | --- | --- |\n| 一 |  |  |\n\n## 饮食/恢复\n- \n",
+    "textEn": "## Goal\n\n## Training Schedule\n| Day | Exercise | Sets x Reps |\n| --- | --- | --- |\n| Mon |  |  |\n\n## Diet / Recovery\n- \n"
+  }
+]

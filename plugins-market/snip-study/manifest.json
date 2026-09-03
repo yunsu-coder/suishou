@@ -1,0 +1,25 @@
+{
+  "id": "snip-study",
+  "name": "学习笔记模板包",
+  "version": "1.0.0",
+  "kind": "snippets",
+  "desc": "康奈尔 / 费曼 / 错题本 / 读书笔记",
+  "features": [
+    "康奈尔笔记",
+    "费曼学习法",
+    "错题本模板",
+    "读书笔记模板"
+  ],
+  "author": "随手社区",
+  "main": "snippets.json",
+  "minAppVersion": "1.8.0",
+  "icon": "book.closed",
+  "nameEn": "Study Notes Template Pack",
+  "descEn": "Cornell / Feynman / mistake log / reading notes",
+  "featuresEn": [
+    "Insert: Cornell notes",
+    "Insert: Feynman method",
+    "Insert: mistake log",
+    "Insert: reading notes"
+  ]
+}

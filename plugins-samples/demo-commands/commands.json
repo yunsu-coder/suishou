@@ -1,0 +1,23 @@
+[
+  {
+    "id": "side",
+    "name": "插件: 显示/隐藏资源管理器",
+    "icon": "sidebar.left",
+    "category": "插件",
+    "action": "toggleSidebar"
+  },
+  {
+    "id": "ver",
+    "name": "插件: 查看历史版本",
+    "icon": "clock.arrow.circlepath",
+    "category": "插件",
+    "action": "showVersions"
+  },
+  {
+    "id": "qo",
+    "name": "插件: 快速打开",
+    "icon": "folder.badge.gearshape",
+    "category": "插件",
+    "action": "showQuickOpen"
+  }
+]

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "readme",
+    "name": "README 模板",
+    "language": "markdown",
+    "text": "# \n\n## 简介\n\n## 安装\n```\n\n```\n\n## 用法\n\n## 许可证\n",
+    "textEn": "# \n\n## Overview\n\n## Installation\n```\n\n```\n\n## Usage\n\n## License\n"
+  },
+  {
+    "id": "api",
+    "name": "API 文档模板",
+    "language": "markdown",
+    "text": "## 端点\n### GET /resource\n- 参数：\n- 返回：\n```json\n{ }\n```\n",
+    "textEn": "## Endpoints\n### GET /resource\n- Parameters:\n- Response:\n```json\n{ }\n```\n"
+  },
+  {
+    "id": "changelog",
+    "name": "CHANGELOG 模板",
+    "language": "markdown",
+    "text": "## v1.0.0 (yyyy-mm-dd)\n### Added\n- \n### Fixed\n- \n",
+    "textEn": "## v1.0.0 (yyyy-mm-dd)\n### Added\n- \n### Fixed\n- \n"
+  },
+  {
+    "id": "review",
+    "name": "代码审查清单",
+    "language": "markdown",
+    "text": "## 审查清单\n- [ ] 正确性\n- [ ] 边界条件\n- [ ] 安全性\n- [ ] 性能\n- [ ] 可读性\n- [ ] 测试覆盖\n",
+    "textEn": "## Review Checklist\n- [ ] Correctness\n- [ ] Edge cases\n- [ ] Security\n- [ ] Performance\n- [ ] Readability\n- [ ] Test coverage\n"
+  }
+]

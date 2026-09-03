@@ -1,0 +1,14 @@
+{
+  "id": "demo-filetypes",
+  "name": "示例 · TOML 定制",
+  "version": "1.0.0",
+  "kind": "filetypes",
+  "desc": "TOML 文件类型定制",
+  "main": "filetypes.json",
+  "features": [
+    ".toml 专属文件图标",
+    "注释符号 #",
+    "缩进 4 空格"
+  ],
+  "author": "随手示例"
+}

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "weekly",
+    "name": "周报模板",
+    "language": "markdown",
+    "text": "## 本周进展\n- \n\n## 下周计划\n- \n\n## 风险与求助\n- \n",
+    "textEn": "## This Week\n- \n\n## Next Week\n- \n\n## Risks & Help Needed\n- \n"
+  },
+  {
+    "id": "meeting",
+    "name": "会议纪要模板",
+    "language": "markdown",
+    "text": "## 会议信息\n- 时间：\n- 参会：\n\n## 结论\n- \n\n## 行动项\n| 事项 | 负责人 | 期限 |\n| --- | --- | --- |\n|  |  |  |\n",
+    "textEn": "## Meeting Info\n- Time:\n- Attendees:\n\n## Conclusions\n- \n\n## Action Items\n| Item | Owner | Due |\n| --- | --- | --- |\n|  |  |  |\n"
+  },
+  {
+    "id": "prd",
+    "name": "PRD 模板",
+    "language": "markdown",
+    "text": "## 背景与目标\n\n## 用户故事\n- \n\n## 功能需求\n### 1. \n- 优先级：P0\n\n## 验收标准\n- \n",
+    "textEn": "## Background & Goals\n\n## User Stories\n- \n\n## Functional Requirements\n### 1. \n- Priority: P0\n\n## Acceptance Criteria\n- \n"
+  },
+  {
+    "id": "retro",
+    "name": "复盘模板",
+    "language": "markdown",
+    "text": "## 目标回顾\n\n## 结果与预期\n- \n\n## 做对了\n- \n\n## 待改进\n- \n\n## 下一步行动\n- \n",
+    "textEn": "## Goals Review\n\n## Results vs Expectations\n- \n\n## What Went Well\n- \n\n## To Improve\n- \n\n## Next Actions\n- \n"
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "id": "demo-theme",
+  "name": "示例 · 琥珀森林",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "暖白底 + 琥珀绿的预览主题（CSS 变量包）",
+  "main": "theme.json",
+  "features": [
+    "预览配色一键切换（跟随内置主题之上）",
+    "CSS token 全覆盖：正文/代码/引用板/图表",
+    "设置页色板预览"
+  ],
+  "author": "随手示例"
+}

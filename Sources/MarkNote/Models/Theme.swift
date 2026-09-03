@@ -1,68 +1,50 @@
 import SwiftUI
 
-/// 主题 —— 配套 app 外观 + 预览配色。
-/// 预览侧通过 html data-theme + preview.css 变量组实现；系统主题走 prefers-color-scheme。
+/// 主题 —— 晨曦（暖白·琥珀）/ 夜航者（深空·蓝）
 enum Theme: String, CaseIterable, Identifiable, Codable {
-    case system
-    case night   // 夜航者 —— start 暗色系：深蓝黑底 + 粉 accent
-    case dawn    // 晨曦 —— start 亮色系：暖白底 + 琥珀 accent
-    case forest  // 墨林 —— 深墨绿底 + 琥珀绿 accent
-    case violet  // 紫鸢 —— 深紫底 + 紫罗兰 accent
+    case dawn
+    case night
 
     var id: String { rawValue }
 
     var name: String {
         switch self {
-        case .system: return "跟随系统"
-        case .night: return "夜航者"
-        case .dawn: return "晨曦"
-        case .forest: return "墨林"
-        case .violet: return "紫鸢"
+        case .dawn: return _L("晨曦", "Dawn")
+        case .night: return _L("夜航者", "Night Voyager")
         }
     }
-
     var subtitle: String {
         switch self {
-        case .system: return "深浅与系统外观一致"
-        case .night: return "深蓝黑 · 粉"
-        case .dawn: return "暖白 · 琥珀"
-        case .forest: return "墨绿 · 苔青"
-        case .violet: return "深紫 · 鸢尾"
+        case .dawn: return _L("暖白 · 琥珀", "Warm White · Amber")
+        case .night: return _L("深空 · 蓝", "Deep Space · Blue")
         }
     }
 
-    var previewDescription: String { "\(name) · \(subtitle)" }
-
-    /// 强制 macOS 外观；system = 跟随系统
-    var colorScheme: ColorScheme? {
+    /// macOS 外观：晨曦 = 浅色；夜航者 = 深色
+    var colorScheme: ColorScheme {
         switch self {
-        case .system: return nil
-        case .night, .forest, .violet: return .dark
         case .dawn: return .light
+        case .night: return .dark
         }
     }
 
-    /// SwiftUI 侧 accent（工具栏选中态等）
+    /// SwiftUI 侧 accent（工具栏选中态、活动条、行高亮等）
+    /// 对比度控制（对深色背景 ≥ 4.5:1）：夜航者取亮蓝 #7fa4ff
     var accent: Color {
         switch self {
-        case .system: return .accentColor
-        case .night: return Color(red: 1.0, green: 0.42, blue: 0.62)   // #ff6b9d
-        case .dawn: return Color(red: 0.75, green: 0.41, blue: 0.28)   // #c06848
-        case .forest: return Color(red: 0.45, green: 0.87, blue: 0.62) // #73de9e
-        case .violet: return Color(red: 0.72, green: 0.60, blue: 1.0)  // #b799ff
+        case .dawn: return Color(red: 0.737, green: 0.369, blue: 0.243) // #BC5E3E（深压至浅底 ≥4.5:1）
+        case .night: return Color(red: 0.50, green: 0.64, blue: 1.00)   // #7FA4FF（深底 ≥6.8:1）
         }
     }
 
-    /// 预览 html 的 data-theme 值；system 不设 → media query 决定
-    var dataTheme: String? { self == .system ? nil : rawValue }
+    /// 预览 html 的 data-theme 值
+    var dataTheme: String? { rawValue }
+
+    /// 选中态行底色（AppKit 侧；与 accent 同系）
+    var rowSelectionColor: Color { accent }
 }
 
-/// 启动时从 UserDefaults 恢复
+/// 当前主题（设置持久化，默认晨曦；过去固定单主题）
 var currentTheme: Theme {
-    get {
-        Theme(rawValue: UserDefaults.standard.string(forKey: "theme") ?? "") ?? .system
-    }
-    set {
-        UserDefaults.standard.set(newValue.rawValue, forKey: "theme")
-    }
+    Theme(rawValue: UserDefaults.standard.string(forKey: "theme") ?? "") ?? .dawn
 }
