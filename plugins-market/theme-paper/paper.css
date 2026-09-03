@@ -1,0 +1,24 @@
+/* 主题：米黄纸张（暖米黄 · 深棕 · 橙棕）
+   纸质写作感：纸感暖底、深棕墨水、橙棕点缀。 */
+:root[data-theme="dawn"],
+:root[data-theme="night"] {
+  --bg: #f5f0e6;
+  --surface: #fbf7ef;
+  --text: #43392e;
+  --text-secondary: #7a6c5a;
+  --border: rgba(67, 57, 46, 0.14);
+  --border-strong: rgba(67, 57, 46, 0.22);
+  --accent: #b8863b;
+  --accent-soft: rgba(184, 134, 59, 0.14);
+  --code-bg: #ece5d4;
+  --code-border: rgba(67, 57, 46, 0.12);
+  --code-text: #4a3d2c;
+  --note: #4f78c0; --note-bg: rgba(79, 120, 192, 0.10);
+  --tip: #2f8f5b;  --tip-bg:  rgba(47, 143, 91, 0.10);
+  --warn: #c07a1e; --warn-bg: rgba(192, 122, 30, 0.11);
+  --danger: #c0442a; --danger-bg: rgba(192, 68, 42, 0.09);
+  --info: #7b5bd8; --info-bg: rgba(123, 91, 216, 0.09);
+  --muted: #a89c88;
+  --hl-kw: #a3562b; --hl-str: #4f7d33; --hl-num: #2f6f6f; --hl-comment: #9c917e;
+  --hl-type: #8a5f18; --hl-func: #a86b12; --hl-tag: #a04340; --hl-attr: #6f6352;
+}

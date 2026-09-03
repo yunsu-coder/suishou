@@ -1,0 +1,9 @@
+[
+  {
+    "id": "paper",
+    "name": "米黄纸张",
+    "desc": "暖米黄纸底 + 深棕墨水，纸质写作",
+    "cssFile": "paper.css",
+    "swatchHex": "#b8863b"
+  }
+]

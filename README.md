@@ -33,7 +33,7 @@ _A macOS Markdown notes editor / local-first note-taking app. Files are the stor
 | AI 专家 | 学术(论文/英文写作/综述)、语言(口语/日语/翻译)、生活(时间/习惯/情绪) |
 | 文件类型 | 代码文件(ts/js/go/rs)、配置文件(env/ini) |
 | 命令 | 版本历史/快速打开/AI 面板直达 |
-| 主题 | Nord 冷灰蓝 |
+| 主题 | Nord / Gruvbox / Ocean / Paper / Cyberpunk / Solarized / Dracula |
 
 插件目录:工作台 `.plugins/<id>/` 或 `~/Library/Application Support/MarkNote/plugins/<id>/`;包元数据与模板正文含中英文。详见 `docs/05-内置插件库.md`。
 

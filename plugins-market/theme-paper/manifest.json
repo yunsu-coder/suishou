@@ -1,0 +1,21 @@
+{
+  "id": "theme-paper",
+  "name": "米黄纸张",
+  "nameEn": "Warm Paper",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "暖米黄纸底 + 深棕墨水，纸质写作感，纸感温和不刺眼",
+  "descEn": "Warm paper-cream background with deep-brown ink, a tactile paper feel that's easy on the eyes",
+  "features": [
+    "暖米黄纸张底，纸质写作氛围",
+    "深棕正文 + 橙棕点缀，温润耐读"
+  ],
+  "featuresEn": [
+    "Warm cream paper background, a tactile writing feel",
+    "Deep-brown text with orange-brown accents, warm and readable"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "doc.richtext"
+}

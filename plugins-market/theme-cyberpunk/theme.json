@@ -1,0 +1,9 @@
+[
+  {
+    "id": "cyberpunk",
+    "name": "赛博朋克",
+    "desc": "深紫黑底 + 霓虹粉/青点缀，赛博霓虹",
+    "cssFile": "cyberpunk.css",
+    "swatchHex": "#ff2ec4"
+  }
+]

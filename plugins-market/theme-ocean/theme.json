@@ -1,0 +1,9 @@
+[
+  {
+    "id": "ocean",
+    "name": "Ocean",
+    "desc": "深海蓝配色，亮青点缀，专注而清爽",
+    "cssFile": "ocean.css",
+    "swatchHex": "#4cc9f0"
+  }
+]

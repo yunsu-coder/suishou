@@ -1,0 +1,21 @@
+{
+  "id": "theme-ocean",
+  "name": "Ocean 海洋蓝",
+  "nameEn": "Ocean",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "深海蓝配色，清爽通透，冷静专注，适合阅读与写作",
+  "descEn": "Deep ocean blue palette, fresh and clear, calm and focused for reading and writing",
+  "features": [
+    "深海蓝调，清爽冷静",
+    "亮青点缀，通透舒适"
+  ],
+  "featuresEn": [
+    "Calm deep-blue palette, crisp and clear",
+    "Vivid cyan accent, fresh and comfortable"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "circle.lefthalf.filled"
+}

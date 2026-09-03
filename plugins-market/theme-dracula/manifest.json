@@ -1,0 +1,21 @@
+{
+  "id": "theme-dracula",
+  "name": "Dracula 暗紫",
+  "nameEn": "Dracula",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "程序员经典暗紫配色，高对比深色，代码聚焦",
+  "descEn": "Programmer's classic dark-purple palette, high contrast, code focus",
+  "features": [
+    "经典 Dracula 暗紫深色调，氛围感十足",
+    "高对比文本 + 紫 accent，代码高亮清晰"
+  ],
+  "featuresEn": [
+    "Classic Dracula dark-purple tones, rich atmosphere",
+    "High-contrast text + purple accent, crisp code highlight"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "moon.stars.fill"
+}

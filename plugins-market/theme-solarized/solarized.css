@@ -1,0 +1,53 @@
+/* MarkNote 插件主题 · Solarized 暖日
+   经典 Solarized 双色板：浅色(dawn)主打暖米白灵气，深色(night)随行。
+   palette: base03 #002b36 base02 #073642 base01 #586e75 base00 #657b83
+            base0  #839496 base1  #93a1a1 base2 #eee8d5 base3 #fdf6e3
+            blue #268bd2 cyan #2aa198 green #859900 yellow #b58900
+            orange #cb4b16 red #dc322f magenta #d33682 violet #6c71c4
+   对比度(text on bg)：浅 #586e75 on #fdf6e3 ≈ 5.4:1｜深 #93a1a1 on #002b36 ≈ 7.6:1 */
+:root[data-theme="dawn"] {
+  --bg: #fdf6e3;
+  --surface: #f3edd8;
+  --text: #586e75;
+  --text-secondary: #93a1a1;
+  --border: rgba(88, 110, 117, 0.15);
+  --border-strong: rgba(88, 110, 117, 0.30);
+  --accent: #268bd2;
+  --accent-soft: rgba(38, 139, 210, 0.12);
+  --code-bg: #eee8d5;
+  --code-border: rgba(88, 110, 117, 0.22);
+  --code-text: #586e75;
+  --note: #268bd2;  --note-bg: rgba(38, 139, 210, 0.10);
+  --tip: #859900;   --tip-bg:  rgba(133, 153, 0, 0.10);
+  --warn: #b58900;  --warn-bg: rgba(181, 137, 0, 0.12);
+  --danger: #dc322f; --danger-bg: rgba(220, 50, 47, 0.09);
+  --info: #6c71c4;  --info-bg: rgba(108, 113, 196, 0.10);
+  --muted: #b6b39c;
+  --hl-kw: #d33682; --hl-str: #859900; --hl-num: #2aa198; --hl-comment: #93a1a1;
+  --hl-type: #268bd2; --hl-func: #b58900; --hl-tag: #cb4b16; --hl-attr: #6c71c4;
+}
+:root[data-theme="night"] {
+  --bg: #002b36;
+  --surface: #073642;
+  --text: #93a1a1;
+  --text-secondary: #839496;
+  --border: rgba(147, 161, 161, 0.15);
+  --border-strong: rgba(147, 161, 161, 0.30);
+  --accent: #268bd2;
+  --accent-soft: rgba(38, 139, 210, 0.18);
+  --code-bg: #073642;
+  --code-border: rgba(147, 161, 161, 0.22);
+  --code-text: #839496;
+  --note: #268bd2;  --note-bg: rgba(38, 139, 210, 0.15);
+  --tip: #859900;   --tip-bg:  rgba(133, 153, 0, 0.13);
+  --warn: #b58900;  --warn-bg: rgba(181, 137, 0, 0.14);
+  --danger: #dc322f; --danger-bg: rgba(220, 50, 47, 0.12);
+  --info: #6c71c4;  --info-bg: rgba(108, 113, 196, 0.14);
+  --muted: #586e75;
+  --hl-kw: #d33682; --hl-str: #859900; --hl-num: #2aa198; --hl-comment: #586e75;
+  --hl-type: #268bd2; --hl-func: #b58900; --hl-tag: #cb4b16; --hl-attr: #6c71c4;
+}
+/* 表头/隔行用主题变量，避免残留内置硬编码白 */
+:root[data-theme="night"] .markdown-body th { background: var(--surface); }
+:root[data-theme="night"] .markdown-body tr:nth-child(even) td { background: rgba(147, 161, 161, 0.06); }
+:root[data-theme="dawn"] .markdown-body tr:nth-child(even) td { background: rgba(88, 110, 117, 0.05); }

@@ -33,7 +33,7 @@ Plugins are declarative (manifest + data files, no user code executed); enabled/
 | AI experts | Academic (paper/English writing/literature review), language (speaking/Japanese/translation), life (time/habit/emotion) |
 | File types | Code files (ts/js/go/rs), config files (env/ini) |
 | Commands | Versions / quick open / AI panel |
-| Themes | Nord cold gray-blue |
+| Themes | Nord / Gruvbox / Ocean / Paper / Cyberpunk / Solarized / Dracula |
 
 Plugin locations: workspace `.plugins/<id>/` or `~/Library/Application Support/MarkNote/plugins/<id>/`. Package metadata and template bodies are bilingual. See `docs/05-内置插件库.md` for details.
 

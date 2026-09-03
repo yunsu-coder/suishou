@@ -1,0 +1,21 @@
+{
+  "id": "theme-gruvbox",
+  "name": "Gruvbox 复古暖棕",
+  "nameEn": "Gruvbox",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "复古暖棕主题，温暖大地色系，低调耐看，适合沉浸式写作",
+  "descEn": "Retro warm brown theme with earthy tones, understated and timeless, ideal for immersive writing",
+  "features": [
+    "温暖大地色系，复古耐看",
+    "低对比护眼，长文写作不易疲劳"
+  ],
+  "featuresEn": [
+    "Warm earthy palette, retro and pleasing",
+    "Low-glare, reduces fatigue during long writing"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "paintpalette"
+}

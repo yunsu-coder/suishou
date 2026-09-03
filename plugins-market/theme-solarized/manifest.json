@@ -1,0 +1,21 @@
+{
+  "id": "theme-solarized",
+  "name": "Solarized 暖日",
+  "nameEn": "Solarized",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "经典 Solarized 暖米白配色，低对比护眼，日光清透灵动",
+  "descEn": "Classic Solarized warm-paper palette, low contrast, fresh and lively daylight",
+  "features": [
+    "经典 Solarized 双色板（浅色主打 / 深色可用）",
+    "暖米白底 + 蓝 accent，清透灵动，长时间阅读舒适"
+  ],
+  "featuresEn": [
+    "Classic Solarized dual palette (light primary / dark optional)",
+    "Warm paper background + blue accent, crisp and comfortable for long reading"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "sun.max.fill"
+}

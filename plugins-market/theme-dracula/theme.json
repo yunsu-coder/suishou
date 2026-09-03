@@ -1,0 +1,9 @@
+[
+  {
+    "id": "dracula",
+    "name": "Dracula 暗紫",
+    "desc": "经典 Dracula 暗紫深色调，高对比，程序员最爱",
+    "cssFile": "dracula.css",
+    "swatchHex": "#bd93f9"
+  }
+]

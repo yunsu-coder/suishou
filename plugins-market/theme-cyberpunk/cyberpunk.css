@@ -1,0 +1,24 @@
+/* 主题：赛博朋克（深紫黑 · 冰蓝白 · 霓虹粉/青）
+   深紫黑底、冰蓝白正文、霓虹粉主 accent、霓虹青辅点缀。 */
+:root[data-theme="dawn"],
+:root[data-theme="night"] {
+  --bg: #12001f;
+  --surface: #1a0a2e;
+  --text: #e6f7ff;
+  --text-secondary: #9b8bb5;
+  --border: rgba(230, 247, 255, 0.10);
+  --border-strong: rgba(230, 247, 255, 0.16);
+  --accent: #ff2ec4;
+  --accent-soft: rgba(255, 46, 196, 0.16);
+  --code-bg: #0d0016;
+  --code-border: rgba(230, 247, 255, 0.10);
+  --code-text: #d6f3ff;
+  --note: #4d9fff; --note-bg: rgba(77, 159, 255, 0.14);
+  --tip: #00e5ff;  --tip-bg:  rgba(0, 229, 255, 0.12);
+  --warn: #ffd166; --warn-bg: rgba(255, 209, 102, 0.12);
+  --danger: #ff5c7a; --danger-bg: rgba(255, 92, 122, 0.14);
+  --info: #b48ef5; --info-bg: rgba(180, 142, 245, 0.14);
+  --muted: #6f5f8a;
+  --hl-kw: #ff2ec4; --hl-str: #00e5ff; --hl-num: #ffd166; --hl-comment: #6f5f8a;
+  --hl-type: #b48ef5; --hl-func: #ffd166; --hl-tag: #ff5c7a; --hl-attr: #9be6ff;
+}

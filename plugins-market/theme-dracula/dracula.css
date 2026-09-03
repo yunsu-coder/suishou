@@ -1,0 +1,31 @@
+/* MarkNote 插件主题 · Dracula 暗紫
+   经典 Dracula 暗紫深色调（dark 为主，跟随系统深浅均显示同套配色）。
+   palette: bg #282a36 surface #343746 fg #f8f8f2 comment #6272a4
+            purple #bd93f9 cyan #8be9fd green #50fa7b yellow #f1fa8c
+            pink #ff79c6 red #ff5555 orange #ffb86c code #21222c
+   对比度(text on bg)：#f8f8f2 on #282a36 ≈ 12.5:1｜accent #bd93f9 ≈ 7.4:1 */
+:root[data-theme="dawn"],
+:root[data-theme="night"] {
+  --bg: #282a36;
+  --surface: #343746;
+  --text: #f8f8f2;
+  --text-secondary: #6272a4;
+  --border: rgba(248, 248, 242, 0.10);
+  --border-strong: rgba(248, 248, 242, 0.18);
+  --accent: #bd93f9;
+  --accent-soft: rgba(189, 147, 249, 0.16);
+  --code-bg: #21222c;
+  --code-border: rgba(248, 248, 242, 0.12);
+  --code-text: #f8f8f2;
+  --note: #8be9fd;  --note-bg: rgba(139, 233, 253, 0.12);
+  --tip: #50fa7b;   --tip-bg:  rgba(80, 250, 123, 0.12);
+  --warn: #f1fa8c;  --warn-bg: rgba(241, 250, 140, 0.12);
+  --danger: #ff5555; --danger-bg: rgba(255, 85, 85, 0.12);
+  --info: #bd93f9;  --info-bg: rgba(189, 147, 249, 0.14);
+  --muted: #6272a4;
+  --hl-kw: #ff79c6; --hl-str: #f1fa8c; --hl-num: #bd93f9; --hl-comment: #6272a4;
+  --hl-type: #8be9fd; --hl-func: #50fa7b; --hl-tag: #ff5555; --hl-attr: #ffb86c;
+}
+/* 表头/隔行用主题变量，避免残留内置硬编码白 */
+:root[data-theme="night"] .markdown-body th { background: var(--surface); }
+:root[data-theme="night"] .markdown-body tr:nth-child(even) td { background: rgba(248, 248, 242, 0.04); }

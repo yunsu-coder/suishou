@@ -1,0 +1,9 @@
+[
+  {
+    "id": "gruvbox",
+    "name": "Gruvbox",
+    "desc": "复古暖棕配色，暖红点缀，沉浸书写",
+    "cssFile": "gruvbox.css",
+    "swatchHex": "#fb4934"
+  }
+]

@@ -1,0 +1,9 @@
+[
+  {
+    "id": "solarized",
+    "name": "Solarized 暖日",
+    "desc": "经典 Solarized 暖米白配色，低对比护眼，日光清透",
+    "cssFile": "solarized.css",
+    "swatchHex": "#268bd2"
+  }
+]

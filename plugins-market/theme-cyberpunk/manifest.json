@@ -1,0 +1,21 @@
+{
+  "id": "theme-cyberpunk",
+  "name": "赛博朋克",
+  "nameEn": "Cyberpunk",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "深紫黑底 + 霓虹粉/青点缀，赛博霓虹夜读体验",
+  "descEn": "Deep purple-black background with neon pink/cyan accents, a cyberpunk neon reading experience",
+  "features": [
+    "深紫黑底 + 霓虹粉青双色点缀",
+    "高饱和霓虹，赛博夜读氛围"
+  ],
+  "featuresEn": [
+    "Deep purple-black background with neon pink/cyan accents",
+    "High-saturation neon glow for a cyberpunk night-reading vibe"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "bolt.horizontal"
+}

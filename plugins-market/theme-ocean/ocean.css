@@ -1,0 +1,72 @@
+/* Ocean 海洋蓝 · MarkNote 主题 (深色预设 + 浅色跟随系统) */
+:root {
+  /* 基础 */
+  --bg: #0d1b2a;
+  --surface: #14263a;
+  --text: #e0f1ff;
+  --text-secondary: #a9c7e0;
+  --border: #1e3a56;
+  --border-strong: #2e4f70;
+  --accent: #4cc9f0;
+  --accent-soft: rgba(76, 201, 240, 0.16);
+  /* 代码 */
+  --code-bg: #101d30;
+  --code-border: #1e3a56;
+  --code-text: #e0f1ff;
+  /* 提示块 */
+  --note: #4cc9f0;
+  --note-bg: rgba(76, 201, 240, 0.16);
+  --tip: #80ed99;
+  --tip-bg: rgba(128, 237, 153, 0.15);
+  --warn: #ffd166;
+  --warn-bg: rgba(255, 209, 102, 0.15);
+  --danger: #ff6b6b;
+  --danger-bg: rgba(255, 107, 107, 0.15);
+  --info: #4895ef;
+  --info-bg: rgba(72, 149, 239, 0.15);
+  --muted: #7ea2bf;
+  /* 语法高亮 */
+  --hl-kw: #ff6b6b;
+  --hl-str: #80ed99;
+  --hl-num: #ffd166;
+  --hl-comment: #5f7c99;
+  --hl-type: #ffd166;
+  --hl-func: #4cc9f0;
+  --hl-tag: #ff6b6b;
+  --hl-attr: #80ed99;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #e6f2fa;
+    --surface: #ffffff;
+    --text: #0d1b2a;
+    --text-secondary: #25455e;
+    --border: #bcd8ea;
+    --border-strong: #94bed8;
+    --accent: #0096c7;
+    --accent-soft: rgba(0, 150, 199, 0.12);
+    --code-bg: #f0f7fc;
+    --code-border: #bcd8ea;
+    --code-text: #0d1b2a;
+    --note: #0077b6;
+    --note-bg: rgba(0, 119, 182, 0.12);
+    --tip: #2a9d8f;
+    --tip-bg: rgba(42, 157, 143, 0.12);
+    --warn: #b57614;
+    --warn-bg: rgba(181, 118, 20, 0.12);
+    --danger: #d1495b;
+    --danger-bg: rgba(209, 73, 91, 0.12);
+    --info: #0077b6;
+    --info-bg: rgba(0, 119, 182, 0.12);
+    --muted: #4f6a83;
+    --hl-kw: #d1495b;
+    --hl-str: #2a9d8f;
+    --hl-num: #c77d1f;
+    --hl-comment: #6b8ba3;
+    --hl-type: #c77d1f;
+    --hl-func: #0077b6;
+    --hl-tag: #d1495b;
+    --hl-attr: #2a9d8f;
+  }
+}

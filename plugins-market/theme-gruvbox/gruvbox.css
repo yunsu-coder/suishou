@@ -1,0 +1,72 @@
+/* Gruvbox 复古暖棕 · MarkNote 主题 (深色预设 + 浅色跟随系统) */
+:root {
+  /* 基础 */
+  --bg: #1d2021;
+  --surface: #282828;
+  --text: #ebdbb2;
+  --text-secondary: #d5c4a1;
+  --border: #504945;
+  --border-strong: #665c54;
+  --accent: #fb4934;
+  --accent-soft: rgba(251, 73, 52, 0.16);
+  /* 代码 */
+  --code-bg: #282828;
+  --code-border: #504945;
+  --code-text: #ebdbb2;
+  /* 提示块 */
+  --note: #83a598;
+  --note-bg: rgba(131, 165, 152, 0.16);
+  --tip: #b8bb26;
+  --tip-bg: rgba(184, 187, 38, 0.16);
+  --warn: #fabd2f;
+  --warn-bg: rgba(250, 189, 47, 0.16);
+  --danger: #fb4934;
+  --danger-bg: rgba(251, 73, 52, 0.16);
+  --info: #83a598;
+  --info-bg: rgba(131, 165, 152, 0.16);
+  --muted: #a89984;
+  /* 语法高亮 */
+  --hl-kw: #fb4934;
+  --hl-str: #b8bb26;
+  --hl-num: #d3869b;
+  --hl-comment: #928374;
+  --hl-type: #fabd2f;
+  --hl-func: #83a598;
+  --hl-tag: #fb4934;
+  --hl-attr: #b8bb26;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fbf1c7;
+    --surface: #ebdbb2;
+    --text: #282828;
+    --text-secondary: #3c3836;
+    --border: #d5c4a1;
+    --border-strong: #bdae93;
+    --accent: #9d0006;
+    --accent-soft: rgba(157, 0, 6, 0.12);
+    --code-bg: #ebdbb2;
+    --code-border: #d5c4a1;
+    --code-text: #282828;
+    --note: #076678;
+    --note-bg: rgba(7, 102, 120, 0.12);
+    --tip: #79740e;
+    --tip-bg: rgba(121, 116, 14, 0.12);
+    --warn: #b57614;
+    --warn-bg: rgba(181, 118, 20, 0.12);
+    --danger: #9d0006;
+    --danger-bg: rgba(157, 0, 6, 0.12);
+    --info: #076678;
+    --info-bg: rgba(7, 102, 120, 0.12);
+    --muted: #665c54;
+    --hl-kw: #9d0006;
+    --hl-str: #79740e;
+    --hl-num: #8f3f71;
+    --hl-comment: #928374;
+    --hl-type: #b57614;
+    --hl-func: #076678;
+    --hl-tag: #9d0006;
+    --hl-attr: #79740e;
+  }
+}
