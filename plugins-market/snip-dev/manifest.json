@@ -1,0 +1,25 @@
+{
+  "id": "snip-dev",
+  "name": "开发者模板包",
+  "version": "1.0.0",
+  "kind": "snippets",
+  "desc": "README / API 文档 / 变更日志 / 代码审查清单",
+  "features": [
+    "插入：README 模板",
+    "插入：API 文档模板",
+    "插入：CHANGELOG 模板",
+    "插入：代码审查清单"
+  ],
+  "author": "随手社区",
+  "main": "snippets.json",
+  "minAppVersion": "1.8.0",
+  "icon": "hammer",
+  "nameEn": "Developer Template Pack",
+  "descEn": "README / API docs / CHANGELOG / code review checklist",
+  "featuresEn": [
+    "Insert: README template",
+    "Insert: API doc template",
+    "Insert: CHANGELOG template",
+    "Insert: code review checklist"
+  ]
+}

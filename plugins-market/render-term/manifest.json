@@ -1,0 +1,23 @@
+{
+  "id": "render-term",
+  "name": "终端风味代码块",
+  "version": "1.0.0",
+  "kind": "render",
+  "desc": "语法：以 $ 开头的连续行 → 终端块样式",
+  "features": [
+    "beforeRender：自动识别 $ 命令行块",
+    "afterRender：终端样式（黑底/绿字/光标）",
+    "与代码高亮共存"
+  ],
+  "author": "随手社区",
+  "main": "render.js",
+  "minAppVersion": "1.8.0",
+  "icon": "terminal",
+  "nameEn": "Terminal-style Code Blocks",
+  "descEn": "Syntax: consecutive lines starting with $ become terminal blocks",
+  "featuresEn": [
+    "beforeRender: auto-detect $ command blocks",
+    "afterRender: terminal style (black bg, green text, cursor)",
+    "Coexists with code highlighting"
+  ]
+}

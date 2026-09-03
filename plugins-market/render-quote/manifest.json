@@ -1,0 +1,21 @@
+{
+  "id": "render-quote",
+  "name": "引言美化",
+  "version": "1.0.0",
+  "kind": "render",
+  "desc": "块引用渲染为\"引言卡片\"样式",
+  "features": [
+    "引用块卡片：左侧大引号 + 底色",
+    "不影响嵌套引用语义"
+  ],
+  "author": "随手社区",
+  "main": "render.js",
+  "minAppVersion": "1.8.0",
+  "icon": "text.quote",
+  "nameEn": "Quote Beautifier",
+  "descEn": "Blockquotes render as elegant quote cards",
+  "featuresEn": [
+    "Quote card: large quotation mark + tinted background",
+    "Nested quotes keep their semantics"
+  ]
+}

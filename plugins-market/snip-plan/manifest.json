@@ -1,0 +1,23 @@
+{
+  "id": "snip-plan",
+  "name": "计划模板包",
+  "version": "1.0.0",
+  "kind": "snippets",
+  "desc": "OKR / 项目计划 / 健身计划 模板",
+  "features": [
+    "OKR 模板",
+    "项目计划模板",
+    "健身周计划模板"
+  ],
+  "author": "随手社区",
+  "main": "snippets.json",
+  "minAppVersion": "1.8.0",
+  "icon": "list.clipboard",
+  "nameEn": "Planning Template Pack",
+  "descEn": "OKR / project plan / fitness plan templates",
+  "featuresEn": [
+    "Insert: OKR template",
+    "Insert: project plan template",
+    "Insert: weekly fitness plan template"
+  ]
+}

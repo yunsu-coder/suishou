@@ -1,0 +1,23 @@
+[
+  {
+    "id": "formal",
+    "name": "正式邮件",
+    "language": "markdown",
+    "text": "主题：\n\n尊敬的 [称呼]：\n\n[正文：请求/说明/感谢]\n\n此致\n敬礼\n[署名]\n",
+    "textEn": "Subject:\n\nDear [Name]:\n\n[Body: request / explanation / thanks]\n\nBest regards\n[Your name]\n"
+  },
+  {
+    "id": "follow",
+    "name": "跟进邮件",
+    "language": "markdown",
+    "text": "主题：跟进 [事项]\n\n[称呼]，您好！\n\n此前于 [日期] 提交的 [事项]，想确认一下进展：[问题]\n\n期待回复，谢谢！\n[署名]\n",
+    "textEn": "Subject: Follow-up on [Topic]\n\nHi [Name],\n\nFollowing up on [Topic] submitted on [Date]. Could you confirm the progress: [Question]\n\nLooking forward to your reply. Thanks!\n[Your name]\n"
+  },
+  {
+    "id": "leave",
+    "name": "请假邮件",
+    "language": "markdown",
+    "text": "主题：请假申请 [日期]\n\n[称呼]：\n\n因 [原因]，申请 [起止日期] 请假 [天数] 天。期间手头任务已交接给 [同事]，紧急事务可联系我。\n\n请审批，谢谢！\n[署名]\n",
+    "textEn": "Subject: Leave Request [Dates]\n\nDear [Name]:\n\nDue to [Reason], I would like to request leave from [Start] to [End] ([Days] days). Tasks are handed over to [Colleague]; for urgent matters please contact me there.\n\nPlease approve. Thanks!\n[Your name]\n"
+  }
+]

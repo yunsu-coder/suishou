@@ -1,0 +1,25 @@
+{
+  "id": "snip-writing",
+  "name": "写作模板包",
+  "version": "1.0.0",
+  "kind": "snippets",
+  "desc": "周报 / 会议纪要 / PRD / 复盘 四套 Markdown 模板",
+  "features": [
+    "插入：周报模板",
+    "插入：会议纪要模板",
+    "插入：PRD 模板",
+    "插入：复盘模板"
+  ],
+  "author": "随手社区",
+  "main": "snippets.json",
+  "minAppVersion": "1.8.0",
+  "icon": "doc.badge.plus",
+  "nameEn": "Writing Template Pack",
+  "descEn": "Weekly report / meeting minutes / PRD / retro, four Markdown templates",
+  "featuresEn": [
+    "Insert: weekly report",
+    "Insert: meeting minutes",
+    "Insert: PRD",
+    "Insert: retro template"
+  ]
+}

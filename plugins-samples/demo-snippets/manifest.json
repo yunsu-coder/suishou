@@ -1,0 +1,14 @@
+{
+  "id": "demo-snippets",
+  "name": "示例 · 常用模板包",
+  "version": "1.0.0",
+  "kind": "snippets",
+  "desc": "Markdown 常用模板：待办清单 / 提示框",
+  "main": "snippets.json",
+  "features": [
+    "「插入：待办清单」一键生成",
+    "「插入：提示框」callout 模板",
+    "命令面板搜索即用"
+  ],
+  "author": "随手示例"
+}

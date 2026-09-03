@@ -1,0 +1,23 @@
+{
+  "id": "render-mention",
+  "name": "提及高亮 @名字",
+  "version": "1.0.0",
+  "kind": "render",
+  "desc": "新语法：@名字 → 高亮提及样式",
+  "features": [
+    "before：行内 @xxx 转 span.mention",
+    "after：链接/图片中的 @ 不受影响",
+    "团队协作笔记友好"
+  ],
+  "author": "随手社区",
+  "main": "render.js",
+  "minAppVersion": "1.8.0",
+  "icon": "at",
+  "nameEn": "Mention Highlight @name",
+  "descEn": "New syntax: @name renders as highlighted mention",
+  "featuresEn": [
+    "before: inline @xxx becomes span.mention",
+    "after: @ inside links/images is unaffected",
+    "Great for team collaboration notes"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "render-kbd",
+  "name": "键帽语法 [[键]]",
+  "version": "1.0.0",
+  "kind": "render",
+  "desc": "新语法：[[Ctrl]] 渲染为键帽样式",
+  "features": [
+    "markdown-it 行内规则：[[…]] → <kbd>",
+    "附键盘风格 CSS（圆角/阴影）",
+    "示例：按 [[⌘S]] 保存"
+  ],
+  "author": "随手社区",
+  "main": "render.js",
+  "minAppVersion": "1.8.0",
+  "icon": "keyboard",
+  "nameEn": "Keyboard Syntax [[key]]",
+  "descEn": "New syntax: [[Ctrl]] renders as a keycap",
+  "featuresEn": [
+    "Inline markdown-it rule: [[...]] becomes <kbd>",
+    "Keyboard-style CSS (rounded corners, shadow)",
+    "Example: press [[⌘S]] to save"
+  ]
+}

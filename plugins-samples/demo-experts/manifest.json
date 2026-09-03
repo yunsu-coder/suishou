@@ -1,0 +1,15 @@
+{
+  "id": "demo-experts",
+  "name": "示例 · 生活专家包",
+  "version": "1.0.0",
+  "kind": "experts",
+  "desc": "两位生活 AI 专家：健身教练与旅行规划师",
+  "main": "experts.json",
+  "minAppVersion": "1.8.0",
+  "features": [
+    "新增「健身教练」专家：训练/饮食/动作建议",
+    "新增「旅行规划师」专家：行程/预算/清单",
+    "AI 面板专家下拉一键切换"
+  ],
+  "author": "随手示例"
+}
