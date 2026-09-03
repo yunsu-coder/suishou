@@ -1,0 +1,23 @@
+{
+  "id": "render-badge",
+  "name": "徽章",
+  "nameEn": "Badge",
+  "version": "1.0.0",
+  "kind": "render",
+  "desc": "把「[badge:状态]」与「:::badge」标记渲染成彩色胶囊徽章",
+  "descEn": "Render '[badge:status]' and ':::badge' markers as colored pill badges",
+  "features": [
+    "行内语法「[badge:状态]」渲染为胶囊徽章",
+    "支持「[badge:状态|颜色]」与「:::badge 状态 颜色」区块",
+    "按关键词自动配色（成功/危险/警告/提示等）"
+  ],
+  "featuresEn": [
+    "Inline '[badge:status]' renders as a pill badge",
+    "Supports '[badge:status|color]' and ':::badge status color' blocks",
+    "Auto-colors by keyword (success/danger/warning/info)"
+  ],
+  "author": "随手社区",
+  "main": "render.js",
+  "minAppVersion": "1.8.0",
+  "icon": "tag"
+}

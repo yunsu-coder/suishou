@@ -1,0 +1,23 @@
+{
+  "id": "exp-writing2",
+  "name": "写作专家包",
+  "nameEn": "Writing Expert Pack",
+  "version": "1.0.0",
+  "kind": "experts",
+  "desc": "文案 · 小说 · 公文三位写作专家",
+  "descEn": "Three writing experts: copywriting, fiction, official documents",
+  "features": [
+    "文案小能手：把产品亮点转化为吸睛卖点与品牌主张",
+    "小说陪伴师：剧情、人物与文笔的创作搭档",
+    "公文写作助手：规范通知、请示、报告与讲话稿"
+  ],
+  "featuresEn": [
+    "Copywriting: turn product highlights into catchy selling points",
+    "Fiction companion: plot, character & prose as a writing partner",
+    "Official documents: standardized notices, requests & reports"
+  ],
+  "author": "随手社区",
+  "main": "experts.json",
+  "minAppVersion": "1.8.0",
+  "icon": "pencil"
+}

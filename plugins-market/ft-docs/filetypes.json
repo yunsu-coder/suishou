@@ -1,0 +1,22 @@
+{
+  "rst": {
+    "icon": "doc.richtext",
+    "comment": "#",
+    "indent": 0
+  },
+  "tex": {
+    "icon": "function",
+    "comment": "%",
+    "indent": 0
+  },
+  "org": {
+    "icon": "list.bullet",
+    "comment": "#",
+    "indent": 2
+  },
+  "adoc": {
+    "icon": "doc.richtext",
+    "comment": "//",
+    "indent": 0
+  }
+}

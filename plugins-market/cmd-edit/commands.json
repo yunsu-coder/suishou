@@ -1,0 +1,26 @@
+[
+  {
+    "id": "cmd-mode-editor",
+    "name": "切换为编辑模式",
+    "nameEn": "Switch to Editor Mode",
+    "icon": "square.and.pencil",
+    "category": "插件",
+    "action": "modeEditor"
+  },
+  {
+    "id": "cmd-mode-split",
+    "name": "切换为分屏模式",
+    "nameEn": "Switch to Split Mode",
+    "icon": "rectangle.split.2x1",
+    "category": "插件",
+    "action": "modeSplit"
+  },
+  {
+    "id": "cmd-mode-preview",
+    "name": "切换为仅预览模式",
+    "nameEn": "Switch to Preview Mode",
+    "icon": "eye",
+    "category": "插件",
+    "action": "modePreview"
+  }
+]

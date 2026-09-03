@@ -1,0 +1,23 @@
+{
+  "id": "render-imagefig",
+  "name": "图片相框",
+  "nameEn": "Image Figure",
+  "version": "1.0.0",
+  "kind": "render",
+  "desc": "为独立图片包裹 <figure>，并把说明渲染为图注",
+  "descEn": "Wrap standalone images in a <figure> and render captions",
+  "features": [
+    "为独立 <img> 包裹 <figure> 相框",
+    "把图片标题/替代文字渲染为 <figcaption> 图注",
+    "自动跳过已在 <figure> 内的图片，避免重复包裹"
+  ],
+  "featuresEn": [
+    "Wrap standalone <img> in a <figure> frame",
+    "Render image title/alt as a <figcaption> caption",
+    "Skips images already inside a <figure> to avoid double wrapping"
+  ],
+  "author": "随手社区",
+  "main": "render.js",
+  "minAppVersion": "1.8.0",
+  "icon": "photo.on.rectangle.angled"
+}

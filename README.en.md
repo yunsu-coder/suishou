@@ -30,8 +30,8 @@ Plugins are declarative (manifest + data files, no user code executed); enabled/
 | --- | --- |
 | Render extensions | keycap `[[⌘S]]`, mention highlight, quote beautifier, terminal-style code blocks, code-block copy button |
 | Template packs | Weekly/PRD/retro, README/API/CHANGELOG, Cornell/Feynman/mistake log, emails, OKR/project plan, diary/year/habit, deploy/incident/release checklist, syllabus/lesson/exam, diet/workout/sleep |
-| AI experts | Academic (paper/English writing/literature review), language (speaking/Japanese/translation), life (time/habit/emotion) |
-| File types | Code files (ts/js/go/rs), config files (env/ini) |
+| AI experts | Academic (paper/English writing/literature review), language (speaking/Japanese/translation), life (time/habit/emotion), coding (review/perf/algorithm), business (analysis/product/marketing), writing (copy/fiction/official docs) |
+| File types | Code files (ts/js/go/rs), config files (env/ini), markup (rst/tex/org/adoc), data files (parquet/feather/delta/csv/tsv) |
 | Commands | Versions / quick open / AI panel |
 | Themes | Nord / Gruvbox / Ocean / Paper / Cyberpunk / Solarized / Dracula |
 

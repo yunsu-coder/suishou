@@ -30,8 +30,8 @@ _A macOS Markdown notes editor / local-first note-taking app. Files are the stor
 | --- | --- |
 | 渲染扩展 | 键帽 `[[⌘S]]`、提及高亮、引言美化、终端代码块、代码块复制按钮 |
 | 模板包 | 周报/会议纪要/PRD/复盘、README/API/CHANGELOG、康奈尔/费曼/错题本、邮件、OKR/项目计划、日记/年度/打卡、部署/故障/上线检查、课程/教案/考试、饮食/运动/睡眠 |
-| AI 专家 | 学术(论文/英文写作/综述)、语言(口语/日语/翻译)、生活(时间/习惯/情绪) |
-| 文件类型 | 代码文件(ts/js/go/rs)、配置文件(env/ini) |
+| AI 专家 | 学术(论文/英文写作/综述)、语言(口语/日语/翻译)、生活(时间/习惯/情绪)、编程(代码评审/性能优化/算法)、商业(商业分析/产品经理/市场策划)、写作(文案/小说/公文) |
+| 文件类型 | 代码文件(ts/js/go/rs)、配置文件(env/ini)、排版语言(rst/tex/org/adoc)、数据文件(parquet/feather/delta/csv/tsv) |
 | 命令 | 版本历史/快速打开/AI 面板直达 |
 | 主题 | Nord / Gruvbox / Ocean / Paper / Cyberpunk / Solarized / Dracula |
 

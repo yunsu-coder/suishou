@@ -1,0 +1,21 @@
+{
+  "id": "ft-data2",
+  "name": "数据文件类型",
+  "nameEn": "Data File Types",
+  "version": "1.0.0",
+  "kind": "filetypes",
+  "desc": "为 parquet/feather/delta/csv/tsv 等数据文件识别图标、注释符与缩进",
+  "descEn": "Recognize icons, comment markers and indent for parquet/feather/delta/csv/tsv data files",
+  "features": [
+    "识别 parquet/feather/delta/csv/tsv 数据文件",
+    "为二进制列式格式提供图标，为文本分隔格式提供注释符"
+  ],
+  "featuresEn": [
+    "Recognize parquet/feather/delta/csv/tsv data files",
+    "Icons for binary columnar formats; comment marker for text delimited data"
+  ],
+  "author": "随手社区",
+  "main": "filetypes.json",
+  "minAppVersion": "1.8.0",
+  "icon": "tablecells"
+}

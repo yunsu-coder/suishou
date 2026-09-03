@@ -1,0 +1,23 @@
+{
+  "id": "render-tabs",
+  "name": "标签页",
+  "nameEn": "Tabs",
+  "version": "1.0.0",
+  "kind": "render",
+  "desc": "把「:::tabs / :::tab 名称」容器渲染成可切换的标签页",
+  "descEn": "Render ':::tabs / :::tab name' containers as switchable tabs",
+  "features": [
+    "将「:::tabs / :::tab 名称」容器渲染为标签页",
+    "默认激活第一个标签",
+    "提供标签栏激活态与内容面板样式"
+  ],
+  "featuresEn": [
+    "Render ':::tabs / :::tab name' containers as tabs",
+    "First tab is active by default",
+    "Provides tab bar active state and content panel styles"
+  ],
+  "author": "随手社区",
+  "main": "render.js",
+  "minAppVersion": "1.8.0",
+  "icon": "square.split.2x2"
+}

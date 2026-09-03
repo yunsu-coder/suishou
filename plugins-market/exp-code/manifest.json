@@ -1,0 +1,23 @@
+{
+  "id": "exp-code",
+  "name": "编程专家包",
+  "nameEn": "Coding Expert Pack",
+  "version": "1.0.0",
+  "kind": "experts",
+  "desc": "代码评审 · 性能优化 · 算法导师三位编程专家",
+  "descEn": "Three coding experts: code review, performance tuning, algorithm mentor",
+  "features": [
+    "代码评审专家：按规范审查代码质量与可维护性",
+    "性能优化专家：定位瓶颈并给出可落地的优化方案",
+    "算法导师：讲透算法思路、复杂度与编码实现"
+  ],
+  "featuresEn": [
+    "Code review: assess code quality & maintainability against standards",
+    "Performance tuning: locate bottlenecks and propose actionable fixes",
+    "Algorithm mentor: explain approaches, complexity & implementation"
+  ],
+  "author": "随手社区",
+  "main": "experts.json",
+  "minAppVersion": "1.8.0",
+  "icon": "chevron.left.forwardslash.chevron.right"
+}

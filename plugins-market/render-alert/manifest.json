@@ -1,0 +1,23 @@
+{
+  "id": "render-alert",
+  "name": "告警横幅",
+  "nameEn": "Alert Banner",
+  "version": "1.0.0",
+  "kind": "render",
+  "desc": "把「!!! 标题」标记渲染成显眼的告警横幅",
+  "descEn": "Render '!!! title' markers as prominent alert banners",
+  "features": [
+    "将「!!! 标题 / 内容」渲染为告警横幅",
+    "支持 warning/danger/info/success/note 等级别",
+    "按级别自动配色（左侧色条 + 背景色）"
+  ],
+  "featuresEn": [
+    "Render '!!! title / content' as alert banners",
+    "Supports warning/danger/info/success/note levels",
+    "Auto-colors by level (left accent bar + background)"
+  ],
+  "author": "随手社区",
+  "main": "render.js",
+  "minAppVersion": "1.8.0",
+  "icon": "exclamationmark.triangle"
+}

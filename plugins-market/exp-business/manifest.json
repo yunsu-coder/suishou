@@ -1,0 +1,23 @@
+{
+  "id": "exp-business",
+  "name": "商业专家包",
+  "nameEn": "Business Expert Pack",
+  "version": "1.0.0",
+  "kind": "experts",
+  "desc": "商业分析 · 产品经理 · 市场策划三位商业专家",
+  "descEn": "Three business experts: business analysis, product management, market planning",
+  "features": [
+    "商业分析专家：拆解行业与公司，用数据支撑商业决策",
+    "产品经理顾问：梳理需求、撰写 PRD 与规划优先级",
+    "市场策划师：策划活动、渠道组合与增长打法"
+  ],
+  "featuresEn": [
+    "Business analysis: dissect industry & company, data-driven decisions",
+    "Product manager: requirements, PRD & roadmap prioritization",
+    "Market planner: campaigns, channels & growth playbooks"
+  ],
+  "author": "随手社区",
+  "main": "experts.json",
+  "minAppVersion": "1.8.0",
+  "icon": "briefcase"
+}

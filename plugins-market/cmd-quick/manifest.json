@@ -1,0 +1,23 @@
+{
+  "id": "cmd-quick",
+  "name": "快速操作命令包",
+  "nameEn": "Quick Action Commands",
+  "version": "1.0.0",
+  "kind": "commands",
+  "desc": "高频快捷操作：快速打开、历史版本与 AI 面板",
+  "descEn": "High-frequency quick actions: quick open, version history and AI panel",
+  "features": [
+    "快速打开笔记",
+    "查看历史版本",
+    "切换 AI 面板"
+  ],
+  "featuresEn": [
+    "Quick open notes",
+    "View version history",
+    "Toggle AI panel"
+  ],
+  "author": "随手社区",
+  "main": "commands.json",
+  "minAppVersion": "1.8.0",
+  "icon": "bolt"
+}

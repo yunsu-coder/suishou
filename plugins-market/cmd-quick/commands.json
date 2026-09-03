@@ -1,0 +1,26 @@
+[
+  {
+    "id": "cmd-quick-open",
+    "name": "快速打开",
+    "nameEn": "Quick Open",
+    "icon": "magnifyingglass",
+    "category": "插件",
+    "action": "showQuickOpen"
+  },
+  {
+    "id": "cmd-version-history",
+    "name": "历史版本",
+    "nameEn": "Version History",
+    "icon": "clock.arrow.circlepath",
+    "category": "插件",
+    "action": "showVersions"
+  },
+  {
+    "id": "cmd-toggle-ai",
+    "name": "切换 AI 面板",
+    "nameEn": "Toggle AI Panel",
+    "icon": "sparkles",
+    "category": "插件",
+    "action": "toggleAIPanel"
+  }
+]

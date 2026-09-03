@@ -1,0 +1,21 @@
+{
+  "id": "ft-docs",
+  "name": "排版语言文件类型",
+  "nameEn": "Markup Language File Types",
+  "version": "1.0.0",
+  "kind": "filetypes",
+  "desc": "为 RST/TeX/Org/AsciiDoc 等排版语言识别图标、注释符与缩进",
+  "descEn": "Recognize icons, comment markers and indent for RST/TeX/Org/AsciiDoc markup",
+  "features": [
+    "识别 rst/tex/org/adoc 等排版语言文件",
+    "自动提供注释符与缩进配置"
+  ],
+  "featuresEn": [
+    "Recognize rst/tex/org/adoc markup language files",
+    "Automatically provide comment markers and indent"
+  ],
+  "author": "随手社区",
+  "main": "filetypes.json",
+  "minAppVersion": "1.8.0",
+  "icon": "doc.richtext"
+}

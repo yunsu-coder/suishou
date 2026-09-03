@@ -1,0 +1,23 @@
+{
+  "id": "cmd-edit",
+  "name": "编辑工具命令包",
+  "nameEn": "Editing Tool Commands",
+  "version": "1.0.0",
+  "kind": "commands",
+  "desc": "编辑视图模式切换：编辑聚焦 / 分屏 / 仅预览",
+  "descEn": "Switch editor view modes: focus editor, split view, preview only",
+  "features": [
+    "切换为编辑模式",
+    "切换为分屏模式",
+    "切换为仅预览模式"
+  ],
+  "featuresEn": [
+    "Switch to editor mode",
+    "Switch to split mode",
+    "Switch to preview mode"
+  ],
+  "author": "随手社区",
+  "main": "commands.json",
+  "minAppVersion": "1.8.0",
+  "icon": "wand.and.stars"
+}

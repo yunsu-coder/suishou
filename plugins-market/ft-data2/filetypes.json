@@ -1,0 +1,27 @@
+{
+  "parquet": {
+    "icon": "tablecells",
+    "comment": null,
+    "indent": 0
+  },
+  "feather": {
+    "icon": "tablecells",
+    "comment": null,
+    "indent": 0
+  },
+  "delta": {
+    "icon": "doc.text",
+    "comment": null,
+    "indent": 0
+  },
+  "csv": {
+    "icon": "tablecells",
+    "comment": "#",
+    "indent": 0
+  },
+  "tsv": {
+    "icon": "tablecells",
+    "comment": "#",
+    "indent": 0
+  }
+}

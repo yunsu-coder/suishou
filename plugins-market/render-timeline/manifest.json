@@ -1,0 +1,23 @@
+{
+  "id": "render-timeline",
+  "name": "时间轴",
+  "nameEn": "Timeline",
+  "version": "1.0.0",
+  "kind": "render",
+  "desc": "把连续的「- [标签] 内容」行渲染成竖排时间轴",
+  "descEn": "Render consecutive '- [label] content' lines as a vertical timeline",
+  "features": [
+    "将连续的「- [标签] 内容」渲染为竖排时间轴",
+    "提供时间轴线与节点圆点样式",
+    "自动区分任务清单“- [ ] / [x]”避免误判"
+  ],
+  "featuresEn": [
+    "Render consecutive '- [label] content' lines as a vertical timeline",
+    "Provides timeline rail and node dot styles",
+    "Distinguishes task-list '- [ ] / [x]' to avoid false positives"
+  ],
+  "author": "随手社区",
+  "main": "render.js",
+  "minAppVersion": "1.8.0",
+  "icon": "list.bullet.indent"
+}
