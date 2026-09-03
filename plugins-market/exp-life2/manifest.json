@@ -1,0 +1,23 @@
+{
+  "id": "exp-life2",
+  "name": "生活规划专家包",
+  "nameEn": "Life Planning Expert Pack",
+  "version": "1.0.0",
+  "kind": "experts",
+  "desc": "时间管理 · 习惯养成 · 情绪整理三位生活规划专家",
+  "descEn": "Three life planning experts: time management, habit building, mood organization",
+  "features": [
+    "时间管理教练：四象限周计划与优先级排序",
+    "习惯养成顾问：微习惯、打卡机制与复利思维",
+    "情绪整理师：倾听梳理与认知重评调节情绪"
+  ],
+  "featuresEn": [
+    "Time management coach: prioritization & weekly planning",
+    "Habit advisor: micro-habits, tracking & compounding",
+    "Mood organizer: listening, sorting & cognitive reframing"
+  ],
+  "author": "随手社区",
+  "main": "experts.json",
+  "minAppVersion": "1.8.0",
+  "icon": "calendar"
+}

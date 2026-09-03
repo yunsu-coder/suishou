@@ -1,0 +1,25 @@
+{
+  "id": "snip-personal",
+  "name": "个人生活模板包",
+  "version": "1.0.0",
+  "kind": "snippets",
+  "desc": "每日日记 / 年度计划 / 习惯打卡 / 感恩记录 模板",
+  "features": [
+    "每日日记模板",
+    "年度计划模板",
+    "习惯打卡模板",
+    "感恩记录模板"
+  ],
+  "author": "随手社区",
+  "main": "snippets.json",
+  "minAppVersion": "1.8.0",
+  "icon": "person.crop.circle",
+  "nameEn": "Personal Life Template Pack",
+  "descEn": "Daily journal / yearly plan / habit tracker / gratitude templates",
+  "featuresEn": [
+    "Insert: daily journal",
+    "Insert: yearly plan",
+    "Insert: habit tracker",
+    "Insert: gratitude log"
+  ]
+}

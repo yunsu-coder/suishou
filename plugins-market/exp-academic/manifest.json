@@ -1,0 +1,23 @@
+{
+  "id": "exp-academic",
+  "name": "学术专家包",
+  "nameEn": "Academic Expert Pack",
+  "version": "1.0.0",
+  "kind": "experts",
+  "desc": "论文写作 · 英语学术写作 · 文献综述三位学术专家",
+  "descEn": "Three academic experts: thesis writing, academic English, literature review",
+  "features": [
+    "论文写作导师：规划结构、凝练论点与打磨学术表达",
+    "英语学术写作者：润色地道学术表达并给出修改原因",
+    "文献综述助手：梳理框架、提炼研究缺口与批判评述"
+  ],
+  "featuresEn": [
+    "Write guide: structure planning, argument refinement & academic tone",
+    "Academic English: polish academic expression with explanations",
+    "Paper review: framing, research gap synthesis & critical commentary"
+  ],
+  "author": "随手社区",
+  "main": "experts.json",
+  "minAppVersion": "1.8.0",
+  "icon": "graduationcap"
+}

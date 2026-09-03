@@ -1,0 +1,9 @@
+[
+  {
+    "id": "nord",
+    "name": "Nord",
+    "desc": "冷灰蓝配色，晶莹蓝点缀，护眼专注",
+    "cssFile": "nord.css",
+    "swatchHex": "#88C0D0"
+  }
+]

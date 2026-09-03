@@ -1,0 +1,23 @@
+[
+  {
+    "id": "diet",
+    "name": "饮食日记",
+    "language": "markdown",
+    "text": "# 饮食日记\n\n## 日期\n- \n\n## 早餐\n- \n\n## 午餐\n- \n\n## 晚餐\n- \n\n## 加餐 / 零食\n- \n\n## 今日饮水（杯）\n- \n\n## 备注\n- \n",
+    "textEn": "# Diet Diary\n\n## Date\n- \n\n## Breakfast\n- \n\n## Lunch\n- \n\n## Dinner\n- \n\n## Snacks\n- \n\n## Water Intake (cups)\n- \n\n## Notes\n- \n"
+  },
+  {
+    "id": "workout",
+    "name": "运动记录",
+    "language": "markdown",
+    "text": "# 运动记录\n\n## 日期\n- \n\n## 运动类型\n- 有氧 / 力量 / 拉伸：\n\n## 训练内容\n| 动作 | 组数 x 次数 | 重量 |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n\n## 时长 / 强度\n- 时长：\n- 强度：\n\n## 感受\n- \n",
+    "textEn": "# Workout Log\n\n## Date\n- \n\n## Workout Type\n- Cardio / Strength / Stretching:\n\n## Exercises\n| Exercise | Sets x Reps | Weight |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n\n## Duration / Intensity\n- Duration:\n- Intensity:\n\n## How I Felt\n- \n"
+  },
+  {
+    "id": "sleep",
+    "name": "睡眠日志",
+    "language": "markdown",
+    "text": "# 睡眠日志\n\n## 日期\n- \n\n## 入睡时间\n- \n\n## 起床时间\n- \n\n## 睡眠时长\n- \n\n## 睡眠质量\n- 评分（1-5）：\n\n## 影响因素\n- 咖啡因：\n- 运动：\n- 压力：\n\n## 备注\n- \n",
+    "textEn": "# Sleep Journal\n\n## Date\n- \n\n## Bedtime\n- \n\n## Wake Time\n- \n\n## Sleep Duration\n- \n\n## Sleep Quality\n- Rating (1-5):\n\n## Factors\n- Caffeine:\n- Exercise:\n- Stress:\n\n## Notes\n- \n"
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "id": "exp-language",
+  "name": "语言学习专家包",
+  "nameEn": "Language Learning Expert Pack",
+  "version": "1.0.0",
+  "kind": "experts",
+  "desc": "英语口语 · 日语入门 · 多语翻译三位语言专家",
+  "descEn": "Three language experts: spoken English, Japanese basics, multilingual translation",
+  "features": [
+    "英语口语陪练：情景对话提升流利度与表达准确度",
+    "日语入门老师：从五十音到基础句型循序渐进",
+    "多语翻译官：中英日等多语互译并兼顾语感"
+  ],
+  "featuresEn": [
+    "Spoken English practice: scenario dialogues for fluency",
+    "Japanese beginner teacher: kana to basic grammar step by step",
+    "Multilingual translator: cross-language rendering with nuance"
+  ],
+  "author": "随手社区",
+  "main": "experts.json",
+  "minAppVersion": "1.8.0",
+  "icon": "globe"
+}

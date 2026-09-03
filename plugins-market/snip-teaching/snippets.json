@@ -1,0 +1,23 @@
+[
+  {
+    "id": "syllabus",
+    "name": "课程大纲",
+    "language": "markdown",
+    "text": "# 课程大纲\n\n## 课程名称\n- \n\n## 课程简介\n- \n\n## 教学目标\n1. \n\n## 课程安排\n| 周次 | 主题 | 内容 |\n| --- | --- | --- |\n| 1 |  |  |\n| 2 |  |  |\n| 3 |  |  |\n\n## 考核方式\n- \n",
+    "textEn": "# Syllabus\n\n## Course Title\n- \n\n## Course Overview\n- \n\n## Learning Objectives\n1. \n\n## Schedule\n| Week | Topic | Content |\n| --- | --- | --- |\n| 1 |  |  |\n| 2 |  |  |\n| 3 |  |  |\n\n## Assessment\n- \n"
+  },
+  {
+    "id": "lesson-plan",
+    "name": "教案",
+    "language": "markdown",
+    "text": "# 教案\n\n## 课题\n- \n\n## 授课对象\n- \n\n## 教学目标\n1. \n\n## 教学重难点\n- 重点：\n- 难点：\n\n## 教学过程\n### 导入\n- \n\n### 讲授\n- \n\n### 练习与反馈\n- \n\n### 小结\n- \n\n## 教学反思\n- \n",
+    "textEn": "# Lesson Plan\n\n## Topic\n- \n\n## Target Learners\n- \n\n## Learning Objectives\n1. \n\n## Key & Difficult Points\n- Key point:\n- Difficult point:\n\n## Teaching Procedure\n### Warm-up\n- \n\n### Instruction\n- \n\n### Practice & Feedback\n- \n\n### Summary\n- \n\n## Teaching Reflection\n- \n"
+  },
+  {
+    "id": "exam-analysis",
+    "name": "考试分析",
+    "language": "markdown",
+    "text": "# 考试分析\n\n## 考试信息\n- 科目：\n- 参考人数：\n- 平均分：\n- 最高分：\n\n## 成绩分布\n| 分数段 | 人数 | 占比 |\n| --- | --- | --- |\n| 90-100 |  |  |\n| 80-89 |  |  |\n| 60-79 |  |  |\n| <60 |  |  |\n\n## 错题分析\n1. \n\n## 教学改进\n- \n",
+    "textEn": "# Exam Analysis\n\n## Exam Info\n- Subject:\n- Number of students:\n- Average score:\n- Highest score:\n\n## Score Distribution\n| Score Range | Count | Ratio |\n| --- | --- | --- |\n| 90-100 |  |  |\n| 80-89 |  |  |\n| 60-79 |  |  |\n| <60 |  |  |\n\n## Mistake Analysis\n1. \n\n## Teaching Improvements\n- \n"
+  }
+]

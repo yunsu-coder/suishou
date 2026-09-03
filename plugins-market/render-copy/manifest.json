@@ -1,0 +1,21 @@
+{
+  "id": "render-copy",
+  "name": "代码块复制按钮",
+  "nameEn": "Code Copy Button",
+  "version": "1.0.0",
+  "kind": "render",
+  "desc": "为代码块右上角追加一键复制按钮",
+  "descEn": "Add a one-click copy button to the top-right of code blocks",
+  "features": [
+    "代码块右上角添加复制按钮",
+    "一键复制整段代码内容"
+  ],
+  "featuresEn": [
+    "Add a copy button to top-right of code blocks",
+    "One-click copy the whole code content"
+  ],
+  "author": "随手社区",
+  "main": "render.js",
+  "minAppVersion": "1.8.0",
+  "icon": "doc.on.doc"
+}

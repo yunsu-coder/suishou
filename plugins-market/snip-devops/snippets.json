@@ -1,0 +1,23 @@
+[
+  {
+    "id": "deploy",
+    "name": "部署记录",
+    "language": "markdown",
+    "text": "# 部署记录\n\n## 基本信息\n- 时间：\n- 负责人：\n- 环境：\n- 版本：\n\n## 变更内容\n1. \n\n## 部署步骤\n1. \n\n## 验证结果\n- [ ] 服务健康检查通过\n- [ ] 日志无异常\n\n## 回滚方案\n- \n",
+    "textEn": "# Deployment Record\n\n## Basic Info\n- Time:\n- Owner:\n- Environment:\n- Version:\n\n## Changes\n1. \n\n## Deploy Steps\n1. \n\n## Verification\n- [ ] Health check passed\n- [ ] No errors in logs\n\n## Rollback Plan\n- \n"
+  },
+  {
+    "id": "incident",
+    "name": "故障排查",
+    "language": "markdown",
+    "text": "# 故障排查\n\n## 故障现象\n- 影响范围：\n- 发生时间：\n\n## 影响程度\n- 严重度：\n\n## 排查过程\n1. \n\n## 根因分析\n- \n\n## 处理措施\n1. \n\n## 后续改进\n- [ ] 监控告警\n- [ ] 文档更新\n",
+    "textEn": "# Incident Troubleshooting\n\n## Symptoms\n- Impact scope:\n- Occurred at:\n\n## Severity\n- Severity:\n\n## Investigation\n1. \n\n## Root Cause\n- \n\n## Remediation\n1. \n\n## Follow-up Improvements\n- [ ] Monitoring alert\n- [ ] Doc update\n"
+  },
+  {
+    "id": "release-checklist",
+    "name": "上线检查单",
+    "language": "markdown",
+    "text": "# 上线检查单\n\n## 发布前\n- [ ] 测试通过\n- [ ] 代码评审通过\n\n## 发布中\n- [ ] 备份完成\n- [ ] 灰度发布\n\n## 发布后\n- [ ] 功能验证\n- [ ] 指标监控\n\n## 责任人\n- 发布人：\n- 复核人：\n",
+    "textEn": "# Release Checklist\n\n## Before Release\n- [ ] Tests passed\n- [ ] Code review done\n\n## During Release\n- [ ] Backup completed\n- [ ] Canary release\n\n## After Release\n- [ ] Feature verification\n- [ ] Metrics monitoring\n\n## Owners\n- Release owner:\n- Reviewer:\n"
+  }
+]

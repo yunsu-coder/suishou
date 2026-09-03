@@ -1,0 +1,47 @@
+{
+  "ts": {
+    "icon": "chevron.left.forwardslash.chevron.right",
+    "comment": "//",
+    "indent": 2
+  },
+  "tsx": {
+    "icon": "chevron.left.forwardslash.chevron.right",
+    "comment": "//",
+    "indent": 2
+  },
+  "js": {
+    "icon": "chevron.left.forwardslash.chevron.right",
+    "comment": "//",
+    "indent": 2
+  },
+  "jsx": {
+    "icon": "chevron.left.forwardslash.chevron.right",
+    "comment": "//",
+    "indent": 2
+  },
+  "go": {
+    "icon": "chevron.left.forwardslash.chevron.right",
+    "comment": "//",
+    "indent": 2
+  },
+  "rs": {
+    "icon": "chevron.left.forwardslash.chevron.right",
+    "comment": "//",
+    "indent": 4
+  },
+  "yaml": {
+    "icon": "chevron.left.forwardslash.chevron.right",
+    "comment": "#",
+    "indent": 2
+  },
+  "toml": {
+    "icon": "chevron.left.forwardslash.chevron.right",
+    "comment": "#",
+    "indent": 2
+  },
+  "jsonc": {
+    "icon": "chevron.left.forwardslash.chevron.right",
+    "comment": "//",
+    "indent": 2
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "snip-health",
+  "name": "健康记录模板包",
+  "version": "1.0.0",
+  "kind": "snippets",
+  "desc": "饮食日记 / 运动记录 / 睡眠日志 模板",
+  "features": [
+    "饮食日记模板",
+    "运动记录模板",
+    "睡眠日志模板"
+  ],
+  "author": "随手社区",
+  "main": "snippets.json",
+  "minAppVersion": "1.8.0",
+  "icon": "heart",
+  "nameEn": "Health Record Template Pack",
+  "descEn": "Diet diary / workout log / sleep journal templates",
+  "featuresEn": [
+    "Insert: diet diary",
+    "Insert: workout log",
+    "Insert: sleep journal"
+  ]
+}

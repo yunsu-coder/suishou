@@ -1,0 +1,27 @@
+{
+  "env": {
+    "icon": "slider.horizontal.3",
+    "comment": "#",
+    "indent": 0
+  },
+  "ini": {
+    "icon": "slider.horizontal.3",
+    "comment": ";",
+    "indent": 0
+  },
+  "cfg": {
+    "icon": "slider.horizontal.3",
+    "comment": "#",
+    "indent": 0
+  },
+  "conf": {
+    "icon": "slider.horizontal.3",
+    "comment": "#",
+    "indent": 0
+  },
+  "properties": {
+    "icon": "slider.horizontal.3",
+    "comment": "#",
+    "indent": 0
+  }
+}

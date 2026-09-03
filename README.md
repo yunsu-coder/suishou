@@ -28,8 +28,12 @@ _A macOS Markdown notes editor / local-first note-taking app. Files are the stor
 
 | 类别 | 内容 |
 | --- | --- |
-| 渲染扩展 | `[[⌘S]]` 键帽、`@名字` 提及高亮、引言美化、终端风味代码块 |
-| 模板包 | 周报/会议纪要/PRD/复盘、README/API/CHANGELOG、康奈尔/费曼/错题本、邮件、OKR/项目计划 |
+| 渲染扩展 | 键帽 `[[⌘S]]`、提及高亮、引言美化、终端代码块、代码块复制按钮 |
+| 模板包 | 周报/会议纪要/PRD/复盘、README/API/CHANGELOG、康奈尔/费曼/错题本、邮件、OKR/项目计划、日记/年度/打卡、部署/故障/上线检查、课程/教案/考试、饮食/运动/睡眠 |
+| AI 专家 | 学术(论文/英文写作/综述)、语言(口语/日语/翻译)、生活(时间/习惯/情绪) |
+| 文件类型 | 代码文件(ts/js/go/rs)、配置文件(env/ini) |
+| 命令 | 版本历史/快速打开/AI 面板直达 |
+| 主题 | Nord 冷灰蓝 |
 
 插件目录:工作台 `.plugins/<id>/` 或 `~/Library/Application Support/MarkNote/plugins/<id>/`;包元数据与模板正文含中英文。详见 `docs/05-内置插件库.md`。
 

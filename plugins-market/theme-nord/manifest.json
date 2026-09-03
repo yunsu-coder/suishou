@@ -1,0 +1,21 @@
+{
+  "id": "theme-nord",
+  "name": "Nord 冷灰蓝",
+  "nameEn": "Nord",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "北欧冷灰蓝主题，低饱和护眼，适合长时间写作",
+  "descEn": "Nordic cool gray-blue theme, low saturation, easy on the eyes for long writing",
+  "features": [
+    "冷灰蓝配色调性，护眼舒适",
+    "低饱和度，专注写作不易疲劳"
+  ],
+  "featuresEn": [
+    "Cool gray-blue palette, comfortable for eyes",
+    "Low saturation, reduces fatigue during long writing"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "circle.lefthalf.filled"
+}

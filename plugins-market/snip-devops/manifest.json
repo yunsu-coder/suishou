@@ -1,0 +1,23 @@
+{
+  "id": "snip-devops",
+  "name": "运维开发模板包",
+  "version": "1.0.0",
+  "kind": "snippets",
+  "desc": "部署记录 / 故障排查 / 上线检查单 模板",
+  "features": [
+    "部署记录模板",
+    "故障排查模板",
+    "上线检查单模板"
+  ],
+  "author": "随手社区",
+  "main": "snippets.json",
+  "minAppVersion": "1.8.0",
+  "icon": "terminal",
+  "nameEn": "DevOps Template Pack",
+  "descEn": "Deployment log / incident troubleshooting / release checklist templates",
+  "featuresEn": [
+    "Insert: deployment record",
+    "Insert: incident troubleshooting",
+    "Insert: release checklist"
+  ]
+}

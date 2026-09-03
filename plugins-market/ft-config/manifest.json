@@ -1,0 +1,21 @@
+{
+  "id": "ft-config",
+  "name": "配置文件类型",
+  "nameEn": "Config File Types",
+  "version": "1.0.0",
+  "kind": "filetypes",
+  "desc": "为常见配置文件识别图标、注释符与缩进",
+  "descEn": "Recognize icons, comment markers and indent for common config files",
+  "features": [
+    "识别 env/ini/cfg/conf/properties 配置",
+    "自动提供注释符与缩进配置"
+  ],
+  "featuresEn": [
+    "Recognize env/ini/cfg/conf/properties config files",
+    "Automatically provide comment markers and indent"
+  ],
+  "author": "随手社区",
+  "main": "filetypes.json",
+  "minAppVersion": "1.8.0",
+  "icon": "slider.horizontal.3"
+}

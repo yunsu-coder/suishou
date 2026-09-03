@@ -28,8 +28,12 @@ Plugins are declarative (manifest + data files, no user code executed); enabled/
 
 | Category | Contents |
 | --- | --- |
-| Render extensions | `[[⌘S]]` keycap, `@name` mention highlight, quote beautifier, terminal-style code blocks |
-| Template packs | Weekly report / meeting minutes / PRD / retro, README / API / CHANGELOG, Cornell / Feynman / mistake log, emails, OKR / project plan |
+| Render extensions | keycap `[[⌘S]]`, mention highlight, quote beautifier, terminal-style code blocks, code-block copy button |
+| Template packs | Weekly/PRD/retro, README/API/CHANGELOG, Cornell/Feynman/mistake log, emails, OKR/project plan, diary/year/habit, deploy/incident/release checklist, syllabus/lesson/exam, diet/workout/sleep |
+| AI experts | Academic (paper/English writing/literature review), language (speaking/Japanese/translation), life (time/habit/emotion) |
+| File types | Code files (ts/js/go/rs), config files (env/ini) |
+| Commands | Versions / quick open / AI panel |
+| Themes | Nord cold gray-blue |
 
 Plugin locations: workspace `.plugins/<id>/` or `~/Library/Application Support/MarkNote/plugins/<id>/`. Package metadata and template bodies are bilingual. See `docs/05-内置插件库.md` for details.
 

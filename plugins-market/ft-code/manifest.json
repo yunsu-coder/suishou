@@ -1,0 +1,21 @@
+{
+  "id": "ft-code",
+  "name": "代码文件类型",
+  "nameEn": "Code File Types",
+  "version": "1.0.0",
+  "kind": "filetypes",
+  "desc": "为常用代码文件识别图标、注释符与缩进",
+  "descEn": "Recognize icons, comment markers and indent for common code files",
+  "features": [
+    "识别 ts/tsx/js/jsx/go/rs 等代码文件",
+    "为 yaml/toml/jsonc 提供注释符与缩进"
+  ],
+  "featuresEn": [
+    "Recognize ts/tsx/js/jsx/go/rs code files",
+    "Provide comment markers and indent for yaml/toml/jsonc"
+  ],
+  "author": "随手社区",
+  "main": "filetypes.json",
+  "minAppVersion": "1.8.0",
+  "icon": "chevron.left.forwardslash.chevron.right"
+}

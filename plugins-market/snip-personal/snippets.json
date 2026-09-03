@@ -1,0 +1,30 @@
+[
+  {
+    "id": "daily",
+    "name": "每日日记",
+    "language": "markdown",
+    "text": "# 每日日记\n\n## 日期\n- 天气：\n- 心情：\n\n## 今日待办\n- [ ] \n- [ ] \n\n## 今日完成\n- \n\n## 收获与思考\n- \n\n## 明日计划\n- [ ] \n",
+    "textEn": "# Daily Journal\n\n## Date\n- Weather:\n- Mood:\n\n## Today's To-Do\n- [ ] \n- [ ] \n\n## Accomplished\n- \n\n## Insights & Reflections\n- \n\n## Tomorrow's Plan\n- [ ] \n"
+  },
+  {
+    "id": "year",
+    "name": "年度计划",
+    "language": "markdown",
+    "text": "# 年度计划\n\n## 年度目标\n1. \n\n## 季度拆解\n| 季度 | 目标 | 关键行动 |\n| --- | --- | --- |\n| Q1 |  |  |\n| Q2 |  |  |\n| Q3 |  |  |\n| Q4 |  |  |\n\n## 个人成长\n- \n\n## 复盘节点\n- [ ] 6 月中期复盘\n- [ ] 12 月年度复盘\n",
+    "textEn": "# Yearly Plan\n\n## Annual Goals\n1. \n\n## Quarterly Breakdown\n| Quarter | Goal | Key Actions |\n| --- | --- | --- |\n| Q1 |  |  |\n| Q2 |  |  |\n| Q3 |  |  |\n| Q4 |  |  |\n\n## Personal Growth\n- \n\n## Review Points\n- [ ] Mid-year review in June\n- [ ] Year-end review in December\n"
+  },
+  {
+    "id": "habit-track",
+    "name": "习惯打卡",
+    "language": "markdown",
+    "text": "# 习惯打卡\n\n## 本月习惯\n| 习惯 | 目标 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| 早起 | 30 天 |  |  |  |  |  |  |  |\n| 阅读 | 15 天 |  |  |  |  |  |  |  |\n| 运动 | 20 天 |  |  |  |  |  |  |  |\n\n## 打卡说明\n- 完成打 ☑\n- 未完成打 ☐\n\n## 本月复盘\n- \n",
+    "textEn": "# Habit Tracker\n\n## Monthly Habits\n| Habit | Target | 1 | 2 | 3 | 4 | 5 | 6 | 7 |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| Wake early | 30 days |  |  |  |  |  |  |  |\n| Reading | 15 days |  |  |  |  |  |  |  |\n| Exercise | 20 days |  |  |  |  |  |  |  |\n\n## How to Mark\n- Mark ☑ when done\n- Mark ☐ when not done\n\n## Monthly Review\n- \n"
+  },
+  {
+    "id": "gratitude",
+    "name": "感恩记录",
+    "language": "markdown",
+    "text": "# 感恩记录\n\n## 日期\n- 年月日：\n\n## 今天值得感恩的三件事\n1. \n2. \n3. \n\n## 想对谁说声谢谢\n- \n\n## 一件小确幸\n- \n",
+    "textEn": "# Gratitude Log\n\n## Date\n- Date:\n\n## Three Things I'm Grateful For Today\n1. \n2. \n3. \n\n## Someone I Want to Thank\n- \n\n## One Small Joy\n- \n"
+  }
+]

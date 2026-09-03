@@ -1,0 +1,23 @@
+{
+  "id": "cmd-writer",
+  "name": "写手命令包",
+  "nameEn": "Writer Commands",
+  "version": "1.0.0",
+  "kind": "commands",
+  "desc": "面向写作的快捷命令：版本历史、快速打开与 AI 面板",
+  "descEn": "Quick writing commands: version history, quick open and AI panel",
+  "features": [
+    "调出版本历史",
+    "快速打开笔记",
+    "切换 AI 面板"
+  ],
+  "featuresEn": [
+    "Open version history",
+    "Quick open notes",
+    "Toggle the AI panel"
+  ],
+  "author": "随手社区",
+  "main": "commands.json",
+  "minAppVersion": "1.8.0",
+  "icon": "text.cursor"
+}
