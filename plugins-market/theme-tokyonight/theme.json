@@ -1,0 +1,9 @@
+[
+  {
+    "id": "tokyonight",
+    "name": "Tokyo Night",
+    "desc": "东京之夜配色，蓝紫冷调，静谧深邃",
+    "cssFile": "tokyonight.css",
+    "swatchHex": "#7AA2F7"
+  }
+]

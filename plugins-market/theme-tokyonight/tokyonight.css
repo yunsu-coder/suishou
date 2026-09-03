@@ -1,0 +1,74 @@
+/* MarkNote 插件主题 · Tokyo Night 东京之夜
+   经典 Tokyo Night 双色板：浅色(dawn/Day)蓝紫冷调，深色(night)夜城静谧。
+   palette: day   bg #E1E2E7 fg #3B4261 blue #2E7DE9 purple #9854F1 green #587539
+            night bg #1A1B26 fg #C0CAF5 blue #7AA2F7 purple #BB9AF7 red #F7768E
+   对比度(text on bg)：浅 #3B4261 on #E1E2E7 ≈ 7.6:1｜深 #C0CAF5 on #1A1B26 ≈ 10.6:1 */
+:root[data-theme="dawn"],
+:root[data-theme="night"] {
+  --bg: #E1E2E7;
+  --surface: #E9EAEE;
+  --text: #3B4261;
+  --text-secondary: #6E7492;
+  --border: rgba(59,66,97,0.16);
+  --border-strong: rgba(59,66,97,0.30);
+  --accent: #7AA2F7;
+  --accent-soft: rgba(122,162,247,0.20);
+  --code-bg: #D6D8E0;
+  --code-border: rgba(59,66,97,0.18);
+  --code-text: #3B4261;
+  --note: #2563B9;
+  --note-bg: rgba(46,125,233,0.11);
+  --tip: #526D35;
+  --tip-bg: rgba(88,117,57,0.11);
+  --warn: #9C5100;
+  --warn-bg: rgba(177,92,0,0.12);
+  --danger: #B23A3D;
+  --danger-bg: rgba(195,64,67,0.09);
+  --info: #7847BD;
+  --info-bg: rgba(120,71,189,0.09);
+  --muted: #9AA0B5;
+  --hl-kw: #7641BB;
+  --hl-str: #4D6632;
+  --hl-num: #934C00;
+  --hl-comment: #848CB5;
+  --hl-type: #225DAE;
+  --hl-func: #006689;
+  --hl-tag: #A8373A;
+  --hl-attr: #4D6632;
+}
+
+:root[data-theme="night"] {
+  --bg: #1A1B26;
+  --surface: #1F2233;
+  --text: #C0CAF5;
+  --text-secondary: #A9B1D6;
+  --border: rgba(192,202,245,0.10);
+  --border-strong: rgba(192,202,245,0.20);
+  --accent: #7AA2F7;
+  --accent-soft: rgba(122,162,247,0.18);
+  --code-bg: #16161E;
+  --code-border: rgba(192,202,245,0.12);
+  --code-text: #C0CAF5;
+  --note: #7AA2F7;
+  --note-bg: rgba(122,162,247,0.14);
+  --tip: #9ECE6A;
+  --tip-bg: rgba(158,206,106,0.12);
+  --warn: #E0AF68;
+  --warn-bg: rgba(224,175,104,0.12);
+  --danger: #F7768E;
+  --danger-bg: rgba(247,118,142,0.12);
+  --info: #BB9AF7;
+  --info-bg: rgba(187,154,247,0.14);
+  --muted: #565F89;
+  --hl-kw: #BB9AF7;
+  --hl-str: #9ECE6A;
+  --hl-num: #FF9E64;
+  --hl-comment: #565F89;
+  --hl-type: #7DCFFF;
+  --hl-func: #73DACA;
+  --hl-tag: #F7768E;
+  --hl-attr: #E0AF68;
+}
+/* 表头/隔行用主题变量，避免残留内置硬编码白 */
+:root[data-theme="night"] .markdown-body th { background: var(--surface); }
+:root[data-theme="night"] .markdown-body tr:nth-child(even) td { background: rgba(255,255,255,0.03); }

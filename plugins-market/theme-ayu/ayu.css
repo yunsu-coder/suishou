@@ -1,0 +1,68 @@
+/* Ayu 烬橙 · MarkNote 主题 (light / dawn 主打，dark / night 随行)
+   Ayu Light #FAFAFA/#3A3A3A · Ayu Dark #0F1419/#D9D9D9 · accent #FFB454 · 30 组 CSS 变量完整覆盖。 */
+:root[data-theme="dawn"],
+:root[data-theme="night"] {
+  --bg: #FAFAFA;
+  --surface: #FFFFFF;
+  --text: #3A3A3A;
+  --text-secondary: #626B73;
+  --border: rgba(58,58,58,0.14);
+  --border-strong: rgba(58,58,58,0.26);
+  --accent: #FFB454;
+  --accent-soft: rgba(255,180,84,0.16);
+  --code-bg: #F5F3EF;
+  --code-border: rgba(58,58,58,0.12);
+  --code-text: #3A3A3A;
+  --note: #1F6FA5;
+  --note-bg: rgba(31,111,165,0.12);
+  --tip: #3E7A1E;
+  --tip-bg: rgba(62,122,30,0.12);
+  --warn: #8A5A00;
+  --warn-bg: rgba(138,90,0,0.12);
+  --danger: #C22B2B;
+  --danger-bg: rgba(194,43,43,0.10);
+  --info: #6E3FB0;
+  --info-bg: rgba(110,63,176,0.10);
+  --muted: #6E767C;
+  --hl-kw: #A34F00;
+  --hl-str: #3E7A1E;
+  --hl-num: #8A48A3;
+  --hl-comment: #7A828A;
+  --hl-type: #1F6EB8;
+  --hl-func: #8A5C00;
+  --hl-tag: #3A6EA5;
+  --hl-attr: #B04E08;
+}
+
+:root[data-theme="night"] {
+  --bg: #0F1419;
+  --surface: #1A1E25;
+  --text: #D9D9D9;
+  --text-secondary: #8B95A5;
+  --border: rgba(217,217,217,0.10);
+  --border-strong: rgba(217,217,217,0.20);
+  --accent: #FFB454;
+  --accent-soft: rgba(255,180,84,0.16);
+  --code-bg: #0B0F14;
+  --code-border: rgba(217,217,217,0.12);
+  --code-text: #D9D9D9;
+  --note: #5CCFE6;
+  --note-bg: rgba(92,207,230,0.12);
+  --tip: #AAD94C;
+  --tip-bg: rgba(170,217,76,0.12);
+  --warn: #E6B450;
+  --warn-bg: rgba(230,180,80,0.12);
+  --danger: #F07178;
+  --danger-bg: rgba(240,113,120,0.12);
+  --info: #D2A6FF;
+  --info-bg: rgba(210,166,255,0.12);
+  --muted: #5A6673;
+  --hl-kw: #FF8F40;
+  --hl-str: #AAD94C;
+  --hl-num: #D2A6FF;
+  --hl-comment: #626A73;
+  --hl-type: #59C2FF;
+  --hl-func: #FFB454;
+  --hl-tag: #39BAE6;
+  --hl-attr: #F29668;
+}

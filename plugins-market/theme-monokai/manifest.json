@@ -1,0 +1,23 @@
+{
+  "id": "theme-monokai",
+  "name": "Monokai 经典编码",
+  "nameEn": "Monokai",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "经典 Monokai 编码配色，鲜明的绿青紫红高亮，对比强烈，适合代码与专注写作",
+  "descEn": "Classic Monokai coding palette with vivid green, cyan, purple and red highlights, high contrast, ideal for code and focused writing",
+  "features": [
+    "完整30个CSS变量",
+    "深浅双套配色",
+    "预览即时生效"
+  ],
+  "featuresEn": [
+    "Complete 30 CSS tokens",
+    "Light+dark variants",
+    "Instant preview"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "paintpalette"
+}

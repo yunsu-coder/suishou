@@ -1,0 +1,73 @@
+/* MarkNote 插件主题 · One Dark 暗黑
+   经典 One Dark 双色板：浅色(dawn) 白底灰字，深色(night) 深灰蓝标配。
+   palette: dark bg #282C34 fg #ABB2BF blue #61AFEF red #E06C75 green #98C379 code #21252B
+   对比度(text on bg)：浅 #383A42 on #FAFAFA ≈ 10.9:1｜深 #ABB2BF on #282C34 ≈ 6.6:1 */
+:root[data-theme="dawn"],
+:root[data-theme="night"] {
+  --bg: #FAFAFA;
+  --surface: #FFFFFF;
+  --text: #383A42;
+  --text-secondary: #686C77;
+  --border: rgba(56,58,66,0.16);
+  --border-strong: rgba(56,58,66,0.28);
+  --accent: #61AFEF;
+  --accent-soft: rgba(97,175,239,0.20);
+  --code-bg: #F0F1F3;
+  --code-border: rgba(56,58,66,0.16);
+  --code-text: #383A42;
+  --note: #3E75BB;
+  --note-bg: rgba(64,120,192,0.10);
+  --tip: #49812C;
+  --tip-bg: rgba(78,138,47,0.10);
+  --warn: #976C00;
+  --warn-bg: rgba(192,138,0,0.12);
+  --danger: #C64152;
+  --danger-bg: rgba(198,65,82,0.09);
+  --info: #8A3DB8;
+  --info-bg: rgba(138,61,184,0.09);
+  --muted: #8B8F98;
+  --hl-kw: #8A3DB8;
+  --hl-str: #467B2A;
+  --hl-num: #906700;
+  --hl-comment: #9A9EA7;
+  --hl-type: #3B6FB2;
+  --hl-func: #257979;
+  --hl-tag: #C13F50;
+  --hl-attr: #906700;
+}
+
+:root[data-theme="night"] {
+  --bg: #282C34;
+  --surface: #2E323C;
+  --text: #ABB2BF;
+  --text-secondary: #7A7F8A;
+  --border: rgba(171,178,191,0.10);
+  --border-strong: rgba(171,178,191,0.20);
+  --accent: #61AFEF;
+  --accent-soft: rgba(97,175,239,0.16);
+  --code-bg: #21252B;
+  --code-border: rgba(171,178,191,0.12);
+  --code-text: #ABB2BF;
+  --note: #61AFEF;
+  --note-bg: rgba(97,175,239,0.14);
+  --tip: #98C379;
+  --tip-bg: rgba(152,195,121,0.12);
+  --warn: #E5C07B;
+  --warn-bg: rgba(229,192,123,0.12);
+  --danger: #E06C75;
+  --danger-bg: rgba(224,108,117,0.12);
+  --info: #C678DD;
+  --info-bg: rgba(198,120,221,0.14);
+  --muted: #5C6370;
+  --hl-kw: #C678DD;
+  --hl-str: #98C379;
+  --hl-num: #D19A66;
+  --hl-comment: #5C6370;
+  --hl-type: #56B6C2;
+  --hl-func: #61AFEF;
+  --hl-tag: #E06C75;
+  --hl-attr: #E5C07B;
+}
+/* 表头/隔行用主题变量，避免残留内置硬编码白 */
+:root[data-theme="night"] .markdown-body th { background: var(--surface); }
+:root[data-theme="night"] .markdown-body tr:nth-child(even) td { background: rgba(255,255,255,0.03); }

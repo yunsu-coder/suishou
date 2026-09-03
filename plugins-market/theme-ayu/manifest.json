@@ -1,0 +1,23 @@
+{
+  "id": "theme-ayu",
+  "name": "Ayu 烬橙",
+  "nameEn": "Ayu",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "Ayu 经典昼夜双色主题，昼白夜黑，暖橙点缀，清新克制适合码字",
+  "descEn": "Classic Ayu light & dark theme, warm-orange accents, fresh and restrained for writing",
+  "features": [
+    "完整30个CSS变量",
+    "深浅双套配色",
+    "预览即时生效"
+  ],
+  "featuresEn": [
+    "Complete 30 CSS tokens",
+    "Light+dark variants",
+    "Instant preview"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "paintpalette"
+}

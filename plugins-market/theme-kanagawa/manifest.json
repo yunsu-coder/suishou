@@ -1,0 +1,23 @@
+{
+  "id": "theme-kanagawa",
+  "name": "神奈川 和风水墨",
+  "nameEn": "Kanagawa",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "神奈川和风水墨主题，以米白与夜雾墨色为底、暖金点缀，宁静雅致，适合沉浸式写作与手账笔记",
+  "descEn": "Kanagawa-inspired ink-wash theme with ivory and ink-toned backgrounds accented by warm gold, serene and elegant for immersive writing and journaling",
+  "features": [
+    "完整30个CSS变量",
+    "深浅双套配色",
+    "预览即时生效"
+  ],
+  "featuresEn": [
+    "Complete 30 CSS tokens",
+    "Light+dark variants",
+    "Instant preview"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "paintpalette"
+}

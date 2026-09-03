@@ -1,0 +1,9 @@
+[
+  {
+    "id": "ayu",
+    "name": "Ayu",
+    "desc": "Ayu 经典昼夜配色，暖橙点缀，克制清爽",
+    "cssFile": "ayu.css",
+    "swatchHex": "#FFB454"
+  }
+]

@@ -1,0 +1,9 @@
+[
+  {
+    "id": "monokai",
+    "name": "Monokai",
+    "desc": "经典 Monokai 编码配色，鲜明绿紫高亮",
+    "cssFile": "monokai.css",
+    "swatchHex": "#A6E22E"
+  }
+]

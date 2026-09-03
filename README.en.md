@@ -33,7 +33,7 @@ Plugins are declarative (manifest + data files, no user code executed); enabled/
 | AI experts | Academic (paper/English writing/literature review), language (speaking/Japanese/translation), life (time/habit/emotion), coding (review/perf/algorithm), business (analysis/product/marketing), writing (copy/fiction/official docs) |
 | File types | Code files (ts/js/go/rs), config files (env/ini), markup (rst/tex/org/adoc), data files (parquet/feather/delta/csv/tsv) |
 | Commands | Versions / quick open / AI panel |
-| Themes | Nord / Gruvbox / Ocean / Paper / Cyberpunk / Solarized / Dracula |
+| Themes | 15 total: Nord / Gruvbox / Ocean / Paper / Cyberpunk / Solarized / Dracula / Kanagawa / Monokai / Tokyo Night / Catppuccin / One Dark / Ayu / Rosé Pine / Everforest |
 
 Plugin locations: workspace `.plugins/<id>/` or `~/Library/Application Support/MarkNote/plugins/<id>/`. Package metadata and template bodies are bilingual. See `docs/05-内置插件库.md` for details.
 

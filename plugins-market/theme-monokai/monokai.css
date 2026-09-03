@@ -1,0 +1,59 @@
+/* MarkNote 插件主题 · Monokai 经典
+   双套配色：dawn(浅) + night(深)。
+   night palette: bg #272822 / text #F8F8F2 / accent #A6E22E
+   dawn  palette: bg #F5F5F5 / text #49483E / accent #66D9EF
+   辅助(官方色)：comment #75715E red #F92672 orange #FD971F yellow #E6DB74
+                 green #A6E22E cyan #66D9EF purple #AE81FF
+   对比度(text on bg)：night 13.9:1；dawn 8.5:1 */
+:root[data-theme="dawn"],
+:root[data-theme="night"] {
+  /* 基础 · light */
+  --bg: #F5F5F5;
+  --surface: #EDEDEA;
+  --text: #49483E;
+  --text-secondary: #6C6A5C;
+  --border: #D0D0C8;
+  --border-strong: #B5B5AB;
+  --accent: #66D9EF;
+  --accent-soft: rgba(102, 217, 239, 0.16);
+  /* 代码 */
+  --code-bg: #EDEDEA;
+  --code-border: #CFCFC7;
+  --code-text: #49483E;
+  /* 提示块 */
+  --note: #1596AF;   --note-bg: rgba(21, 150, 175, 0.10);
+  --tip: #5E8A10;    --tip-bg: rgba(94, 138, 16, 0.10);
+  --warn: #B06A00;   --warn-bg: rgba(176, 106, 0, 0.10);
+  --danger: #B01E52; --danger-bg: rgba(176, 30, 82, 0.10);
+  --info: #1596AF;   --info-bg: rgba(21, 150, 175, 0.10);
+  --muted: #8A8778;
+  /* 语法高亮 · light */
+  --hl-kw: #C4205B; --hl-str: #9C8A00; --hl-num: #7A5AC2; --hl-comment: #75715E;
+  --hl-type: #6F8A20; --hl-func: #1E86A8; --hl-tag: #C4205B; --hl-attr: #A85A0A;
+}
+
+:root[data-theme="night"] {
+  /* 基础 · night */
+  --bg: #272822;
+  --surface: #31322C;
+  --text: #F8F8F2;
+  --text-secondary: #A6A294;
+  --border: #4A4A42;
+  --border-strong: #6A6A5E;
+  --accent: #A6E22E;
+  --accent-soft: rgba(166, 226, 46, 0.15);
+  /* 代码 */
+  --code-bg: #1E1F1A;
+  --code-border: #4A4A42;
+  --code-text: #F8F8F2;
+  /* 提示块 */
+  --note: #66D9EF;  --note-bg: rgba(102, 217, 239, 0.12);
+  --tip: #A6E22E;   --tip-bg: rgba(166, 226, 46, 0.12);
+  --warn: #E6DB74;  --warn-bg: rgba(230, 219, 116, 0.12);
+  --danger: #F92672; --danger-bg: rgba(249, 38, 114, 0.12);
+  --info: #66D9EF;  --info-bg: rgba(102, 217, 239, 0.12);
+  --muted: #75715E;
+  /* 语法高亮 · night（Monokai 官方） */
+  --hl-kw: #F92672; --hl-str: #E6DB74; --hl-num: #AE81FF; --hl-comment: #75715E;
+  --hl-type: #A6E22E; --hl-func: #66D9EF; --hl-tag: #F92672; --hl-attr: #FD971F;
+}

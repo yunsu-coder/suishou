@@ -1,0 +1,23 @@
+{
+  "id": "theme-rosepine",
+  "name": "Rosé Pine 松玫",
+  "nameEn": "Rosé Pine",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "Rosé Pine 经典自然配色，柔软玫瑰与松林蓝，昼夜分明，精致静谧",
+  "descEn": "Classic Rosé Pine nature palette, soft rose and pine, distinct light & dark, refined and serene",
+  "features": [
+    "完整30个CSS变量",
+    "深浅双套配色",
+    "预览即时生效"
+  ],
+  "featuresEn": [
+    "Complete 30 CSS tokens",
+    "Light+dark variants",
+    "Instant preview"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "paintpalette"
+}

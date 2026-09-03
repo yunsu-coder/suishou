@@ -1,0 +1,23 @@
+{
+  "id": "theme-onedark",
+  "name": "暗黑代码",
+  "nameEn": "One Dark",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "One Dark 暗黑主题，经典的深灰蓝配色，利落高级，程序员熟悉的沉浸工作台",
+  "descEn": "One Dark theme, the classic dark grey-blue code palette, crisp and refined — a familiar immersive workbench",
+  "features": [
+    "完整30个CSS变量",
+    "深浅双套配色",
+    "预览即时生效"
+  ],
+  "featuresEn": [
+    "Complete 30 CSS tokens",
+    "Light+dark variants",
+    "Instant preview"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "paintpalette"
+}

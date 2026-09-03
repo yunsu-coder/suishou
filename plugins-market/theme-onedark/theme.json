@@ -1,0 +1,9 @@
+[
+  {
+    "id": "onedark",
+    "name": "One Dark",
+    "desc": "深灰蓝经典配色，利落高级的程序员工作台",
+    "cssFile": "onedark.css",
+    "swatchHex": "#61AFEF"
+  }
+]

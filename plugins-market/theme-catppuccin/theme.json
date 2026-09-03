@@ -1,0 +1,9 @@
+[
+  {
+    "id": "catppuccin",
+    "name": "Catppuccin",
+    "desc": "拿铁浅色与摩卡深色，奶油柔美低饱和",
+    "cssFile": "catppuccin.css",
+    "swatchHex": "#CBA6F7"
+  }
+]

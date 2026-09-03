@@ -1,0 +1,23 @@
+{
+  "id": "theme-tokyonight",
+  "name": "东京之夜",
+  "nameEn": "Tokyo Night",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "东京之夜主题，冷冽蓝紫交织的夜之城配色，冷静克制，适合深度阅读与编程写作",
+  "descEn": "Tokyo Night theme, the calm night-city palette of cool blue and violet, restrained and focused, ideal for deep reading and coding",
+  "features": [
+    "完整30个CSS变量",
+    "深浅双套配色",
+    "预览即时生效"
+  ],
+  "featuresEn": [
+    "Complete 30 CSS tokens",
+    "Light+dark variants",
+    "Instant preview"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "paintpalette"
+}
