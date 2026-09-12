@@ -115,6 +115,14 @@ final class ViewPluginTests: XCTestCase {
         XCTAssertEqual(AssetGridView.symbol(for: "zip"), "archivebox")
     }
 
+    /// 插入 / 复制 / 拖拽三处共用同一套引用写法（拖进编辑器后长得和手动插入完全一致）。
+    func testAssetMarkdownRefIsSharedByInsertCopyAndDrag() {
+        XCTAssertEqual(AssetGridView.markdownRef(name: "09-11-手绘线稿.png", path: "img/09-11-手绘线稿.png"),
+                       "![09-11-手绘线稿](img/09-11-手绘线稿.png)")
+        XCTAssertEqual(AssetGridView.markdownRef(name: "字段 表.pdf", path: "pdf/字段 表.pdf"),
+                       "![字段 表](pdf/字段 表.pdf)")
+    }
+
     /// 跨工作台导入：复制进当前工作台、原库只读、同名加序号（隔离规则第 2 条）。
     @MainActor
     func testCrossWorkspaceImportCopiesAndNeverTouchesSource() throws {

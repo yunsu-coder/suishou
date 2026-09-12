@@ -181,6 +181,10 @@ struct AssetGridView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { selected = item }
+        // 拖到编辑器：携带**短引用文本**（不是文件 URL —— 否则编辑器会再存一份素材）
+        .onDrag {
+            NSItemProvider(object: Self.markdownRef(name: item.name, path: relativePath(item)) as NSString)
+        }
         .help("\(item.name) · \(Self.sizeLabel(item.size))")
     }
 
@@ -252,14 +256,19 @@ struct AssetGridView: View {
 
     /// 插入短引用：交给编辑器在光标处插入（通知解耦，编辑器不在时自动忽略）。
     private func insert(_ item: NotesStore.AttachmentItem) {
-        let ref = "![\(Self.title(item.name))](\(relativePath(item)))"
-        NotificationCenter.default.post(name: .insertTextAtCursor, object: ref)
+        NotificationCenter.default.post(name: .insertTextAtCursor,
+                                        object: Self.markdownRef(name: item.name, path: relativePath(item)))
     }
 
     private func copyRef(_ item: NotesStore.AttachmentItem) {
         let board = NSPasteboard.general
         board.clearContents()
-        board.setString("![\(Self.title(item.name))](\(relativePath(item)))", forType: .string)
+        board.setString(Self.markdownRef(name: item.name, path: relativePath(item)), forType: .string)
+    }
+
+    /// 素材引用文本（插入 / 复制 / 拖拽三处共用一套写法）。
+    static func markdownRef(name: String, path: String) -> String {
+        "![\(title(name))](\(path))"
     }
 
     static func title(_ fileName: String) -> String {

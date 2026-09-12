@@ -390,10 +390,26 @@ final class MarkdownTextView: NSTextView {
         if Self.dragImageData(sender) != nil {
             return .copy
         }
+        // 应用内素材拖拽携带的是「短引用文本」：走文本落点插入，不再重复入库
+        if Self.dragAssetRef(sender) != nil {
+            return .copy
+        }
         return super.draggingEntered(sender)
     }
 
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        // 素材库拖进来的短引用：插到**落点**（拖到哪儿放哪儿），而不是光标处
+        if let ref = Self.dragAssetRef(sender) {
+            let point = convert(sender.draggingLocation, from: nil)
+            let idx = characterIndexForInsertion(at: point)
+            let length = (string as NSString).length
+            let range = NSRange(location: min(max(0, idx), length), length: 0)
+            if shouldChangeText(in: range, replacementString: ref) {
+                replaceCharacters(in: range, with: ref)
+                didChangeText()
+            }
+            return true
+        }
         if let (data, ext) = Self.dragImageData(sender), handleImage(data, ext: ext) {
             return true
         }
@@ -467,6 +483,17 @@ final class MarkdownTextView: NSTextView {
             return (png, "png")
         }
         return nil
+    }
+
+    /// 素材拖拽识别：文本形如 `![名称](img/xxx.png)`（素材面板 `/ 插入 / 复制` 三处共用同一套写法）。
+    /// 只认「markdown 图片引用」这一种，避免把普通文本拖拽也吃掉。
+    private static func dragAssetRef(_ sender: NSDraggingInfo) -> String? {
+        let pb = sender.draggingPasteboard
+        guard let text = pb.string(forType: .string)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            text.hasPrefix("!["), text.hasSuffix(")"),
+            text.contains("](") else { return nil }
+        return text
     }
 
     private static func dragImageData(_ sender: NSDraggingInfo) -> (Data, String?)? {
