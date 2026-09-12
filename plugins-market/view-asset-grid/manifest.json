@@ -1,0 +1,25 @@
+{
+  "id": "view-asset-grid",
+  "name": "素材网格",
+  "nameEn": "Asset Grid",
+  "version": "1.0.0",
+  "kind": "views",
+  "desc": "侧栏里的素材面板：只看当前工作台 source/ 下的资源，显示引用计数、可搜索、可插入短引用；只读，不扫描别的工作台",
+  "descEn": "Sidebar asset panel for the current workspace only: reference counts, search, insert short refs. Read-only",
+  "features": [
+    "只读当前工作台 source/（不扫描、不聚合其他工作台）",
+    "引用计数只算本工作台，附「未被引用」筛选，便于清理",
+    "插入短引用 img/xxx.png 到光标处，或复制引用",
+    "颜色与字体全部取当前主题（四套主题自动适配）"
+  ],
+  "featuresEn": [
+    "Current workspace only — never scans other workspaces",
+    "Reference counts scoped to this workspace, with an unreferenced filter",
+    "Insert short refs (img/xxx.png) at the cursor, or copy them",
+    "All colors/fonts come from the active theme"
+  ],
+  "author": "随手社区",
+  "main": "views.json",
+  "minAppVersion": "1.8.0",
+  "icon": "photo.on.rectangle"
+}

@@ -83,4 +83,35 @@ final class ViewPluginTests: XCTestCase {
         XCTAssertEqual(NoteCardsView.plainText("- [ ] 待办事项"), "待办事项")
         XCTAssertEqual(NoteCardsView.plainText("==高光==文本"), "高光文本")
     }
+
+    /// 素材网格：注册为 panel 视图；同样受「必须 workspace」的隔离门槛约束。
+    @MainActor
+    func testAssetGridRegistersAndRejectsGlobal() throws {
+        let (pm, _) = try makePackage("""
+        [ { "id": "assets", "name": "素材网格", "type": "assetGrid", "scope": "workspace",
+            "placement": "panel", "options": { "dirs": ["source"], "showRefCount": true } } ]
+        """, manifestID: "view-asset-ok")
+        defer { UserDefaults.standard.removeObject(forKey: "pluginEnabled.view-asset-ok") }
+        let assets = pm.allViews().filter { $0.type == .assetGrid }
+        XCTAssertEqual(assets.count, 1)
+        XCTAssertEqual(assets.first?.placement, .panel)
+        XCTAssertEqual(assets.first?.options.dirs, ["source"])
+
+        let (pm2, _) = try makePackage("""
+        [ { "id": "assets", "name": "越权素材", "type": "assetGrid", "scope": "global", "placement": "panel" } ]
+        """, manifestID: "view-asset-bad")
+        defer { UserDefaults.standard.removeObject(forKey: "pluginEnabled.view-asset-bad") }
+        XCTAssertTrue(pm2.allViews().filter { $0.name == "越权素材" }.isEmpty)
+        XCTAssertTrue(pm2.viewIssues(for: "view-asset-bad").contains { $0.contains("workspace") })
+    }
+
+    /// 素材面板的小工具函数：标题去扩展名、大小格式化、类型图标。
+    func testAssetHelpers() {
+        XCTAssertEqual(AssetGridView.title("09-11-手绘线稿.png"), "09-11-手绘线稿")
+        XCTAssertEqual(AssetGridView.sizeLabel(2048), "2 KB")
+        XCTAssertEqual(AssetGridView.sizeLabel(3 * 1024 * 1024), "3.0 MB")
+        XCTAssertEqual(AssetGridView.symbol(for: "pdf"), "doc.richtext")
+        XCTAssertEqual(AssetGridView.symbol(for: "mp4"), "film")
+        XCTAssertEqual(AssetGridView.symbol(for: "zip"), "archivebox")
+    }
 }

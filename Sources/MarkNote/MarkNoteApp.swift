@@ -21,6 +21,8 @@ extension Notification.Name {
     static let requestNewNote = Notification.Name("requestNewNote")
     /// 快速打开（⌘P）：浮层搜索打开文件（VSCode Quick Open）
     static let quickOpenRequested = Notification.Name("quickOpenRequested")
+    /// 插入文本到编辑器光标处（素材面板等宿主外部视图使用）
+    static let insertTextAtCursor = Notification.Name("insertTextAtCursor")
     /// 切换侧边栏（⌘B）
     static let toggleSidebarRequested = Notification.Name("toggleSidebarRequested")
     /// 编辑器查找/替换（⌘F / ⇧⌘F）浮条请求

@@ -50,8 +50,15 @@ struct SidebarView: View {
         HStack(spacing: 0) {
             // VSCode 式竖向功能栏：工作台 / 插件市场（宽面板）/ 设置（底部）
             VStack(spacing: 3) {
-                activityIcon("folder", _L("工作台", "Workspace"), active: true) {
-                    // 工作台即当前面板
+                activityIcon("folder", _L("工作台", "Workspace"), active: sidebarPanel == "explorer") {
+                    sidebarPanel = "explorer"
+                }
+                // 视图插件提供素材网格时，功能栏出现第三个图标（面板内切换，不占编辑宽度）
+                if PluginManager.shared.mainAreaView(type: .assetGrid) != nil
+                    || PluginManager.shared.allViews().contains(where: { $0.type == .assetGrid }) {
+                    activityIcon("photo.on.rectangle", _L("素材", "Assets"), active: sidebarPanel == "assets") {
+                        sidebarPanel = "assets"
+                    }
                 }
                 activityIcon("puzzlepiece.extension", _L("插件市场", "Plugin Market"), active: false) {
                     PluginManager.shared.scan(workspaceDir: store.notesDir)
@@ -94,8 +101,13 @@ struct SidebarView: View {
 
             Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: 1)
 
-            notesPanel
-                .environment(store)
+            if sidebarPanel == "assets", let assets = assetPanelSpec {
+                AssetGridView(spec: assets)
+                    .environment(store)
+            } else {
+                notesPanel
+                    .environment(store)
+            }
         }
         .frame(minWidth: 110, idealWidth: 170, maxWidth: 420)
         .background {
@@ -279,6 +291,13 @@ struct SidebarView: View {
     /// 视图标题行（VSCode "EXPLORER"）：小号加粗标题 + 右端 ⋯ 更多操作菜单
     /// 主区域视图（与 ContentView 共用；插件未启用时不存在「卡片」这一档）
     @AppStorage("mainViewKind") private var mainViewKind = "editor"
+    /// 侧栏面板：explorer（文件树）/ assets（素材网格，视图插件提供时才有）
+    @AppStorage("sidebarPanel") private var sidebarPanel = "explorer"
+
+    /// 已启用的素材网格视图（没有插件时为 nil → 功能栏不出现「素材」图标）
+    private var assetPanelSpec: PluginView? {
+        PluginManager.shared.allViews().first { $0.type == .assetGrid }
+    }
 
     private var viewTitleRow: some View {
         HStack(spacing: 6) {

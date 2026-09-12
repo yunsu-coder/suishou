@@ -1,0 +1,15 @@
+[
+  {
+    "id": "assets",
+    "name": "素材网格",
+    "nameEn": "Asset Grid",
+    "type": "assetGrid",
+    "scope": "workspace",
+    "placement": "panel",
+    "options": {
+      "dirs": ["source"],
+      "showRefCount": true,
+      "allowImport": true
+    }
+  }
+]

@@ -913,6 +913,26 @@ final class NotesStore {
         try? FileManager.default.removeItem(at: url)
     }
 
+    /// 素材引用计数：扫描**当前工作台**已缓存的笔记正文，统计每个资源文件名被多少篇笔记提到。
+    /// 只读缓存（不额外扫盘）；返回文件名 → 引用篇数。
+    func assetReferenceCounts() -> [String: Int] {
+        var counts: [String: Int] = [:]
+        for (_, data) in fullTextCache {
+            guard let text = String(data: data, encoding: .utf8), !text.isEmpty else { continue }
+            // 同一篇里重复提到只算一次
+            var seen = Set<String>()
+            for name in assetNames where text.contains(name) {
+                if seen.insert(name).inserted { counts[name, default: 0] += 1 }
+            }
+        }
+        return counts
+    }
+
+    /// 当前工作台 source/ 下的资源文件名（供引用计数用；惰性、不缓存到磁盘）。
+    var assetNames: [String] {
+        listAttachments(for: "").map(\.name)
+    }
+
     // MARK: - 新建 / 删除 / 重命名
 
     /// 新建文件（空名）→ 根目录“无标题.md”，随后内联命名（VSCode）

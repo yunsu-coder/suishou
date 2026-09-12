@@ -181,8 +181,10 @@ final class PluginManager {
                     continue
                 }
                 // 隔离硬门槛：读笔记内容的视图必须是 workspace 作用域
-                if type == .noteCards && scope != .workspace {
-                    d.viewIssues[pkg.id, default: []].append("\(v.name)：卡片墙读取笔记内容，作用域必须是 workspace")
+                // 隔离硬门槛：读取当前工作台内容的视图都必须是 workspace
+                if (type == .noteCards || type == .assetGrid), scope != .workspace {
+                    let why = type == .noteCards ? "卡片墙读取笔记内容" : "素材网格读取工作台资源"
+                    d.viewIssues[pkg.id, default: []].append("\(v.name)：\(why)，作用域必须是 workspace")
                     continue
                 }
                 d.views.append(PluginView(id: "view-\(pkg.id)-\(v.id)", name: v.name,
