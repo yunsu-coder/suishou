@@ -94,22 +94,24 @@
 var CALLOUT_LABELS_EN = { note: '📝 Note', warning: '⚠️ Warning', tip: '💡 Tip', danger: '🔥 Danger', info: 'ℹ️ Info', details: '📋 Details' };
 var __isEN = (window.__appLang === 'en');
   // 块级（类型后换行，直到独立 ::: 行）
-  var CALLOUT_RE = /^:::\s*(note|warning|tip|danger|info|details)\s*\n([\s\S]*?)^:::\s*$/gm;
+  // 结束行只吃到行尾（不能吞后续空行）：否则紧随其后的 Markdown 会被当作 HTML block 原样输出。
+  var CALLOUT_RE = /^:::[ \t]*(note|warning|tip|danger|info|details)[ \t]*\r?\n([\s\S]*?)^:::[ \t]*\r?$/gm;
   // 紧凑行内：:::warning 内容:::（或 :::warning:::）。仅限单行（内容可含任意字符含冒号）：
   // 永不跨行吞内容；行内最近一对 ::: 即边界。优先于 emoji 简码 —— 预处理先吞掉，
   // markdown-it-emoji 的 :warning: 只会在没有 ::: 结构时生效。
   var CALLOUT_INLINE_RE = /:::\s*(note|warning|tip|danger|info|details)(?:[ \t]+\s*([^\n]*?))?\s*:::/g;
 
   function preprocessCallouts(md) {
+    var labels = __isEN ? CALLOUT_LABELS_EN : CALLOUT_LABELS;
     md = md.replace(CALLOUT_RE, function (_, type, content) {
-      var label = CALLOUT_LABELS[type] || type;
+      var label = labels[type] || type;
       var inner = mdRenderer.render(content.trim());
       return '<div class="callout callout-' + type + '">' +
              '<div class="callout-title">' + label + '</div>' +
-             '<div class="callout-body">' + inner + '</div></div>';
+             '<div class="callout-body">' + inner + '</div></div>\n\n';
     });
     md = md.replace(CALLOUT_INLINE_RE, function (m, type, content) {
-      var label = CALLOUT_LABELS[type] || type;
+      var label = labels[type] || type;
       var inner = content ? mdRenderer.render(content.trim()) : '';
       return '<div class="callout callout-' + type + '">' +
              '<div class="callout-title">' + label + '</div>' +
@@ -186,6 +188,21 @@ var __isEN = (window.__appLang === 'en');
     if (!md) return '<p></p>';
     md = __beforeRender(md);
     try {
+      // 0. 代码保护：围栏/行内代码先占位，避免内部 @[] / ::: / $...$ 被扩展语法误吞。
+      var rawCode = [];
+      md = md.replace(/^(```|~~~)[^\n]*\n[\s\S]*?^\1[ \t]*$/gm, function (m) {
+        rawCode.push(m);
+        return '\u0000RAWCODE' + (rawCode.length - 1) + '\u0000';
+      });
+      md = md.replace(/`[^`\n]+`/g, function (m) {
+        rawCode.push(m);
+        return '\u0000RAWCODE' + (rawCode.length - 1) + '\u0000';
+      });
+      function restoreRawCode(s) {
+        return s.replace(/\u0000RAWCODE(\d+)\u0000/g, function (_, i) {
+          return rawCode[Number(i)] || '';
+        });
+      }
       // 0. 附件卡片预处理（先于 markdown-it：接管带空格/中文的附件链接）
       if (isMod('attachments')) { md = preprocessAttachments(md); }
       // 1. 提取脚注定义（HTML block 后的定义 markdown-it 不识别，先挪走）
@@ -202,6 +219,7 @@ var __isEN = (window.__appLang === 'en');
         processed = i > -1 ? processed.slice(0, i) + footnoteDefs + '\n\n' + processed.slice(i)
                            : processed + '\n\n' + footnoteDefs;
       }
+      processed = restoreRawCode(processed);
       // 4. 主渲染
       var h = mdRenderer.render(processed);
       // 5. 渲染后的附件 <a> 统一装饰为卡片
@@ -210,6 +228,11 @@ var __isEN = (window.__appLang === 'en');
       h = h.replace(/<a /g, '<a target="_blank" rel="noopener" ');
       h = h.replace(/<pre><code class="language-(\w+)">/g, '<pre data-lang="$1"><code class="language-$1">');
       // 5. KaTeX（$$ 块级 / $ 行内）
+      var codeFragments = [];
+      h = h.replace(/<(pre|code)\b[^>]*>[\s\S]*?<\/\1>/g, function (m) {
+        codeFragments.push(m);
+        return '\u0000CODEFRAG' + (codeFragments.length - 1) + '\u0000';
+      });
       
   // ===== KaTeX 渲染缓存（LRU 500）：公式多时避免每帧重算 =====
   var katexCache = {}, KATEX_MAX = 500;
@@ -232,13 +255,17 @@ var __isEN = (window.__appLang === 'en');
 if (typeof katex !== 'undefined') {
         try {
           h = h.replace(/\$\$([\s\S]*?)\$\$/g, function (m, f) {
-            try { return renderKaTeX(f.trim(), { displayMode: true, throwOnError: false }); } catch (e) { return m; }
+            try { return renderKaTeX(f.trim(), true); } catch (e) { return m; }
           });
-          h = h.replace(/\$([^\$]+?)\$/g, function (m, f) {
-            try { return renderKaTeX(f.trim(), { displayMode: false, throwOnError: false }); } catch (e) { return m; }
+          // 行内公式：不跨行、首尾不留空格；避免货币等成对 $ 被误判。
+          h = h.replace(/\$(?!\s)([^\$\n]*[^\s\$])\$(?!\$)/g, function (m, f) {
+            try { return renderKaTeX(f.trim(), false); } catch (e) { return m; }
           });
         } catch (e) {}
       }
+      h = h.replace(/\u0000CODEFRAG(\d+)\u0000/g, function (_, i) {
+        return codeFragments[Number(i)] || '';
+      });
       // 5.9 图片卡片属性语法（宽高/图注一体）
       h = applyImageAttrs(h);
       return __afterRender(h) || '<p></p>';
@@ -247,7 +274,6 @@ if (typeof katex !== 'undefined') {
       return '<p>' + String(md).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') + '</p>';
     }
   }
-
   // ===== 图片相对路径 → file://（相对笔记目录）=====
 
   // ===== 图片注册表：Swift 侧按版本增量下发（path → dataURL），条目不随每帧渲染重复桥接 =====
@@ -350,7 +376,7 @@ if (typeof katex !== 'undefined') {
     var items = [];
     var re = /<h([1-4])\s+id="([^"]+)"[^>]*>(.*?)<\/h\1>/g, m;
     while ((m = re.exec(anchoredHtml)) !== null) {
-      var text = m[3].replace(/<[^>]+>/g, '');
+      var text = m[3].replace(/<a class="anchor"[^>]*>.*?<\/a>/g, '').replace(/<[^>]+>/g, '');
       items.push('<li class="toc-level-' + m[1] + '"><a href="#' + m[2] + '">' + text + '</a></li>');
     }
     if (!items.length) { return ''; }
@@ -662,6 +688,9 @@ window.renderMd = function (md, baseDir, opts) {
     var t0 = performance ? performance.now() : Date.now();
     var container = document.getElementById('content');
     opts = opts || {};
+    // 渲染扩展（内置 renders/*.js + 用户渲染插件）：注册 markdown-it 插件并注入它们的 CSS。
+    // 必须在 md2html 之前调用 —— 否则 before/after 钩子生效、而 use 插件与 CSS 被静默丢弃。
+    __applyRenderPlugins();
     // REQ-RN-03 滚动锚定：渲染前记录视口比例，重渲后按内容比例恢复（编辑时预览不跳顶）
     var scrollRatio = 0;
     var availBefore = document.documentElement.scrollHeight - window.innerHeight;

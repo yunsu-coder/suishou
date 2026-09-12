@@ -25,6 +25,8 @@ extension Notification.Name {
     static let toggleSidebarRequested = Notification.Name("toggleSidebarRequested")
     /// 编辑器查找/替换（⌘F / ⇧⌘F）浮条请求
     static let findReplaceRequested = Notification.Name("findReplaceRequested")
+    /// 主题彩蛋触发（侧栏主题图标连续点击）
+    static let themeEasterEggTriggered = Notification.Name("themeEasterEggTriggered")
 }
 
 /// 「插入」菜单支持的类型（随通知 object 传）
@@ -111,6 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct MarkNoteApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var store: NotesStore
+    @StateObject private var themeCatalog = ThemeCatalog()
 
     init() {
         // 菜单栏语言与 app 界面语言一致：AppKit 依据 AppleLanguages 渲染 File/Edit/View… 系统菜单。
@@ -128,6 +131,16 @@ struct MarkNoteApp: App {
         appDelegate.store = store
         // 诊断线：--verify（数据层自检）/ --probe-preview（渲染性能探针）
         let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "--hash-theme"), i + 1 < args.count {
+            let dir = URL(fileURLWithPath: args[i + 1], isDirectory: true)
+            print(ThemeQuality.contentHash(packageDir: dir) ?? "nil")
+            exit(0)
+        }
+        if args.contains("--open-settings") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            }
+        }
         if args.contains("--create-note") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 NotificationCenter.default.post(name: .requestNewNote, object: nil)
@@ -415,12 +428,11 @@ struct MarkNoteApp: App {
                 }
                 .keyboardShortcut("b", modifiers: [.command])
                 Divider()
-                ForEach(Theme.allCases) { t in
+                ForEach(themeCatalog.options) { t in
                     Button {
-                        store.setTheme(t)
+                        store.selectThemeOption(t.id)
                     } label: {
-                        let selected = currentTheme == t
-                        Text((selected ? "✓ " : "") + t.name)
+                        Text((currentThemeOptionID == t.id ? "✓ " : "") + t.name)
                     }
                 }
             }
@@ -487,6 +499,10 @@ struct MarkNoteApp: App {
         Settings {
             SettingsView()
                 .environment(store)
+                // 全局外观（含插件主题）同样作用于设置窗口 —— 深浅/强调色与主窗口一致
+                .tint(appAppearance.accent)
+                .font(appAppearance.uiFontFamily.map { Font.custom($0, size: CGFloat(appAppearance.uiFontSize)) } ?? .body)
+                .preferredColorScheme(appAppearance.scheme)
         }
     }
 }

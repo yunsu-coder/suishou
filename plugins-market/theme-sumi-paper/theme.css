@@ -1,0 +1,133 @@
+/* SUMI PAPER · 日：宣纸 + 墨 + 朱砂。纯色，无渐变。 */
+:root,
+:root[data-theme="dawn"],
+:root[data-theme="night"] {
+  --bg: #FCF8F0;
+  --surface: #FFFFFF;
+  --text: #1C1A17;
+  --text-secondary: #6B6257;
+  --border: rgba(28, 26, 23, 0.14);
+  --border-strong: rgba(28, 26, 23, 0.28);
+  --accent: #E24A2B;
+  --accent-ink: #B33A20;
+  --accent-soft: rgba(226, 74, 43, 0.14);
+  --code-bg: #F5EEE0;
+  --code-border: rgba(28, 26, 23, 0.18);
+  --code-text: #1C1A17;
+  --note: #2F5FB0;  --note-bg: rgba(47, 95, 176, 0.12);
+  --tip: #2F7A4F;   --tip-bg: rgba(47, 122, 79, 0.12);
+  --warn: #8A6216;  --warn-bg: rgba(198, 146, 40, 0.18);
+  --danger: #B33A20; --danger-bg: rgba(179, 58, 32, 0.12);
+  --info: #2F5FB0;  --info-bg: rgba(47, 95, 176, 0.12);
+  --muted: #8A8175;
+  --hl-kw: #B33A20; --hl-str: #2F7A4F; --hl-num: #2F5FB0;
+  --hl-comment: #7E7566; --hl-type: #3B5BA5; --hl-func: #A8791F;
+  --hl-tag: #A8321F; --hl-attr: #6B4A1F;
+}
+
+body {
+  font-family: "站酷小薇体", "Songti SC", serif;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  font-family: "Ma Shan Zheng", "站酷小薇体", serif;
+  font-weight: 400;
+}
+.markdown-body code,
+.markdown-body pre,
+.codefile code {
+  font-family: "JetBrains Mono", "SF Mono", monospace !important;
+}
+.markdown-body a,
+.footnote-ref a,
+.footnote-backref {
+  color: var(--accent-ink, var(--accent));
+}
+
+/* 多彩钩子：标题 / 加粗 / 斜体各一色相（同明度带，保持和谐） */
+:root {
+  --h1: #B33A20;
+  --h2: #2F5FB0;
+  --h3: #2F7A4F;
+  --strong: #8A3E7A;
+  --em: #8A6A1E;
+  --hr: #E0CDB4;
+}
+
+/* ── 编辑器 Markdown 语法色（auditVersion 5 必填）──
+   标记中性、内容分色：标题三级 / 粗体 / 斜体 / 代码 / 链接 / 公式 / 高亮 / 删除 / 插入 各自色相。 */
+:root {
+  --md-h1: #B33A20;
+  --md-h2: #2F5FB0;
+  --md-h3: #6A3AA8;
+  --md-bold: #8A3E7A;
+  --md-italic: #0F6B57;
+  --md-code: #8A6A1E;
+  --md-link: #1F6E8A;
+  --md-quote: #5F5A50;
+  --md-math: #7A4A2E;
+  --md-highlight: #9A4A00;
+  --md-strike: #9A5A5A;
+  --md-insert: #2F7A4F;
+  --md-callout: #8A6A1E;
+  --md-table-head: #4A443B;
+  --md-embed: #1F6E8A;
+  --md-kbd: #6A3AA8;
+  --md-mention: #8A3E7A;
+  --md-emoji: #6B6257;
+  --md-badge: #8A5A12;
+  --md-timeline: #2F7A4F;
+  --md-term: #7A4A2E;
+  --md-mermaid: #3F6B4F;
+  --md-marker: #8A8175;
+  --md-url: #8A8175;
+  --md-list: #8A8175;
+  --md-number: #8A8175;
+  --md-task: #8A8175;
+  --md-hr: #958B78;
+  --md-table: #6B6257;
+  --md-fence: #7A6A70;
+  --md-html: #7A6A70;
+  --md-code-bg: #F5EEE0;
+  --md-highlight-bg: rgba(198, 146, 40, 0.18);
+}
+
+/* ── 编辑器 Markdown 语法色（auditVersion 5 必填）──
+   标记中性、内容分色：标题三级 / 粗体 / 斜体 / 代码 / 链接 / 公式 / 高亮 / 删除 / 插入 各自色相。 */
+:root {
+  --md-h1: #B33A20;
+  --md-h2: #2F5FB0;
+  --md-h3: #6A3AA8;
+  --md-bold: #8A3E7A;
+  --md-italic: #0F6B57;
+  --md-code: #8A6A1E;
+  --md-link: #1F6E8A;
+  --md-quote: #5F5A50;
+  --md-math: #7A4A2E;
+  --md-highlight: #9A4A00;
+  --md-strike: #9A5A5A;
+  --md-insert: #2F7A4F;
+  --md-callout: #8A6A1E;
+  --md-table-head: #4A443B;
+  --md-embed: #1F6E8A;
+  --md-kbd: #6A3AA8;
+  --md-mention: #8A3E7A;
+  --md-emoji: #6B6257;
+  --md-badge: #8A5A12;
+  --md-timeline: #2F7A4F;
+  --md-term: #7A4A2E;
+  --md-mermaid: #3F6B4F;
+  --md-list: #B33A20;
+  --md-number: #2F5FB0;
+  --md-task: #2F7A4F;
+  --md-marker: #8A8175;
+  --md-url: #8A8175;
+  --md-hr: #958B78;
+  --md-table: #6B6257;
+  --md-fence: #7A6A70;
+  --md-html: #7A6A70;
+  --md-code-bg: #F5EEE0;
+  --md-highlight-bg: rgba(198, 146, 40, 0.18);
+}

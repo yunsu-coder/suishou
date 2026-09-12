@@ -318,9 +318,9 @@ enum ExportService {
         track(exporter)
         exporter.start()
     }
-    /// 预览深色判定（与 PreviewView.effectiveDark 对齐：主题强制优先，system 跟随外观）
+    /// 导出深色判定（与预览/全局外观对齐：内置主题或插件主题强制深浅）
     static var effectiveDark: Bool {
-        return false // 晨曦 → 恒浅色
+        appAppearance.dark
     }
 
     /// KaTeX 渲染产物需要 katex.min.css + 数学字体才能正确呈现。
@@ -434,15 +434,22 @@ private final class PDFExporter: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        // 主题一致化（C-02 收尾）：暗色判定 + data-theme + colorScheme 与预览对齐
+        // 主题一致化（C-02 收尾）：暗色判定 + data-theme + colorScheme 与预览对齐；
+        // 插件主题为全局外观 → 渲染页同样注入其 CSS（预览同款 #plugin-theme-css）
         let dark = ExportService.effectiveDark
         let themeJS = currentTheme.dataTheme.map { Self.jsString($0) } ?? "null"
+        let pluginTheme = PluginManager.shared.enabledTheme()
+        let pluginThemeID = pluginTheme?.id ?? "-"
+        let pluginThemeCSS = Self.jsString(pluginTheme.flatMap { try? String(contentsOfFile: $0.cssFile, encoding: .utf8) } ?? "")
         let js = """
         if (window.renderMd) {
           window.renderMd(\(Self.jsString(md)), \(Self.jsString(basePath)), { dark: \(dark), resetScroll: true, exportMode: true, posterMode: true });
           document.documentElement.style.colorScheme = \(dark) ? 'dark' : 'light';
           if (\(themeJS)) { document.documentElement.dataset.theme = \(themeJS); }
           else { delete document.documentElement.dataset.theme; }
+          var pt = document.getElementById("plugin-theme-css");
+          if (\(pluginThemeID != "-")) { if (!pt) { pt = document.createElement("style"); pt.id = "plugin-theme-css"; document.head.appendChild(pt); } pt.textContent = \(pluginThemeCSS); }
+          else if (pt) { pt.remove(); }
         }
         """
         web.evaluateJavaScript(js) { [weak self] _, _ in
@@ -572,11 +579,19 @@ private final class HTMLExporter: NSObject, WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         let dark = ExportService.effectiveDark
         let themeJS = currentTheme.dataTheme.map { PDFExporter.jsString($0) } ?? "null"
+        // 插件主题同样注入（与预览同款 #plugin-theme-css）
+        let pluginTheme = PluginManager.shared.enabledTheme()
+        let pluginThemeID = pluginTheme?.id ?? "-"
+        let pluginThemeCSS = PDFExporter.jsString(pluginTheme.flatMap { try? String(contentsOfFile: $0.cssFile, encoding: .utf8) } ?? "")
         let js = """
         if (window.renderMd) {
           window.renderMd(\(PDFExporter.jsString(md)), \(PDFExporter.jsString(basePath)), { dark: \(dark), resetScroll: true, exportMode: true });
+          document.documentElement.style.colorScheme = \(dark) ? 'dark' : 'light';
           if (\(themeJS)) { document.documentElement.dataset.theme = \(themeJS); }
           else { delete document.documentElement.dataset.theme; }
+          var pt = document.getElementById("plugin-theme-css");
+          if (\(pluginThemeID != "-")) { if (!pt) { pt = document.createElement("style"); pt.id = "plugin-theme-css"; document.head.appendChild(pt); } pt.textContent = \(pluginThemeCSS); }
+          else if (pt) { pt.remove(); }
         }
         """
         web.evaluateJavaScript(js) { [weak self] _, _ in
@@ -597,11 +612,15 @@ private final class HTMLExporter: NSObject, WKNavigationDelegate {
                 return
             }
             let content = html
-            // C-03：KaTeX 样式 + 数学字体随 HTML 内嵌（离线/换机可打开）
+            // C-03：KaTeX 样式 + 数学字体随 HTML 内嵌（离线/换机可打开）；
+            // 全局外观（含插件主题）同样嵌入；data-theme 由独立文档壳承载
+            //（fetchHTML 只取 #content 内联 HTML，data-theme 属性不会随之带走）
             let css = Self.readPreviewCSS() + "\n\n" + ExportService.kaTeXInlineCSS()
+                + "\n\n" + Self.activePluginThemeCSS()
+            let themeAttr = currentTheme.dataTheme.map { " data-theme=\"\($0)\"" } ?? ""
             let doc = """
             <!DOCTYPE html>
-            <html>
+            <html\(themeAttr)>
             <head>
             <meta charset="utf-8">
             <title>\(self.sanitizedTitle)</title>
@@ -642,5 +661,12 @@ private final class HTMLExporter: NSObject, WKNavigationDelegate {
         guard let css = Bundle.module.url(forResource: "preview", withExtension: "css", subdirectory: "Resources"),
               let text = try? String(contentsOf: css, encoding: .utf8) else { return "" }
         return text
+    }
+
+    /// 启用中插件主题的 CSS（全局外观：导出文档与预览同款；未启用/不可读 → 空串）
+    private static func activePluginThemeCSS() -> String {
+        guard let theme = PluginManager.shared.enabledTheme(),
+              let css = try? String(contentsOfFile: theme.cssFile, encoding: .utf8) else { return "" }
+        return css
     }
 }

@@ -28,6 +28,72 @@ nonisolated enum LLM {
 
     static var configured: Bool { !apiKey.isEmpty }
 
+    // MARK: - Key 管理（设置页用；只存本机 UserDefaults，不进仓库）
+
+    /// 写入 / 更新 API Key（会去掉首尾空白与换行——粘贴时最常见的问题）
+    static func setAPIKey(_ raw: String) {
+        let key = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if key.isEmpty { clearAPIKey() } else { UserDefaults.standard.set(key, forKey: kAPIKey) }
+    }
+
+    static func clearAPIKey() { UserDefaults.standard.removeObject(forKey: kAPIKey) }
+
+    /// 当前 key 的掩码显示（设置页展示用，不泄露全量）
+    static var maskedKey: String {
+        let k = apiKey
+        guard k.count > 10 else { return k.isEmpty ? "" : "••••" }
+        return k.prefix(6) + "…" + k.suffix(4)
+    }
+
+    /// 连接测试：发一条最小请求，返回 nil = 成功，否则返回人话错误
+    static func verifyConnection() async -> String? {
+        guard configured else { return _L("未填写 API Key", "No API key") }
+        let model = UserDefaults.standard.string(forKey: kModel) ?? availableModels[0]
+        let url = URL(string: baseURL + "/chat/completions")!
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 20
+        req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "model": model,
+            "messages": [["role": "user", "content": "ping"]],
+            "max_tokens": 4,
+        ])
+        do {
+            let (data, response) = try await URLSession.shared.data(for: req)
+            if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                return Self.httpError(http.statusCode, data).errorDescription
+            }
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
+    /// 把服务端返回体里的错误信息提取出来（401 时能看到「key 无效」这种确切原因）
+    static func httpError(_ code: Int, _ data: Data) -> LLMError {
+        var message: String?
+        if let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let err = dict["error"] as? [String: Any],
+           let m = err["message"] as? String, !m.isEmpty {
+            message = m
+        }
+        return .http(code, message)
+    }
+
+    /// 流式请求拿到非 200 时：把错误体读出来再解析（不然只剩一个状态码，用户看不懂）
+    static func streamHTTPError(_ code: Int, _ bytes: URLSession.AsyncBytes) async -> LLMError {
+        var data = Data()
+        do {
+            for try await byte in bytes {
+                data.append(byte)
+                if data.count > 4096 { break }
+            }
+        } catch { /* 读不到就只报状态码 */ }
+        return httpError(code, data)
+    }
+
     /// 生成标题：系统提示 + 正文前 ~1500 字 → 返回一个短标题
     static func suggestTitle(content: String) async throws -> String? {
         guard configured else { return nil }
@@ -212,8 +278,9 @@ nonisolated enum LLM {
             let task = Task {
                 do {
                     let (bytes, response) = try await URLSession.shared.bytes(for: req)
-                    guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                        throw LLMError.http((response as? HTTPURLResponse)?.statusCode ?? -1)
+                    let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                    guard status == 200 else {
+                        throw await Self.streamHTTPError(status, bytes)
                     }
                     for try await line in bytes.lines {
                         if Task.isCancelled { break }
@@ -243,7 +310,7 @@ nonisolated enum LLM {
                           temperature: temperature, stream: false, maxTokens: maxTokens)
         let (data, response) = try await URLSession.shared.data(for: req)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw LLMError.http((response as? HTTPURLResponse)?.statusCode ?? -1)
+            throw Self.httpError((response as? HTTPURLResponse)?.statusCode ?? -1, data)
         }
         guard let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let choices = dict["choices"] as? [[String: Any]],
@@ -273,8 +340,9 @@ nonisolated enum LLM {
             let task = Task {
                 do {
                     let (bytes, response) = try await URLSession.shared.bytes(for: req)
-                    guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                        throw LLMError.http((response as? HTTPURLResponse)?.statusCode ?? -1)
+                    let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                    guard status == 200 else {
+                        throw await Self.streamHTTPError(status, bytes)
                     }
                     // tool_calls 按 index 累积（id/name/arguments 分片到达）
                     var acc: [Int: (id: String, name: String, args: String)] = [:]
@@ -317,11 +385,24 @@ nonisolated enum LLM {
     }
 
     enum LLMError: LocalizedError {
-        case http(Int)
+        case http(Int, String?)
         case badResponse
         var errorDescription: String? {
             switch self {
-            case .http(let code): return _L("模型服务返回 \(code)", "Model service returned \(code)")
+            case .http(let code, let message):
+                switch code {
+                case 401, 403:
+                    let tail = message.map { "（服务端：\($0)）" } ?? ""
+                    return _L("API Key 无效或已过期，请在「设置 → 通用 → 模型服务」里更新\(tail)",
+                              "Invalid or expired API key — update it in Settings → General → Model service")
+                case 402:
+                    return _L("账户余额不足，请到模型服务商后台充值", "Insufficient balance on your model provider account")
+                case 429:
+                    return _L("请求过于频繁或超出配额，稍后再试", "Rate limited or quota exceeded — try again later")
+                default:
+                    let tail = message.map { "：\($0)" } ?? ""
+                    return _L("模型服务返回 \(code)\(tail)", "Model service returned \(code)")
+                }
             case .badResponse: return _L("模型响应格式异常", "Malformed model response")
             }
         }

@@ -50,9 +50,8 @@ struct PluginMarketView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(systemName: "shippingbox")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(currentTheme.accent)
+            ThemeIcon(name: "shippingbox", fallback: "shippingbox", size: 16)
+                .foregroundStyle(appAppearance.accent)
             Text(_LL("插件市场", "Plugin Market"))
                 .font(.headline)
             Text("\(packages.count) " + _L("个插件", "plugins"))
@@ -115,7 +114,7 @@ struct PluginMarketView: View {
             .background(Color(nsColor: .windowBackgroundColor).opacity(selectedID == pkg.id ? 0 : 0.55),
                         in: RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12)
-                .stroke(selectedID == pkg.id ? currentTheme.accent.opacity(0.6) : Color(nsColor: .separatorColor).opacity(0.5),
+                .stroke(selectedID == pkg.id ? appAppearance.accent.opacity(0.6) : Color(nsColor: .separatorColor).opacity(0.5),
                         lineWidth: selectedID == pkg.id ? 1.5 : 1))
             .contentShape(Rectangle())
         }
@@ -160,7 +159,13 @@ struct PluginMarketView: View {
 
                 // 启用大按钮
                 Button {
-                    PluginManager.shared.toggle(pkg.id); reload()
+                    switch PluginManager.shared.toggle(pkg.id) {
+                    case .blockedLastTheme:
+                        note = _L("至少保留一个主题包兜底，无法关闭。", "At least one theme package must stay enabled.")
+                    case .ok:
+                        note = ""
+                    }
+                    reload()
                 } label: {
                     HStack {
                         Image(systemName: pkg.enabled ? "checkmark.square.fill" : "square")
@@ -169,8 +174,24 @@ struct PluginMarketView: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(pkg.enabled ? Color.accentColor : Color.gray)
+                .tint(pkg.enabled ? appAppearance.accent : Color.gray)
                 .controlSize(.regular)
+
+                if pkg.kind == .theme {
+                    let issues = PluginManager.shared.themeIssues(for: pkg.id)
+                    if issues.isEmpty {
+                        Label(_LL("已通过主题质量门槛", "Passed theme quality gate"), systemImage: "checkmark.seal.fill")
+                            .font(.caption).foregroundStyle(appAppearance.accent)
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label(_LL("未通过主题质量门槛", "Failed theme quality gate"), systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption.weight(.semibold)).foregroundStyle(.orange)
+                            ForEach(issues, id: \.self) { issue in
+                                Text("• " + issue).font(.caption2).foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
 
                 Text(_LL("基础功能", "Features"))
                     .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
@@ -219,7 +240,8 @@ struct PluginMarketView: View {
 
     private var emptyHint: some View {
         VStack(spacing: 10) {
-            Image(systemName: "shippingbox").font(.system(size: 34)).foregroundStyle(.tertiary)
+            ThemeIcon(name: "shippingbox", fallback: "shippingbox", size: 34)
+                .foregroundStyle(.tertiary)
             Text(_LL("暂无插件", "No plugins")).font(.title3).foregroundStyle(.secondary)
             Text(_LL("用下方「导入包…」安装含 manifest.json 的本地插件包。",
                      "Use Import below to add a package folder with manifest.json."))

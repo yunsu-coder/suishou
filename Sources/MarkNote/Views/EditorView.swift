@@ -28,16 +28,14 @@ struct EditorView: View {
     // 字体/字号/缩放直接用 @AppStorage（与设置窗口同键）：UserDefaults 变更即时触发本视图重渲
     // （store.editorFontSize 这类经 store 计算的属性不追踪 UserDefaults —— 设置窗口改完主窗口不动）
     @AppStorage("editorFontSize") private var editorFontSize = 13.0
-    @AppStorage("editorFontFamily") private var editorFontFamily = "mono"
     @AppStorage("previewFontScale") private var previewFontScale = 1.0
-    @AppStorage("previewFont") private var previewFontSetting = "system"
-    @AppStorage(Glass.key) private var windowGlass = 0.0
 
     struct ZoomTarget: Identifiable {
         let url: URL
         var id: String { url.path }
     }
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         // 以"真正装载"或"媒体查看"为显示条件：单击仅选中不闪空编辑器；装载后显示
@@ -157,8 +155,7 @@ struct EditorView: View {
             Button {
                 NotificationCenter.default.post(name: .toggleSidebarRequested, object: nil)
             } label: {
-                Image(systemName: "sidebar.left")
-                    .font(.system(size: 12))
+                ThemeIcon(name: "sidebar.left", fallback: "sidebar.left", size: 14)
                     .foregroundStyle(.secondary)
                     .frame(width: 22, height: 22)
             }
@@ -178,6 +175,11 @@ struct EditorView: View {
         .padding(.top, 26)
         .padding(.bottom, 4)
         .background(.bar)
+        .background {
+            if let surface = appAppearance.surface {
+                Color(nsColor: surface)
+            }
+        }
         .overlay(alignment: .bottom) { Divider() }
     }
 
@@ -211,7 +213,8 @@ struct EditorView: View {
         }
         .padding(.leading, 8).padding(.trailing, 5)
         .padding(.vertical, 3)
-        .background(active ? Color.accentColor.opacity(0.14) : Color.clear, in: Capsule())
+        .background(active ? appAppearance.accent.opacity(0.14) : Color.clear, in: Capsule())
+        .animation(tabSpring, value: active)
     }
 
     // MARK: - 左：源码编辑器 / 右：预览
@@ -219,7 +222,9 @@ struct EditorView: View {
     private var editorPane: some View {
         MarkdownEditorView(
             text: store.workingText,
-            fontSize: editorFontSize,
+            // 字体家族由主题决定；字号仍由用户滑杆控制。
+            fontSize: CGFloat(editorFontSize),
+            fontFamily: appAppearance.codeFontFamily ?? "mono",
             onChange: { new in store.textChanged(new) },
             onLineChange: { line, col in
                 currentLine = line
@@ -233,6 +238,7 @@ struct EditorView: View {
                 guard let id = store.selectedNoteID else { return nil }
                 return store.saveAttachment(data, fileName: name, noteID: id)
             },
+            fileExtension: Self.editorExtension(for: store.selectedNoteID),
             revision: store.documentRevision,
             textViewRef: $textViewRef
         )
@@ -268,7 +274,9 @@ struct EditorView: View {
             resetToken: store.selectedNoteID ?? "",
             theme: currentTheme.dataTheme,
             onOpenImage: { raw in
-                if let url = URL(string: raw), url.isFileURL {
+                if let url = store.resolvedImageURL(for: raw) {
+                    zoomImage = ZoomTarget(url: url)
+                } else if let url = URL(string: raw), url.isFileURL {
                     zoomImage = ZoomTarget(url: url)
                 } else if let url = URL(string: raw), let scheme = url.scheme, scheme != "file" {
                     if let cached = store.remoteCachedFileURL(for: raw) {
@@ -287,7 +295,7 @@ struct EditorView: View {
             imageRegistryVersion: store.imageRegistryVersion,
             fontRegistry: store.fontRegistry,
             fontRegistryVersion: store.fontRegistryVersion,
-            glass: windowGlass,
+            glass: appAppearance.glass,
             previewFont: previewFontFamily
         ))
     }
@@ -305,20 +313,30 @@ struct EditorView: View {
         return (ext.isEmpty || ["md", "markdown", "mdown", "txt"].contains(ext)) ? "md" : "code"
     }
 
-    /// 预览字体（设置页选择；空 = 系统）
-    private var previewFontFamily: String {
-        switch UserDefaults.standard.string(forKey: "previewFont") ?? "" {
-        case "pingfang": return "'PingFang SC', -apple-system, sans-serif"
-        case "kaiti": return "'Kaiti SC', 'KaiTi', serif"
-        case "songti": return "'Songti SC', serif"
-        case "mono": return "'SF Mono', Menlo, monospace"
-        default: return ""
-        }
+    /// 编辑器着色用的扩展名：无扩展名按 markdown 处理（与 renderMode 保持一致）
+    static func editorExtension(for noteID: String?) -> String {
+        let ext = (noteID as NSString?)?.pathExtension.lowercased() ?? ""
+        return ext.isEmpty ? "md" : ext
     }
 
-    /// 预览深色：主题强制的深浅优先，其次系统外观
+    /// 预览字体完全由主题提供；非主题主题回退系统字体。
+    private var previewFontFamily: String {
+        if let family = appAppearance.uiFontFamily, !family.isEmpty {
+            return "'\(family)', -apple-system, sans-serif"
+        }
+        return ""
+    }
+
+    /// 主题标签动效：未声明或开启“减少动态效果”时为 nil（零动画开销）。
+    private var tabSpring: Animation? {
+        guard appAppearance.motion?.tabSpring == true else { return nil }
+        if reduceMotion && (appAppearance.motion?.respectReduceMotion ?? true) { return nil }
+        return .spring(response: appAppearance.motion?.duration ?? 0.28, dampingFraction: 0.78)
+    }
+
+    /// 预览深色：跟随全局外观（插件主题可强制反转深浅，与预览实际底色一致）
     private var effectiveDark: Bool {
-        currentTheme == .night
+        appAppearance.dark
     }
 
     private func insertMarkdown(_ kind: InsertKind) {
@@ -357,7 +375,8 @@ struct EditorView: View {
                 let ext = url.pathExtension.lowercased()
                 let displayName = url.lastPathComponent
                 if imageExts.contains(ext) {
-                    if let rel = store.saveImage(data, ext: ext == "jpeg" ? "jpg" : (ext.isEmpty ? "png" : ext), noteID: id) {
+                    if let rel = store.saveImage(data, ext: ext == "jpeg" ? "jpg" : (ext.isEmpty ? "png" : ext),
+                                                 noteID: id, preferredName: displayName) {
                         tv.insertText("![\(displayName)](\(rel))\n", replacementRange: tv.selectedRange())
                         inserted += 1
                     }
@@ -483,6 +502,11 @@ struct EditorView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 5)
         .background(.bar)
+        .background {
+            if let surface = appAppearance.surface {
+                Color(nsColor: surface)
+            }
+        }
         .overlay(alignment: .top) { Divider() }
     }
 

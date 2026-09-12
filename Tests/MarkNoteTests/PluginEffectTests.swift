@@ -23,8 +23,60 @@ final class PluginEffectTests: XCTestCase {
         let t = plugins.appendingPathComponent("it-theme", isDirectory: true)
         try FileManager.default.createDirectory(at: t, withIntermediateDirectories: true)
         try json(["id": "it-theme", "name": "IT主题", "version": "1", "kind": "theme", "main": "themes.json"]).write(to: t.appendingPathComponent("manifest.json"))
-        try json([["id": "mint", "name": "薄荷", "desc": "绿", "cssFile": "mint.css", "swatchHex": "#00ff88"]]).write(to: t.appendingPathComponent("themes.json"))
-        try ":root { --accent:#00ff88; }".write(to: t.appendingPathComponent("mint.css"), atomically: true, encoding: .utf8)
+        let fontDir = t.appendingPathComponent("fonts", isDirectory: true)
+        let iconDir = t.appendingPathComponent("icons", isDirectory: true)
+        try FileManager.default.createDirectory(at: fontDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: iconDir, withIntermediateDirectories: true)
+        try Data([0, 1, 2, 3]).write(to: fontDir.appendingPathComponent("ui.ttf"))
+        try Data([0, 1, 2, 3]).write(to: fontDir.appendingPathComponent("code.ttf"))
+        for name in ["folder", "folder.open", "file.markdown", "file.code", "file.data", "file.image",
+                     "file.video", "file.audio", "file.document", "file.archive", "file.other",
+                     "plugin", "settings", "sidebar", "search", "sparkle", "branch", "paw"] {
+            try Data([0, 1, 2, 3]).write(to: iconDir.appendingPathComponent("\(name).png"))
+        }
+        let icons: [String: String] = [
+            "folder": "icons/folder.png",
+            "folder.open": "icons/folder.open.png",
+            "file.markdown": "icons/file.markdown.png",
+            "file.code": "icons/file.code.png",
+            "file.data": "icons/file.data.png",
+            "file.image": "icons/file.image.png",
+            "file.video": "icons/file.video.png",
+            "file.audio": "icons/file.audio.png",
+            "file.document": "icons/file.document.png",
+            "file.archive": "icons/file.archive.png",
+            "file.other": "icons/file.other.png",
+            "puzzlepiece.extension": "icons/plugin.png",
+            "shippingbox": "icons/plugin.png",
+            "gearshape": "icons/settings.png",
+            "sidebar.left": "icons/sidebar.png",
+            "magnifyingglass": "icons/search.png",
+            "sparkles": "icons/sparkle.png",
+            "clock.arrow.circlepath": "icons/branch.png",
+            "paw": "icons/paw.png",
+        ]
+        try json([[
+            "id": "mint", "name": "薄荷", "desc": "绿", "cssFile": "mint.css", "swatchHex": "#00ff88",
+            "reviewed": true,
+            "auditVersion": 2,
+            "uiFont": ["file": "fonts/ui.ttf", "family": "Audit UI", "size": 12],
+            "codeFont": ["file": "fonts/code.ttf", "family": "Audit Mono", "size": 12],
+            "icons": icons,
+            "easterEgg": ["trigger": "icon-click", "clicks": 3, "symbols": ["✨"], "message": "Hi"],
+            "motion": ["ambientBubbles": true, "iconBounce": true, "tabSpring": true,
+                       "durationMs": 280, "respectReduceMotion": true],
+        ]]).write(to: t.appendingPathComponent("themes.json"))
+        try """
+        :root { --bg:#FFFFFF; --text:#111111; --text-secondary:#555555; --accent:#0066CC; --accent-ink:#0055AA; }
+        """.write(to: t.appendingPathComponent("mint.css"), atomically: true, encoding: .utf8)
+        // 审核锁：内容哈希必须与 reviewedHash 匹配，测试夹具也要先“审核”一次。
+        let themeHash = try XCTUnwrap(ThemeQuality.contentHash(packageDir: t, mainFileName: "themes.json"))
+        let rawEntries = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(contentsOf: t.appendingPathComponent("themes.json"))) as? [[String: Any]]
+        )
+        var reviewedEntry = try XCTUnwrap(rawEntries.first)
+        reviewedEntry["reviewedHash"] = themeHash
+        try json([reviewedEntry]).write(to: t.appendingPathComponent("themes.json"))
 
         // 3) 渲染包
         let r = plugins.appendingPathComponent("it-render", isDirectory: true)
@@ -52,6 +104,9 @@ final class PluginEffectTests: XCTestCase {
 
         // 扫描
         UserDefaults.standard.removeObject(forKey: "pluginThemeID")
+        for id in ["it-expert", "it-theme", "it-render", "it-cmd", "it-snip", "it-ft"] {
+            UserDefaults.standard.removeObject(forKey: "pluginEnabled.\(id)")
+        }
         pm.scan(workspaceDir: dir)
         print("DBG all=\(pm.allPackages().map { $0.id + ":" + $0.dir.path })")
         let ws = pm.allPackages().filter { $0.id.hasPrefix("it-") }
@@ -64,12 +119,15 @@ final class PluginEffectTests: XCTestCase {
         XCTAssertEqual(pm.allExperts().count, 1, "专家注册")
         XCTAssertEqual(pm.allExperts().first?.icon, "penguin")
 
-        XCTAssertEqual(pm.allThemes().count, 1, "主题注册")
-        pm.setTheme(pm.allThemes().first!.id)
+        let fixtureTheme = try XCTUnwrap(
+            pm.allThemes().first { $0.id.contains("it-theme") },
+            "主题注册"
+        )
+        pm.setTheme(fixtureTheme.id)
         let theme = pm.enabledTheme()
         XCTAssertNotNil(theme, "选中的主题可读取")
         let css = try? String(contentsOfFile: theme!.cssFile, encoding: .utf8)
-        XCTAssertTrue(css?.contains("#00ff88") == true, "主题 CSS 文件可读：\(String(describing: css))")
+        XCTAssertTrue(css?.contains("#0066CC") == true, "主题 CSS 文件可读：\(String(describing: css))")
 
         XCTAssertEqual(pm.allRenderPlugins().count, 1, "渲染插件 JS 注册")
         XCTAssertTrue(pm.allRenderPlugins().first!.js.contains("__registerRenderPlugin"), "JS 内容完整")

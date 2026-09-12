@@ -70,8 +70,8 @@ final class VSCodeTreeRowView: NSTableRowView {
     var hovered = false
     var isDropTarget = false
 
-    /// 主题 accent（随 currentTheme；swift-heavy 转换后为固定色，主题切换经 .id 整体重建重设）
-    private let accent = NSColor(currentTheme.accent)
+    /// 主题 accent（随全局外观；swift-heavy 转换后为固定色，主题切换经 .id 整体重建重设）
+    private let accent = NSColor(appAppearance.accent)
 
     override func drawSelection(in dirtyRect: NSRect) {
         // 覆盖系统默认选中样式：统一走 drawBackground 自定义着色
@@ -286,17 +286,29 @@ struct TreeTableView: NSViewRepresentable {
                 chevron.contentTintColor = .tertiaryLabelColor
                 content.addArrangedSubview(chevron)
                 let folder = NSImageView()
-                folder.image = NSImage(systemSymbolName: "folder.fill", accessibilityDescription: nil)
-                folder.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
-                folder.contentTintColor = Self.colorHex(cat.color) // 分类色 → 图标着色（替代色点）
+                folder.frame = NSRect(x: 0, y: 0, width: 14, height: 14)
+                folder.imageScaling = .scaleProportionallyDown
+                if let themed = themeIconImage(isOpen ? "folder.open" : "folder") {
+                    folder.image = themed
+                } else {
+                    folder.image = NSImage(systemSymbolName: "folder.fill", accessibilityDescription: nil)
+                    folder.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .medium)
+                    folder.contentTintColor = Self.colorHex(cat.color) // 分类色 → 图标着色（替代色点）
+                }
                 content.addArrangedSubview(folder)
                 label.stringValue = cat.name
             case .note(let n, _):
-                let (iconName, tint) = Self.fileIcon(for: n.id)
+                let (iconKey, iconName, tint) = Self.fileIcon(for: n.id)
                 let doc = NSImageView()
-                doc.image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
-                doc.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .regular)
-                doc.contentTintColor = tint
+                doc.frame = NSRect(x: 0, y: 0, width: 14, height: 14)
+                doc.imageScaling = .scaleProportionallyDown
+                if let themed = themeIconImage(iconKey) {
+                    doc.image = themed
+                } else {
+                    doc.image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
+                    doc.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .regular)
+                    doc.contentTintColor = tint
+                }
                 content.addArrangedSubview(doc)
                 // VSCode 惯例：树行显示完整文件名（含扩展名）；id = 相对路径
                 let displayName = n.id.isEmpty ? _L("无标题", "Untitled") : (n.id as NSString).lastPathComponent
@@ -497,25 +509,26 @@ struct TreeTableView: NSViewRepresentable {
         static let rowType = NSPasteboard.PasteboardType("com.gzhysu.marknote.row")
 
         /// 文件扩展名 → 图标 + 主题色（SF Symbols：VSCode 式视觉分级）
-        static func fileIcon(for id: String) -> (String, NSColor) {
+        static func fileIcon(for id: String) -> (String, String, NSColor) {
             let ext = (id as NSString).pathExtension.lowercased()
+            let key = Workspace.themeIconKey(for: ext)
             let tint = NSColor(named: "controlAccentColor") ?? .controlAccentColor
             func c(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat) -> NSColor {
                 NSColor(calibratedRed: r, green: g, blue: b, alpha: 1)
             }
             switch ext {
-            case "md", "markdown", "mdown": return ("doc.text", c(0.45, 0.55, 0.68))
-            case "txt": return ("doc.plaintext", c(0.55, 0.55, 0.60))
-            case "png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "tiff", "svg", "ico": return ("photo", c(0.30, 0.62, 0.52))
-            case "pdf": return ("doc.richtext", c(0.82, 0.32, 0.30))
-            case "mp4", "mov", "m4v", "mkv", "avi", "webm": return ("film", c(0.62, 0.42, 0.78))
-            case "mp3", "m4a", "wav", "aac", "ogg", "flac": return ("waveform", c(0.90, 0.45, 0.62))
-            case "xls", "xlsx", "csv", "numbers", "ods": return ("tablecells", c(0.28, 0.62, 0.40))
-            case "ppt", "pptx", "key", "odp": return ("play.rectangle", c(0.90, 0.55, 0.25))
-            case "zip", "rar", "7z", "gz", "tar", "dmg": return ("archivebox", c(0.50, 0.54, 0.66))
+            case "md", "markdown", "mdown": return (key, "doc.text", c(0.45, 0.55, 0.68))
+            case "txt": return (key, "doc.plaintext", c(0.55, 0.55, 0.60))
+            case "png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "tiff", "svg", "ico": return (key, "photo", c(0.30, 0.62, 0.52))
+            case "pdf": return (key, "doc.richtext", c(0.82, 0.32, 0.30))
+            case "mp4", "mov", "m4v", "mkv", "avi", "webm": return (key, "film", c(0.62, 0.42, 0.78))
+            case "mp3", "m4a", "wav", "aac", "ogg", "flac": return (key, "waveform", c(0.90, 0.45, 0.62))
+            case "xls", "xlsx", "csv", "numbers", "ods": return (key, "tablecells", c(0.28, 0.62, 0.40))
+            case "ppt", "pptx", "key", "odp": return (key, "play.rectangle", c(0.90, 0.55, 0.25))
+            case "zip", "rar", "7z", "gz", "tar", "dmg": return (key, "archivebox", c(0.50, 0.54, 0.66))
             case "py", "js", "ts", "swift", "rb", "go", "rs", "java", "c", "cpp", "h",
-                 "cs", "php", "sh", "sql": return ("curlybraces", c(0.32, 0.50, 0.78))
-            default: return ("doc", c(0.58, 0.58, 0.62))
+                 "cs", "php", "sh", "sql": return (key, "curlybraces", c(0.32, 0.50, 0.78))
+            default: return (key, "doc", c(0.58, 0.58, 0.62))
             }
         }
 

@@ -217,6 +217,24 @@ struct PreviewView: NSViewRepresentable {
             let themeJS = theme.map { "\(Self.jsString($0))" } ?? "null"
             let fontJS = Self.jsString(parent.previewFont)
             let pluginThemeJS = Self.jsString(pluginTheme.flatMap { try? String(contentsOfFile: $0.cssFile, encoding: .utf8) } ?? "")
+            // 主题字体桥：把主题声明的标题 / 编辑 / 正文字体写进 CSS 变量，预览各区块自动跟随主题
+            var fontVars: [String: String] = [:]
+            if let family = pluginTheme?.displayFont?.family, !family.isEmpty {
+                fontVars["--theme-display-font"] = "\"\(family)\", serif"
+            }
+            if let family = pluginTheme?.codeFont?.family, !family.isEmpty {
+                fontVars["--theme-code-font"] = "\"\(family)\", ui-monospace, Menlo, monospace"
+            }
+            let uiFamily = pluginTheme?.uiFont?.family
+            if let uiFamily, !uiFamily.isEmpty {
+                fontVars["--theme-ui-font"] = "\"\(uiFamily)\", -apple-system, sans-serif"
+            } else if !parent.previewFont.isEmpty {
+                fontVars["--theme-ui-font"] = parent.previewFont
+            }
+            let fontVarsJS = Self.jsString(
+                (try? JSONSerialization.data(withJSONObject: fontVars)).flatMap {
+                    String(data: $0, encoding: .utf8)
+                } ?? "{}")
             let isCode = parent.renderMode == "code"
             let langJSON = Self.jsString((token as NSString).pathExtension.lowercased())
             let modulesJS = Self.jsString(RenderModules.enabledJSON())
@@ -237,6 +255,14 @@ struct PreviewView: NSViewRepresentable {
               var pt = document.getElementById("plugin-theme-css");
               if (\(pluginThemeID != "-")) { var pc = \(pluginThemeJS); if (!pt) { pt = document.createElement("style"); pt.id = "plugin-theme-css"; document.head.appendChild(pt); } pt.textContent = pc; }
               else if (pt) { pt.remove(); }
+              // 主题字体桥：把主题声明的字体写进 CSS 变量（预览各区块自动跟随）
+              var fv = \(fontVarsJS);
+              var knownFV = ['--theme-display-font', '--theme-code-font', '--theme-ui-font'];
+              for (var fi = 0; fi < knownFV.length; fi++) {
+                var key = knownFV[fi];
+                if (fv[key]) { document.documentElement.style.setProperty(key, fv[key]); }
+                else { document.documentElement.style.removeProperty(key); }
+              }
               // 毛玻璃：页面背景透明（WebView 已关 drawsBackground），壁纸从窗口垫层透出
               document.documentElement.style.backgroundColor = \(parent.glass > 0 ? "'transparent'" : "''");
               document.body.style.backgroundColor = \(parent.glass > 0 ? "'transparent'" : "''");

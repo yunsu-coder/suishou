@@ -137,6 +137,7 @@ struct MarkdownEditorView: NSViewRepresentable {
         // 字体仅在字号/家族变化时赋值：每帧重赋会强制布局失效（大文档卡顿源之一）
         context.coordinator.applyFontIfNeeded(tv, fontSize: fontSize, family: fontFamily)
         context.coordinator.applyGlassIfNeeded(tv, glass: glass)
+        context.coordinator.applyForegroundIfNeeded(tv, color: Self.editorForeground())
     }
 
     static func configure(_ tv: NSTextView, fontSize: CGFloat, family: String, glass: Double, tabSpaces: Int = 2) {
@@ -144,12 +145,14 @@ struct MarkdownEditorView: NSViewRepresentable {
         tv.allowsUndo = true
         tv.usesFontPanel = false
         tv.font = resolveFont(family: family, size: fontSize)
-        tv.textColor = editorForeground()
+        // 注意：不要把 textColor 写在这里 —— NSTextView.textColor 会把颜色刷到「整段文本」，
+        // 每次 SwiftUI 更新都会冲掉语法着色（只留背景色）。改为在 updateNSView 里做「变更时才应用 + 重新着色」。
         tv.drawsBackground = glass <= 0
         tv.backgroundColor = glass > 0 ? .clear : editorBackground()
-        tv.insertionPointColor = .controlAccentColor
+        // 光标/选区跟随当前全局主题；低对比 accent 已在上层回退为可读颜色。
+        tv.insertionPointColor = appAppearance.caret
         tv.selectedTextAttributes = [
-            .backgroundColor: NSColor.controlAccentColor.withAlphaComponent(0.18),
+            .backgroundColor: appAppearance.selectionBackground,
             .foregroundColor: editorForeground(),
         ]
         // Markdown 书写场景全部关闭智能替换
@@ -201,23 +204,16 @@ struct MarkdownEditorView: NSViewRepresentable {
         !isMarkdownExt(ext) && Workspace.isEditorText(ext)
     }
 
-    /// 编辑器底色：与预览主题 bg 完全对齐（晨曦 #FAF8F5 / 夜航者 #11131A），消除拼接缝
+    /// 编辑器底色：与全局外观 bg 完全对齐（内置晨曦 #FAF8F5 / 夜航者 #11131A；
+    /// 启用插件主题时取插件 CSS --bg），消除拼接缝
     static func editorBackground() -> NSColor {
-        switch currentTheme {
-        case .night:
-            return NSColor(calibratedRed: 0.067, green: 0.075, blue: 0.102, alpha: 1) // #11131A
-        case .dawn:
-            return NSColor(calibratedRed: 0.980, green: 0.973, blue: 0.961, alpha: 1) // #FAF8F5
-        }
+        appAppearance.editorBackground
     }
 
     /// 编辑器前景色（正文）—— 按主题显式决定，不依赖视图外观：
     /// 修复「夜航者黑底黑字」：.labelColor 按有效外观解析，主题联动时外观未同步 → 解析为黑。
     static func editorForeground() -> NSColor {
-        switch currentTheme {
-        case .night:  return NSColor.sRGB(0.93, 0.94, 0.96)   // 近白（深底 ≥14:1）
-        case .dawn:   return NSColor.sRGB(0.13, 0.14, 0.17)   // 近黑（浅底 ≥14:1）
-        }
+        appAppearance.editorForeground
     }
 
     /// 字体家族 → NSFont（macOS 内置字体；未知家族回退系统等宽）
@@ -247,7 +243,7 @@ struct MarkdownEditorView: NSViewRepresentable {
         var lastTextLen = -1
         /// 当前行高亮范围（用于移除旧高亮）
         var highlightRange: NSRange?
-        private let currentLineColor = NSColor.controlAccentColor.withAlphaComponent(0.09)
+        private let currentLineColor = NSColor(appAppearance.accent).withAlphaComponent(0.09)
         /// 已应用字号/家族（字体仅在变化时赋值，避免每帧布局失效）
         var lastFontSize: CGFloat = -1
         var lastFontFamily = ""
@@ -404,6 +400,22 @@ struct MarkdownEditorView: NSViewRepresentable {
         /// 语法着色调度（后台解析 + 主线程应用）
         private var highlightWork: DispatchWorkItem?
 
+        /// 已应用的正文色（避免每次 SwiftUI 更新都重刷整段文本颜色，冲掉语法着色）
+        private var lastForeground: NSColor?
+
+        /// 正文色变化时才写 textColor；写完立刻重新着色（NSTextView.textColor 会覆盖全段前景色）
+        func applyForegroundIfNeeded(_ tv: NSTextView, color: NSColor) {
+            guard lastForeground != color else { return }
+            lastForeground = color
+            tv.textColor = color
+            // 新输入的文字也要用主题正文色（否则纯文本会退回系统 textColor：暗色主题下近似隐形）
+            var attrs = tv.typingAttributes
+            attrs[.foregroundColor] = color
+            attrs[.font] = MarkdownEditorView.resolveFont(family: lastFontFamily, size: lastFontSize)
+            tv.typingAttributes = attrs
+            scheduleHighlight(tv)
+        }
+
         // MARK: - 语法着色
 
         func scheduleHighlight(_ tv: NSTextView) {
@@ -451,7 +463,7 @@ struct MarkdownEditorView: NSViewRepresentable {
 
         /// 代码语法色（明暗自适应：暗色变体 ≥4.5:1）
         static func codeColor(for kind: CodeKind) -> NSColor {
-            let dark = currentTheme == .night
+            let dark = appAppearance.dark
             switch kind {
             case .keyword: return dark ? NSColor.sRGB(1.00, 0.48, 0.45) : NSColor.sRGB(0.65, 0.15, 0.65)   // #FF7B72 / #A626A4
             case .type:    return dark ? NSColor.sRGB(0.47, 0.75, 1.00) : NSColor.sRGB(0.58, 0.22, 0.00)   // #79C0FF / #953800
@@ -478,7 +490,7 @@ struct MarkdownEditorView: NSViewRepresentable {
             }
             let sel = tv.selectedRange()
             guard sel.length == 0, let (a, b) = BracketMatcher.match(in: tv.string, at: sel.location) else { return }
-            let color = NSColor.controlAccentColor.withAlphaComponent(0.38)
+            let color = NSColor(appAppearance.accent).withAlphaComponent(0.38)
             if a.location + a.length <= ts.length { ts.addAttribute(.backgroundColor, value: color, range: a) }
             if b.location + b.length <= ts.length { ts.addAttribute(.backgroundColor, value: color, range: b) }
             bracketRanges = (a, b)
@@ -490,6 +502,10 @@ struct MarkdownEditorView: NSViewRepresentable {
             let len = ts.length
             guard len > 0 else { return }
             ts.removeAttribute(.foregroundColor, range: NSRange(location: 0, length: len))
+            // 先把主题正文色铺满整段：纯文本（没有语法 token 的行）以前会退回系统 textColor，
+            // 暗色主题下被解析成近黑 → 看起来"文字不可见"。这里显式兜底，深浅主题都不会漏。
+            ts.addAttribute(.foregroundColor, value: appAppearance.editorForeground,
+                            range: NSRange(location: 0, length: len))
             // 1) 复位上一轮的装饰（字体回基座、删除线/下划线/背景清除）—— 精确到旧范围，不误伤正文
             let baseFont = MarkdownEditorView.resolveFont(family: lastFontFamily, size: lastFontSize)
             for r in lastStyleRanges where r.location + r.length <= len {
@@ -502,29 +518,38 @@ struct MarkdownEditorView: NSViewRepresentable {
             // 2) 应用：颜色 + 装饰（等宽粗/斜体变体 advance 不变 → 打字不重排）
             var styleRanges: [NSRange] = []
             for t in tokens where t.range.location + t.range.length <= len {
-                if let c = Self.color(for: t.kind) {
+                if let c = Self.color(for: t.kind, level: t.level) {
                     ts.addAttribute(.foregroundColor, value: c, range: t.range)
                 }
                 switch t.kind {
-                case .heading, .bold:
+                case .heading, .bold, .tableHead:
                     ts.addAttribute(.font, value: Self.boldFont(baseFont), range: t.range)
                 case .italic:
                     ts.addAttribute(.font, value: Self.italicFont(baseFont), range: t.range)
                 case .code, .fenceBody:
-                    ts.addAttribute(.backgroundColor, value: NSColor.labelColor.withAlphaComponent(0.07), range: t.range)
+                    ts.addAttribute(.backgroundColor, value: Self.codeBackgroundColor, range: t.range)
                 case .fenceHead:
                     ts.addAttribute(.font, value: Self.boldFont(baseFont), range: t.range)
-                    ts.addAttribute(.backgroundColor, value: NSColor.labelColor.withAlphaComponent(0.05), range: t.range)
+                    ts.addAttribute(.backgroundColor, value: Self.codeBackgroundColor, range: t.range)
                 case .strikethrough:
                     ts.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: t.range)
                 case .insert:
                     ts.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: t.range)
                 case .highlight:
-                    ts.addAttribute(.backgroundColor, value: NSColor.systemYellow.withAlphaComponent(0.28), range: t.range)
+                    ts.addAttribute(.backgroundColor, value: Self.highlightBackgroundColor, range: t.range)
                 case .linkLabel:
                     ts.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: t.range)
                 case .taskBox:
-                    ts.addAttribute(.backgroundColor, value: NSColor.systemGreen.withAlphaComponent(0.16), range: t.range)
+                    ts.addAttribute(.backgroundColor, value: Self.taskBackgroundColor, range: t.range)
+                case .kbd, .badge, .mention, .embed, .timeline, .term, .callout, .htmlTag:
+                    // 行内小语法：加一层主题色淡底，让小字号下也能一眼看出被识别
+                    let color = Self.color(for: t.kind, level: t.level) ?? NSColor.secondaryLabelColor
+                    let alpha: CGFloat = (t.kind == .htmlTag) ? 0.08 : 0.14
+                    ts.addAttribute(.backgroundColor, value: Self.tintedBackground(color, alpha: alpha),
+                                     range: t.range)
+                    if t.kind == .callout || t.kind == .term {
+                        ts.addAttribute(.font, value: Self.boldFont(baseFont), range: t.range)
+                    }
                 default:
                     break
                 }
@@ -540,36 +565,109 @@ struct MarkdownEditorView: NSViewRepresentable {
             NSFontManager.shared.convert(base, toHaveTrait: .italicFontMask)
         }
 
-        /// 明暗自适应色：暗色变体保证 ≥4.5:1（夜航者 #11131A 深底），标题/代码不再发暗。
-        /// 关键：以「主题」而非 NSView 有效外观决定（主题底色是显式的，外观可能未同步 —— 黑底黑字根因）。
+        /// 明暗自适应色：暗色变体保证 ≥4.5:1（深底 #11131A/etc），标题/代码不再发暗。
+        /// 关键：以「全局外观」而非 NSView 有效外观决定（主题底色是显式的，外观可能未同步 —— 黑底黑字根因）。
         private static func adaptive(_ light: NSColor, _ dark: NSColor) -> NSColor {
-            currentTheme == .night ? dark : light
+            appAppearance.dark ? dark : light
         }
 
-        static func color(for kind: MDKind) -> NSColor? {
+        /// 主题语法色：优先读当前主题声明的 --md-*（编辑器与预览同一套色）；
+        /// 没有主题（内部兜底）时回落到内置配色。
+        private static func themed(_ key: String, fallback: NSColor) -> NSColor {
+            appAppearance.mdColor(key) ?? fallback
+        }
+
+        /// 行内代码 / 代码围栏底纹
+        static var codeBackgroundColor: NSColor {
+            if let c = appAppearance.mdColor("--md-code-bg") { return c }
+            return NSColor.labelColor.withAlphaComponent(0.07)
+        }
+
+        /// 高亮（==）底纹
+        static var highlightBackgroundColor: NSColor {
+            if let c = appAppearance.mdColor("--md-highlight-bg") { return c }
+            return NSColor.systemYellow.withAlphaComponent(0.28)
+        }
+
+        /// 任务框底纹（用主题 tip 色的淡底）
+        static var taskBackgroundColor: NSColor {
+            if let c = appAppearance.mdColor("--md-task") { return c.withAlphaComponent(0.16) }
+            return NSColor.systemGreen.withAlphaComponent(0.16)
+        }
+
+        /// 行内小语法的淡底：用语法色按比例叠在编辑器纸底上（不额外增加主题变量）
+        static func tintedBackground(_ color: NSColor, alpha: CGFloat = 0.14) -> NSColor {
+            let base = appAppearance.editorBackground
+            guard let c = color.usingColorSpace(.sRGB), let b = base.usingColorSpace(.sRGB) else {
+                return color.withAlphaComponent(alpha)
+            }
+            return NSColor(srgbRed: c.redComponent * alpha + b.redComponent * (1 - alpha),
+                           green: c.greenComponent * alpha + b.greenComponent * (1 - alpha),
+                           blue: c.blueComponent * alpha + b.blueComponent * (1 - alpha),
+                           alpha: 1)
+        }
+
+        static func color(for kind: MDKind, level: Int = 0) -> NSColor? {
             switch kind {
             case .heading:
-                return adaptive(.sRGB(0.42, 0.31, 0.85), .sRGB(0.72, 0.61, 1.00))          // 紫
+                // 标题分三级：一级/二级/三级各自色相
+                let key = level <= 1 ? "--md-h1" : (level == 2 ? "--md-h2" : "--md-h3")
+                let legacy = [adaptive(.sRGB(0.42, 0.31, 0.85), .sRGB(0.72, 0.61, 1.00))]
+                return themed(key, fallback: legacy[0])
+            case .marker:
+                return themed("--md-marker", fallback: NSColor.secondaryLabelColor)
             case .bold:
-                return NSColor.systemOrange
+                return themed("--md-bold", fallback: NSColor.systemOrange)
             case .italic:
-                return NSColor.systemTeal
+                return themed("--md-italic", fallback: NSColor.systemTeal)
             case .code, .fenceHead, .fenceBody:
-                return adaptive(NSColor.systemOrange, .sRGB(1.00, 0.72, 0.42))             // #FFB86C
+                return themed("--md-code", fallback: adaptive(NSColor.systemOrange, .sRGB(1.00, 0.72, 0.42)))
             case .linkLabel:
-                return adaptive(NSColor.systemBlue, .sRGB(0.42, 0.63, 1.00))               // #6CA0FF
+                return themed("--md-link", fallback: adaptive(NSColor.systemBlue, .sRGB(0.42, 0.63, 1.00)))
             case .linkURL:
-                return adaptive(NSColor.systemPurple, .sRGB(0.75, 0.55, 1.00))             // #C08CFF
-            case .quote, .hr, .tableSep, .strikethrough:
-                return NSColor.tertiaryLabelColor
-            case .listBullet, .listNumber, .taskBox:
-                return NSColor.secondaryLabelColor
+                return themed("--md-url", fallback: adaptive(NSColor.systemPurple, .sRGB(0.75, 0.55, 1.00)))
+            case .quote:
+                return themed("--md-quote", fallback: NSColor.tertiaryLabelColor)
+            case .hr:
+                return themed("--md-hr", fallback: NSColor.tertiaryLabelColor)
+            case .tableSep, .tableCell:
+                return themed("--md-table", fallback: NSColor.tertiaryLabelColor)
+            case .tableHead:
+                return themed("--md-table-head", fallback: NSColor.secondaryLabelColor)
+            case .strikethrough:
+                return themed("--md-strike", fallback: NSColor.tertiaryLabelColor)
+            case .listBullet:
+                return themed("--md-list", fallback: NSColor.secondaryLabelColor)
+            case .listNumber:
+                return themed("--md-number", fallback: NSColor.secondaryLabelColor)
+            case .taskBox:
+                return themed("--md-task", fallback: NSColor.secondaryLabelColor)
             case .math:
-                return adaptive(NSColor.systemPink, .sRGB(1.00, 0.56, 0.78))               // #FF8FC8
+                return themed("--md-math", fallback: adaptive(NSColor.systemPink, .sRGB(1.00, 0.56, 0.78)))
             case .highlight:
-                return adaptive(NSColor.systemRed, .sRGB(1.00, 0.48, 0.45))                // #FF7B72
+                return themed("--md-highlight", fallback: adaptive(NSColor.systemRed, .sRGB(1.00, 0.48, 0.45)))
             case .insert:
-                return adaptive(NSColor.systemGreen, .sRGB(0.49, 0.91, 0.53))              // #7EE787
+                return themed("--md-insert", fallback: adaptive(NSColor.systemGreen, .sRGB(0.49, 0.91, 0.53)))
+            case .callout:
+                return themed("--md-callout", fallback: NSColor.secondaryLabelColor)
+            case .htmlTag:
+                return themed("--md-html", fallback: NSColor.tertiaryLabelColor)
+            case .embed:
+                return themed("--md-embed", fallback: themed("--md-link", fallback: NSColor.systemBlue))
+            case .kbd:
+                return themed("--md-kbd", fallback: themed("--md-code", fallback: NSColor.systemOrange))
+            case .mention:
+                return themed("--md-mention", fallback: themed("--md-link", fallback: NSColor.systemBlue))
+            case .emoji:
+                return themed("--md-emoji", fallback: NSColor.secondaryLabelColor)
+            case .badge:
+                return themed("--md-badge", fallback: themed("--md-callout", fallback: NSColor.secondaryLabelColor))
+            case .timeline:
+                return themed("--md-timeline", fallback: themed("--md-number", fallback: NSColor.secondaryLabelColor))
+            case .term:
+                return themed("--md-term", fallback: themed("--md-code", fallback: NSColor.systemOrange))
+            case .mermaid:
+                return themed("--md-mermaid", fallback: themed("--md-h3", fallback: NSColor.systemPurple))
             }
         }
 

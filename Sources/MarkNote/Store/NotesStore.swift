@@ -92,7 +92,8 @@ final class NotesStore {
         reloadIndex()
         loadCategories()
         restoreTabs()
-        loadCustomFontLibrary()
+        registerActiveThemeFonts()
+        loadThemeFonts()
         startWatch()
         NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in
             self?.flush()
@@ -813,14 +814,23 @@ final class NotesStore {
         notesDir.appendingPathComponent("source/image", isDirectory: true)
     }
 
-    /// 保存图片数据 → 返回 markdown 可引用的相对路径（相对 notesDir）
+    /// 保存图片数据 → 返回 markdown 可引用的短文件名。
+    /// 图片实际存到 `source/image/`；引用只写文件名，由 resolvedImageURL(for:) 在渲染时解析。
     @discardableResult
-    func saveImage(_ data: Data, ext: String, noteID: String) -> String? {
+    func saveImage(_ data: Data, ext: String, noteID: String, preferredName: String? = nil) -> String? {
         let dir = Workspace.ensureSourceDir(notesDir, ext: ext)
-        let name = "\(Int(Date().timeIntervalSince1970 * 1000))-\(Self.randomHex(3)).\(ext)"
+        let baseName: String
+        if let preferredName, !preferredName.isEmpty {
+            let last = (preferredName as NSString).lastPathComponent
+            let stem = (last as NSString).deletingPathExtension
+            baseName = stem.isEmpty ? "img-\(Self.randomHex(3))" : stem
+        } else {
+            baseName = "img-\(Self.randomHex(3))"
+        }
+        let name = Workspace.uniqueName(in: dir, fileName: "\(baseName).\(ext)")
         do {
             try data.write(to: dir.appendingPathComponent(name), options: .atomic)
-            return "source/image/\(name)"
+            return Self.markdownImageReference(name)
         } catch {
             return nil
         }
@@ -1415,8 +1425,7 @@ final class NotesStore {
 
     /// 本地图片 → dataURL（mtime 缓存 + 重采样 + LRU 24）
     func cachedDataURL(for src: String) -> String? {
-        guard !(src as NSString).contains(" ") else { return nil }
-        let url = notesDir.appendingPathComponent(src)
+        guard let url = resolvedImageURL(for: src) else { return nil }
         let mtime = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
         if let hit = imageInlineCache[src], hit.mtime == mtime { return hit.dataURL }
         if mtime == nil && !FileManager.default.fileExists(atPath: url.path) { return nil }
@@ -1430,6 +1439,51 @@ final class NotesStore {
         return dataURL
     }
 
+    /// 解析 Markdown 图片引用：
+    /// - 绝对路径 / file:// → 原路径
+    /// - 工作台相对路径 → notesDir 下
+    /// - 仅文件名 / img/... / source/img/... → 依次在 source/image、source/img、images 中查找
+    func resolvedImageURL(for src: String) -> URL? {
+        let decoded = (src.removingPercentEncoding ?? src)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !decoded.isEmpty else { return nil }
+
+        if decoded.hasPrefix("file://"), let url = URL(string: decoded), url.isFileURL {
+            return url
+        }
+        if decoded.hasPrefix("/") {
+            return URL(fileURLWithPath: decoded)
+        }
+
+        var relative = decoded
+        if relative.hasPrefix("img/") {
+            relative = "source/image/" + relative.dropFirst(4)
+        } else if relative.hasPrefix("source/img/") {
+            relative = "source/image/" + relative.dropFirst("source/img/".count)
+        }
+        let direct = notesDir.appendingPathComponent(relative)
+        if FileManager.default.fileExists(atPath: direct.path) { return direct }
+
+        let fileName = (decoded as NSString).lastPathComponent
+        guard !fileName.isEmpty else { return nil }
+        for dirName in ["source/image", "source/img", "images"] {
+            let candidate = notesDir.appendingPathComponent(dirName, isDirectory: true)
+                .appendingPathComponent(fileName)
+            if FileManager.default.fileExists(atPath: candidate.path) { return candidate }
+        }
+        return nil
+    }
+
+    /// Markdown 链接目标只转义会截断解析的字符；中文文件名保持可读。
+    nonisolated static func markdownImageReference(_ fileName: String) -> String {
+        fileName
+            .replacingOccurrences(of: "%", with: "%25")
+            .replacingOccurrences(of: " ", with: "%20")
+            .replacingOccurrences(of: "(", with: "%28")
+            .replacingOccurrences(of: ")", with: "%29")
+            .replacingOccurrences(of: "#", with: "%23")
+    }
+
     // MARK: - 图片注册表（渲染性能：文本不内联，data URL 只随版本增量下发一次）
 
     /// 注册表：相对路径 → dataURL（本地图 + 已缓存远程图）
@@ -1438,23 +1492,22 @@ final class NotesStore {
     /// 注册表版本：变化时 PreviewView 增量下发新条目（每帧渲染只传 markdown 原文）
     private(set) var imageRegistryVersion = 0
 
-    // MARK: - 自定义字体库（导入 / 注册表）
+    // MARK: - 主题字体（随主题包加载，无用户字体库）
 
-    /// 已导入字体（设置页列表 + 源码/预览 Picker）
-    private(set) var customFonts: [CustomFonts.Entry] = []
     /// 字体注册表：家族名 → data URL（预览 @font-face；WebContent 进程读不到宿主注册的字体）
     private(set) var fontRegistry: [String: String] = [:]
     /// 注册表版本：变化时 PreviewView 增量下发（同图片注册表机制）
     private(set) var fontRegistryVersion = 0
 
-    /// 启动时扫描字体库：注册 + 重建 data URL 注册表
-    func loadCustomFontLibrary() {
-        customFonts = CustomFonts.loadLibrary()
+    /// 当前主题字体：注册 + 重建 data URL 注册表。
+    func loadThemeFonts() {
         var reg: [String: String] = [:]
-        for e in customFonts {
-            let url = CustomFonts.libraryDir().appendingPathComponent(e.fileName)
-            if let data = try? Data(contentsOf: url) {
-                reg[e.family] = "data:\(e.mime);base64," + data.base64EncodedString()
+        // 插件主题自带字体：进程注册 + 推送 WebContent（预览 @font-face）。
+        if let theme = PluginManager.shared.enabledTheme() {
+            for f in [theme.uiFont, theme.codeFont, theme.displayFont].compactMap({ $0 }) {
+                let url = URL(fileURLWithPath: f.file)
+                ThemeFonts.register(url)
+                if let dataURL = ThemeFonts.dataURL(for: url) { reg[f.family] = dataURL }
             }
         }
         if reg != fontRegistry {
@@ -1463,27 +1516,12 @@ final class NotesStore {
         }
     }
 
-    /// 导入字体文件（设置页「导入字体…」）；结果以 Toast 反馈
-    @discardableResult
-    func importCustomFont(from url: URL) -> Bool {
-        switch CustomFonts.importFont(from: url) {
-        case .ok(let e):
-            loadCustomFontLibrary()
-            showHint(_L("已导入字体「\(e.family)」", "Imported font \"\(e.family)\""))
-            return true
-        case .duplicate:
-            showHint(_L("字体已存在，无需重复导入", "Font already exists; no need to import it again"))
-            return false
-        default:
-            showHint(_L("无法导入：\(url.lastPathComponent)", "Cannot import: \(url.lastPathComponent)"))
-            return false
+    /// 当前插件主题声明的字体注册到进程（编辑器 NSFont 解析需要）。
+    private func registerActiveThemeFonts() {
+        guard let theme = PluginManager.shared.enabledTheme() else { return }
+        for f in [theme.uiFont, theme.codeFont, theme.displayFont].compactMap({ $0 }) {
+            ThemeFonts.register(URL(fileURLWithPath: f.file))
         }
-    }
-
-    /// 删除已导入字体（设置页列表）
-    func removeCustomFont(_ entry: CustomFonts.Entry) {
-        CustomFonts.remove(entry)
-        loadCustomFontLibrary()
     }
 
     /// 收集当前 md 的图像到注册表；未缓存远程图触发下载。不改动文本。
@@ -1717,7 +1755,26 @@ final class NotesStore {
     /// 切换主题：持久化 + themeVersion 递增（ContentView 以 .id 整体重建，深浅/色调生效）
     func setTheme(_ t: Theme) {
         UserDefaults.standard.set(t.rawValue, forKey: "theme")
+        // 内置主题与插件主题是同一个“全局主题”选择：选内置主题即退出插件主题。
+        PluginManager.shared.setTheme("")
         themeVersion += 1
+    }
+
+    /// 选择插件主题：与晨曦/夜航者共用同一全局外观链路。
+    func setPluginTheme(_ id: String) {
+        PluginManager.shared.setTheme(id)
+        registerActiveThemeFonts()
+        loadThemeFonts()
+    }
+
+    /// 统一主题选择入口：内置与插件主题同级，选择任一项都会替换当前全局主题。
+    func selectThemeOption(_ id: String) {
+        if id.hasPrefix("plugin:") {
+            setPluginTheme(String(id.dropFirst("plugin:".count)))
+        } else if id.hasPrefix("builtin:"),
+                  let theme = Theme(rawValue: String(id.dropFirst("builtin:".count))) {
+            setTheme(theme)
+        }
     }
 
     // MARK: - AI 自动命名（云端 API；仅当前文件、仅显式触发）

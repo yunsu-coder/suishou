@@ -141,6 +141,100 @@ struct PluginTheme: Identifiable {
     let desc: String
     let cssFile: String
     let swatchHex: String
+    /// 插件包根目录（字体/图标资源相对路径解析基准）
+    let dir: String
+    /// 主题声明的界面字体（可选）
+    let uiFont: ThemeFontAsset?
+    /// 主题声明的代码字体（可选）
+    let codeFont: ThemeFontAsset?
+    /// 主题声明的标题/展示字体（可选）
+    let displayFont: ThemeFontAsset?
+    /// 语义图标映射（如 "folder" / "sparkles" → 包内绝对路径）
+    let icons: [String: String]
+    /// 主题彩蛋（可选）
+    let easterEgg: ThemeEasterEgg?
+    /// 主题动效/特效配置（可选）
+    let motion: ThemeMotion?
+    /// 主题自带透明度（0 = 不透明）
+    let glass: Double
+}
+
+/// 主题字体资源：file 为包内相对路径，family 为 CoreText 家族名。
+struct ThemeFontAsset: Equatable {
+    let file: String
+    let family: String
+    let size: Double?
+}
+
+/// 主题彩蛋：trigger 目前支持 "icon-click"；symbols 为飘落符号。
+struct ThemeEasterEgg: Equatable {
+    let trigger: String
+    let clicks: Int
+    let symbols: [String]
+    let message: String?
+}
+
+/// 主题动效：全部为轻量 SwiftUI 动画，默认尊重系统“减少动态效果”。
+struct ThemeMotion: Equatable {
+    let ambientBubbles: Bool
+    let ambientPixels: Bool
+    let ambientInk: Bool
+    /// 雾青主题氛围：极淡的花粉光尘缓慢飘落
+    let ambientPollen: Bool
+    let scanlines: Bool
+    let iconBounce: Bool
+    let tabSpring: Bool
+    /// 单次动画时长（秒，0.12…0.60）
+    let duration: Double
+    let respectReduceMotion: Bool
+}
+
+/// theme.json 中的单条主题声明（含可选字体 / 图标 / 彩蛋 / 动效资源）。
+struct ThemeSpec: Codable {
+    let id: String
+    let name: String
+    let desc: String?
+    /// 人工审核标记：true 才允许进入主题列表
+    let reviewed: Bool?
+    /// 人工审核时锁定的内容哈希：任何资源变化都会失效，退回待审核
+    let reviewedHash: String?
+    /// 质量审计版本：1 = 基础图标规则；2 = 文件格式/文件夹/颜色层级规则
+    let auditVersion: Int?
+    let cssFile: String
+    let swatchHex: String?
+    let uiFont: FontSpec?
+    let codeFont: FontSpec?
+    let displayFont: FontSpec?
+    let icons: [String: String]?
+    let easterEgg: EasterEggSpec?
+    let motion: MotionSpec?
+    /// 主题自带透明度（0 = 不透明，0…1）；缺省 0。
+    let glass: Double?
+
+    struct FontSpec: Codable {
+        let file: String
+        let family: String
+        let size: Double?
+    }
+
+    struct EasterEggSpec: Codable {
+        let trigger: String?
+        let clicks: Int?
+        let symbols: [String]?
+        let message: String?
+    }
+
+    struct MotionSpec: Codable {
+        let ambientBubbles: Bool?
+        let ambientPixels: Bool?
+        let ambientInk: Bool?
+        let ambientPollen: Bool?
+        let scanlines: Bool?
+        let iconBounce: Bool?
+        let tabSpring: Bool?
+        let durationMs: Int?
+        let respectReduceMotion: Bool?
+    }
 }
 
 

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "forest-night",
+    "name": "深林夜",
+    "desc": "松林深处的夜色：墨绿底 + 苔藓绿，楷书标题、多色植物图标、叶片光尘与萤火彩蛋",
+    "reviewed": true,
+    "auditVersion": 5,
+    "cssFile": "theme.css",
+    "swatchHex": "#4FD1A5",
+    "displayFont": {
+      "file": "fonts/MaShanZheng-Regular.ttf",
+      "family": "Ma Shan Zheng",
+      "size": 18
+    },
+    "codeFont": {
+      "file": "fonts/JetBrainsMono.ttf",
+      "family": "JetBrains Mono",
+      "size": 13
+    },
+    "icons": {
+      "folder": "icons/folder-64.png",
+      "folder.open": "icons/folder.open-64.png",
+      "file.markdown": "icons/file.markdown-64.png",
+      "file.code": "icons/file.code-64.png",
+      "file.data": "icons/file.data-64.png",
+      "file.image": "icons/file.image-64.png",
+      "file.video": "icons/file.video-64.png",
+      "file.audio": "icons/file.audio-64.png",
+      "file.document": "icons/file.document-64.png",
+      "file.archive": "icons/file.archive-64.png",
+      "file.other": "icons/file.other-64.png",
+      "puzzlepiece.extension": "icons/plugin-64.png",
+      "shippingbox": "icons/box-64.png",
+      "gearshape": "icons/settings-64.png",
+      "sidebar.left": "icons/sidebar-64.png",
+      "magnifyingglass": "icons/search-64.png",
+      "sparkles": "icons/sparkle-64.png",
+      "clock.arrow.circlepath": "icons/history-64.png",
+      "paw": "icons/paw-64.png"
+    },
+    "easterEgg": {
+      "trigger": "icon-click",
+      "clicks": 5,
+      "symbols": [
+        "✨",
+        "🌟",
+        "·",
+        "✧"
+      ],
+      "message": "夜深了"
+    },
+    "motion": {
+      "ambientPollen": true,
+      "iconBounce": true,
+      "tabSpring": true,
+      "durationMs": 260,
+      "respectReduceMotion": true
+    },
+    "glass": 0,
+    "reviewedHash": "4100f46f43e8e31d67bfcce418165dd0433b51a3ab0cbc5def0b8f919f88c267"
+  }
+]

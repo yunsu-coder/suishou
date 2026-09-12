@@ -25,8 +25,7 @@ struct QuickOpenView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 14))
+                ThemeIcon(name: "magnifyingglass", fallback: "magnifyingglass", size: 16)
                     .foregroundStyle(.tertiary)
                 TextField(_LL("快速打开文件（标题 / 文件夹）", "Quick Open File (Title / Folder)"), text: $query)
                     .textFieldStyle(.plain)
@@ -99,7 +98,7 @@ private struct QuickOpenRow: View {
         HStack(spacing: 8) {
             Image(systemName: "note.text")
                 .font(.system(size: 12))
-                .foregroundStyle(active ? currentTheme.accent : Color.secondary)
+                .foregroundStyle(active ? appAppearance.accent : Color.secondary)
             Text(item.title.isEmpty ? _L("无标题", "Untitled") : item.title)
                 .font(.system(size: 13))
                 .lineLimit(1)
@@ -114,6 +113,6 @@ private struct QuickOpenRow: View {
         .listRowInsets(EdgeInsets(top: 2, leading: 12, bottom: 2, trailing: 12))
         .contentShape(Rectangle())
         .onTapGesture(perform: open)
-        .background(isSelected ? Color.accentColor.opacity(0.14) : Color.clear)
+        .background(isSelected ? appAppearance.accent.opacity(0.14) : Color.clear)
     }
 }

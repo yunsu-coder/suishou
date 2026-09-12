@@ -1,0 +1,26 @@
+{
+  "id": "theme-bubble-pop",
+  "name": "Bubble Pop 像素糖果",
+  "nameEn": "Bubble Pop",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "像素糖果亮色主题：粉紫糖果配色、像素字体、专属像素图标与气泡彩蛋",
+  "descEn": "Pixel-candy theme with light/dark twins, bundled pixel fonts, exclusive icons and a hidden easter egg",
+  "features": [
+    "亮色单主题：不做暗色半成品，之后另行补充",
+    "亮色 / 深色两套完整配色",
+    "Fusion Pixel 界面与代码字体",
+    "8 枚专属像素图标",
+    "侧栏爪印连点触发彩蛋"
+  ],
+  "featuresEn": [
+    "Complete light + dark palettes",
+    "Fusion Pixel UI and code fonts",
+    "8 exclusive pixel icons",
+    "Click the paw icon repeatedly for an easter egg"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "pawprint.fill"
+}

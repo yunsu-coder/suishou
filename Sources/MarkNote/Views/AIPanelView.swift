@@ -515,7 +515,8 @@ struct AIPanelView: View {
     private var header: some View {
         @Bindable var model = model
         return HStack(spacing: 8) {
-            Image(systemName: "sparkles").foregroundStyle(.secondary)
+            ThemeIcon(name: "sparkles", fallback: "sparkles", size: 16)
+                .foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 0) {
                 Text(_LL("AI 问答", "AI Chat")).font(.headline)
                 if let id = model.currentConversationID,
@@ -710,7 +711,7 @@ struct AIPanelView: View {
                         .font(.callout)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                        .background(appAppearance.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
                         .textSelection(.enabled)
                     if !m.referenced.isEmpty {
                         HStack(spacing: 5) {

@@ -1,0 +1,67 @@
+[
+  {
+    "id": "sumi-paper",
+    "name": "墨纸",
+    "desc": "宣纸墨线、朱砂落款；亮色书写主题，自带书法字体、墨线图标与印章彩蛋",
+    "reviewed": true,
+    "cssFile": "theme.css",
+    "uiFont": {
+      "file": "fonts/ZCOOLXiaoWei-Regular.ttf",
+      "family": "站酷小薇体",
+      "size": 15
+    },
+    "codeFont": {
+      "file": "fonts/JetBrainsMono.ttf",
+      "family": "JetBrains Mono",
+      "size": 14
+    },
+    "displayFont": {
+      "file": "fonts/MaShanZheng-Regular.ttf",
+      "family": "Ma Shan Zheng",
+      "size": 20
+    },
+    "icons": {
+      "folder": "icons/folder-64.png",
+      "puzzlepiece.extension": "icons/plugin-64.png",
+      "shippingbox": "icons/plugin-64.png",
+      "gearshape": "icons/settings-64.png",
+      "sidebar.left": "icons/sidebar-64.png",
+      "magnifyingglass": "icons/search-64.png",
+      "sparkles": "icons/sparkle-64.png",
+      "clock.arrow.circlepath": "icons/branch-64.png",
+      "paw": "icons/paw-64.png",
+      "folder.open": "icons/folder.open-64.png",
+      "file.markdown": "icons/file.markdown-64.png",
+      "file.code": "icons/file.code-64.png",
+      "file.data": "icons/file.data-64.png",
+      "file.image": "icons/file.image-64.png",
+      "file.video": "icons/file.video-64.png",
+      "file.audio": "icons/file.audio-64.png",
+      "file.document": "icons/file.document-64.png",
+      "file.archive": "icons/file.archive-64.png",
+      "file.other": "icons/file.other-64.png"
+    },
+    "easterEgg": {
+      "trigger": "icon-click",
+      "clicks": 5,
+      "symbols": [
+        "🖋️",
+        "🪶",
+        "●",
+        "✦"
+      ],
+      "message": "落笔"
+    },
+    "motion": {
+      "ambientInk": true,
+      "iconBounce": true,
+      "tabSpring": true,
+      "durationMs": 280,
+      "respectReduceMotion": true
+    },
+    "glass": 0,
+    "auditVersion": 5,
+    "swatchHex": "#E24A2B",
+    "reviewedHash": "de46529c45b05d04abf4f7996e30c743f75949bb09b6e7f14e57bd09f9265536"
+  }
+]

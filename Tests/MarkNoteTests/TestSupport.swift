@@ -11,7 +11,7 @@ enum TestEnv {
             .appendingPathComponent("marknote-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         // 测试隔离：清掉全局域的持久化键（否则真实 app 的历史设置会污染断言）
-        for key in ["notesDirURL", "sortMode", "editorMode", "theme", "editorFontSize", "editorFontFamily", "previewFontScale", "previewFont", "groupByCategory"] {
+        for key in ["notesDirURL", "sortMode", "editorMode", "theme", "editorFontSize", "previewFontScale", "groupByCategory"] {
             UserDefaults.standard.removeObject(forKey: key)
         }
         UserDefaults.standard.set(dir.path, forKey: "notesDirURL")

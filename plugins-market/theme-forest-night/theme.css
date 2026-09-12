@@ -1,0 +1,96 @@
+/* FOREST NIGHT · 深林夜：墨绿底 + 苔藓绿，松林深处的夜色。纯色，无渐变。
+   暗色单主题：dawn / night 两侧都是这套夜森林。 */
+:root,
+:root[data-theme="dawn"],
+:root[data-theme="night"] {
+  --bg: #0E1512;
+  --surface: #141D18;
+  --text: #E8F0EA;
+  --text-secondary: #9CB3A6;
+  --border: rgba(232, 240, 234, 0.14);
+  --border-strong: rgba(232, 240, 234, 0.26);
+  --accent: #4FD1A5;
+  --accent-ink: #6FDDB4;
+  --accent-soft: rgba(79, 209, 165, 0.16);
+  --code-bg: #101815;
+  --code-border: rgba(232, 240, 234, 0.12);
+  --code-text: #E8F0EA;
+  --note: #79C0FF;   --note-bg: rgba(121, 192, 255, 0.14);
+  --tip: #6FDDB4;    --tip-bg: rgba(111, 221, 180, 0.14);
+  --warn: #FFC45E;   --warn-bg: rgba(255, 196, 94, 0.16);
+  --danger: #FF8F8F; --danger-bg: rgba(255, 143, 143, 0.14);
+  --info: #79C0FF;   --info-bg: rgba(121, 192, 255, 0.14);
+  --muted: #9CB3A6;
+  --hl-kw: #FF9E9E; --hl-str: #6FDDB4; --hl-num: #FFD479;
+  --hl-comment: #7E9187; --hl-type: #7FD8F0; --hl-func: #FFC45E;
+  --hl-tag: #FF9E9E; --hl-attr: #FFD479;
+}
+
+body {
+  font-family: "Hiragino Sans GB", "PingFang SC", -apple-system, sans-serif;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  font-family: "Ma Shan Zheng", "Songti SC", serif;
+  font-weight: 400;
+}
+.markdown-body code,
+.markdown-body pre,
+.codefile code {
+  font-family: "JetBrains Mono", "SF Mono", monospace !important;
+}
+.markdown-body a,
+.footnote-ref a,
+.footnote-backref {
+  color: var(--accent-ink, var(--accent));
+}
+
+/* 多彩钩子：标题 / 加粗 / 斜体各一色相（同明度带，保持和谐） */
+:root {
+  --h1: #3FD1A5;
+  --h2: #7FD8F0;
+  --h3: #B49BFF;
+  --strong: #FF9E9E;
+  --em: #FFD479;
+  --hr: rgba(156, 179, 166, 0.55);
+}
+
+/* 编辑器 Markdown 语法色（auditVersion 5 必填，33 项）
+   标记中性、内容分色；列表 / 序号 / 任务用可见色（彩度 ≥12）。 */
+:root {
+  --md-h1: #3FD1A5;
+  --md-h2: #7FD8F0;
+  --md-h3: #B49BFF;
+  --md-bold: #FF9E9E;
+  --md-italic: #FFD479;
+  --md-code: #E8955A;
+  --md-link: #86B4FF;
+  --md-quote: #9CB3A6;
+  --md-math: #E0A6FF;
+  --md-highlight: #B7E37F;
+  --md-strike: #E06A8A;
+  --md-insert: #76D98F;
+  --md-callout: #FFC45E;
+  --md-table-head: #7FD8F0;
+  --md-embed: #86B4FF;
+  --md-kbd: #B49BFF;
+  --md-mention: #FF9E9E;
+  --md-emoji: #9CB3A6;
+  --md-badge: #FFC45E;
+  --md-timeline: #6FDDB4;
+  --md-term: #76D98F;
+  --md-mermaid: #B49BFF;
+  --md-list: #4FD1A5;
+  --md-number: #7FD8F0;
+  --md-task: #6FDDB4;
+  --md-marker: #9CB3A6;
+  --md-url: #9CB3A6;
+  --md-hr: #9CB3A6;
+  --md-table: #9CB3A6;
+  --md-fence: #9CB3A6;
+  --md-html: #9CB3A6;
+  --md-code-bg: #101815;
+  --md-highlight-bg: rgba(183, 227, 127, 0.2);
+}

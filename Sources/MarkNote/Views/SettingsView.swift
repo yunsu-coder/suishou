@@ -1,32 +1,40 @@
 import SwiftUI
 import AppKit
-import UniformTypeIdentifiers
-
 /// 设置面板（⌘,）
 struct SettingsView: View {
     @Environment(NotesStore.self) private var store
     @AppStorage("editorFontSize") private var editorFontSize = 13.0
     @AppStorage("previewFontScale") private var previewFontScale = 1.0
+    @State private var appearanceToken = "-"
 
     var body: some View {
         TabView {
             GeneralSettingsTab()
                 .environment(store)
                 .tabItem { Label(_LL("通用", "General"), systemImage: "gear") }
-            // 主题：按产品决策仅保留「晨曦」，无选择器
             EditorSettingsTab(editorFontSize: $editorFontSize, previewFontScale: $previewFontScale)
                 .tabItem { Label(_LL("编辑", "Editor"), systemImage: "textformat.size") }
             PluginsSettingsTab()
                 .tabItem { Label(_LL("插件", "Plugins"), systemImage: "puzzlepiece.extension") }
         }
         .frame(width: 480, height: 380)
+        .tint(appAppearance.accent)
+        .preferredColorScheme(appAppearance.scheme)
+        // 只刷新外观，不重建整个 TabView（避免与插件重扫形成 onAppear 循环）。
+        .background(Color.clear.id("\(store.themeVersion)-\(appearanceToken)"))
+        .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
+            appearanceToken = PluginManager.shared.enabledTheme()?.id ?? "-"
+        }
     }
 }
 
 private struct GeneralSettingsTab: View {
     @Environment(NotesStore.self) private var store
-    @AppStorage(Glass.key) private var windowGlass = 0.0
     @AppStorage(LLM.kModel) private var llmModel = "deepseek-v4-flash-vision-exp"
+    @State private var themeOptions: [ThemeOption] = []
+    /// 设置页里的 API Key 输入草稿（保存后清空，列表只显示掩码）
+    @State private var apiKeyDraft = ""
+    @State private var keyStatus: String?
     /// 语言切换后 VS Code 式重启提示（设置窗口打开时语言选项改变 → 提示重启）
     @State private var languageChanged = false
 
@@ -76,31 +84,80 @@ private struct GeneralSettingsTab: View {
                     }
                 }
                 .pickerStyle(.menu)
-                Text(_L("DeepSeek 已内置（无需密钥）。自动命名：新建「无标题」草稿后自动生成标题；右键文件 →「AI 改标题」可手动触发。仅上送当前文档前 1500 字，不上送整个库。", "DeepSeek is built in (no API key needed). Auto-naming: after an untitled draft is created, a title is generated automatically; right-click a file → 'AI Rename Title' to trigger it manually. Only the first 1500 characters of the current document are sent, not the whole library."))
+                Text(_L("自动命名：新建「无标题」草稿后自动生成标题；右键文件 →「AI 改标题」可手动触发。仅上送当前文档前 1500 字，不上送整个库。", "Auto-naming: after an untitled draft is created, a title is generated automatically; right-click a file → 'AI Rename Title' to trigger it manually. Only the first 1500 characters of the current document are sent, never the whole library."))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            Section(_L("模型服务（API Key）", "Model service (API key)")) {
+                HStack(spacing: 8) {
+                    SecureField(_L("粘贴你的 API Key（sk-…）", "Paste your API key (sk-…)"), text: $apiKeyDraft)
+                        .textFieldStyle(.roundedBorder)
+                    Button(_L("保存", "Save")) {
+                        LLM.setAPIKey(apiKeyDraft)
+                        apiKeyDraft = ""
+                        keyStatus = LLM.configured ? _L("已保存", "Saved") : _L("已清除", "Cleared")
+                    }
+                    .disabled(apiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button(_L("清除", "Clear")) {
+                        LLM.clearAPIKey()
+                        keyStatus = _L("已清除", "Cleared")
+                    }
+                    .disabled(!LLM.configured)
+                }
+                HStack(spacing: 8) {
+                    Text(LLM.configured
+                         ? _L("当前：\(LLM.maskedKey)", "Current: \(LLM.maskedKey)")
+                         : _L("未配置 —— AI 功能不可用", "Not configured — AI features are unavailable"))
+                        .font(.caption)
+                        .foregroundStyle(LLM.configured ? .secondary : .tertiary)
+                    Button(_L("测试连接", "Test connection")) {
+                        keyStatus = _L("测试中…", "Testing…")
+                        Task {
+                            let err = await LLM.verifyConnection()
+                            await MainActor.run {
+                                keyStatus = err.map { _L("连接失败：\($0)", "Failed: \($0)") } ?? _L("连接正常 ✓", "Connection OK ✓")
+                            }
+                        }
+                    }
+                    .disabled(!LLM.configured)
+                    if let keyStatus {
+                        Text(keyStatus).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Text(_L("密钥只保存在本机（UserDefaults），不写入仓库、不上传；请到模型服务商后台自行申请。没填 key 时 AI 面板与自动命名会明确提示「API Key 无效」。",
+                        "The key is stored only on this machine (UserDefaults) — never committed or uploaded. Get one from your model provider. Without a key, the AI panel and auto-naming say so explicitly."))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
             Section(_L("外观", "Appearance")) {
-                Picker(_L("主题", "Theme"), selection: Binding(
-                    get: { currentTheme },
-                    set: { store.setTheme($0) }
-                )) {
-                    ForEach(Theme.allCases) { t in
-                        Text(_L("\(t.name)（\(t.subtitle)）", "\(t.name) (\(t.subtitle))")).tag(t)
+                if themeOptions.isEmpty {
+                    Text(_L("未安装主题插件。安装并启用主题包后，这里会出现可选主题。",
+                            "No theme plugins installed. Enable a theme package to see it here."))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                } else {
+                    Picker(_L("主题", "Theme"), selection: Binding(
+                        get: { currentThemeOptionID },
+                        set: { store.selectThemeOption($0) }
+                    )) {
+                        ForEach(themeOptions) { t in
+                            Text(t.subtitle.isEmpty ? t.name
+                                 : _L("\(t.name)（\(t.subtitle)）", "\(t.name) (\(t.subtitle))"))
+                                .tag(t.id)
+                        }
                     }
+                    .pickerStyle(.menu)
                 }
-                .pickerStyle(.menu)
-                VStack {
-                    HStack {
-                        Text(_L("毛玻璃（透出桌面壁纸）", "Glass (show desktop wallpaper)"))
-                        Spacer()
-                        Text("\(Int(windowGlass * 100))%")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                    Slider(value: $windowGlass, in: 0...1, step: 0.05)
-                }
-                Text(_L("开启后窗口、编辑器与预览背景转为半透明：壁纸经模糊处理透出，文字可读性有保障。关闭（0%）恢复原有不透明观感。", "When enabled, the window, editor and preview backgrounds become semi-transparent: the wallpaper shows through blurred while text stays readable. Turning it off (0%) restores the original opaque look."))
+                Text(_L("主题全部来自插件包：选择任一项都会立即作用于窗口、侧栏、编辑器与预览。",
+                        "All themes come from plugin packages: any selection applies immediately to the window, sidebar, editor, and preview."))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                Text(_L("窗口透明度由当前主题决定：\(Int(appAppearance.glass * 100))%",
+                        "Window transparency is defined by the active theme: \(Int(appAppearance.glass * 100))%"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(_L("内置主题保持不透明；插件主题可自带玻璃强度，用户不再单独调节。",
+                        "Built-in themes stay opaque; plugin themes can define their own glass level. No user slider."))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -130,7 +187,7 @@ private struct GeneralSettingsTab: View {
                                 .font(.caption)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
-                                .foregroundStyle(active ? Color.accentColor : .secondary)
+                                .foregroundStyle(active ? appAppearance.accent : .secondary)
                             Spacer()
                             if !active {
                                 Button(_L("切换", "Switch")) { store.switchWorkspace(path) }
@@ -140,10 +197,14 @@ private struct GeneralSettingsTab: View {
                                     .foregroundStyle(.secondary)
                             } else {
                                 Text(_L("当前", "Current")).font(.caption2).foregroundStyle(.tertiary)
-                            }
-                        }
-                    }
-                }
+            }
+        }
+        .onAppear { themeOptions = allThemeOptions }
+        .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
+            themeOptions = allThemeOptions
+        }
+    }
+}
             }
             Spacer()
         }
@@ -165,13 +226,10 @@ private struct GeneralSettingsTab: View {
     }
 }
 
-/// 编辑设置：字号 / 字体（含自定义字体库）+ 预览缩放与字体
+/// 编辑设置：字号 / 预览缩放。字体完全由当前主题提供。
 private struct EditorSettingsTab: View {
-    @Environment(NotesStore.self) private var store
     @Binding var editorFontSize: Double
     @Binding var previewFontScale: Double
-    @AppStorage("previewFont") private var previewFont = "system"
-    @AppStorage("editorFontFamily") private var editorFontFamily = "mono"
 
     var body: some View {
         Form {
@@ -186,17 +244,14 @@ private struct EditorSettingsTab: View {
                     }
                     Slider(value: $editorFontSize, in: 9...30)
                 }
-                Picker(_L("源码字体", "Source Font"), selection: $editorFontFamily) {
-                    Text(_L("等宽（SF Mono）", "Monospaced (SF Mono)")).tag("mono")
-                    Text("Menlo").tag("menlo")
-                    Text("Monaco").tag("monaco")
-                    Text(_L("PingFang 苹方", "PingFang")).tag("pingfang")
-                    Text(_L("Kaiti 楷体", "Kaiti")).tag("kaiti")
-                    Text(_L("Songti 宋体", "Songti")).tag("songti")
-                    ForEach(store.customFonts) { f in
-                        Text(f.family).tag(f.family)
-                    }
-                }
+                Text(_L("源码字体由当前主题提供：\(appAppearance.codeFontFamily ?? "系统等宽")",
+                        "Source font is provided by the active theme: \(appAppearance.codeFontFamily ?? "System Mono")"))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Text(_L("主题推荐源码字号：\(Int(appAppearance.codeFontSize ?? editorFontSize)) pt",
+                        "Theme-recommended source size: \(Int(appAppearance.codeFontSize ?? editorFontSize)) pt"))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
             Section(_L("预览", "Preview")) {
                 VStack {
@@ -209,61 +264,22 @@ private struct EditorSettingsTab: View {
                     }
                     Slider(value: $previewFontScale, in: 0.6...2.0)
                 }
-                Picker(_L("预览字体", "Preview Font"), selection: $previewFont) {
-                    Text(_L("系统", "System")).tag("system")
-                    Text(_L("苹方 PingFang", "PingFang")).tag("pingfang")
-                    Text(_L("楷体 Kaiti", "Kaiti")).tag("kaiti")
-                    Text(_L("宋体 Songti", "Songti")).tag("songti")
-                    Text(_L("等宽 Mono", "Mono")).tag("mono")
-                    ForEach(store.customFonts) { f in
-                        Text(f.family).tag(f.family)
-                    }
-                }
-            }
-            Section(_L("自定义字体", "Custom Fonts")) {
-                if store.customFonts.isEmpty {
-                    Text(_L("导入 .ttf / .otf / .ttc 字体文件后，可在「源码字体」「预览字体」中选用。", "After importing .ttf / .otf / .ttc font files, you can select them in 'Source Font' and 'Preview Font'."))
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                } else {
-                    ForEach(store.customFonts) { f in
-                        HStack {
-                            Text(f.family).lineLimit(1)
-                            Spacer()
-                            Button(_L("删除", "Delete")) { store.removeCustomFont(f) }
-                                .buttonStyle(.borderless)
-                                .foregroundStyle(.red)
-                        }
-                    }
-                }
-                Button(_L("导入字体…", "Import Font…")) { importCustomFont() }
+                Text(_L("预览字体由当前主题提供：\(appAppearance.uiFontFamily ?? "系统字体")",
+                        "Preview font is provided by the active theme: \(appAppearance.uiFontFamily ?? "System")"))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
             Spacer()
         }
         .padding()
         .formStyle(.grouped)
     }
-
-    /// 文件选择器导入字体（.ttf/.otf/.ttc；结果 Toast 反馈）
-    private func importCustomFont() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.allowedContentTypes = CustomFonts.extensions.compactMap { UTType(filenameExtension: $0) }
-        panel.message = _L("选择字体文件（.ttf / .otf / .ttc）", "Choose a font file (.ttf / .otf / .ttc)")
-        panel.prompt = _L("导入", "Import")
-        if panel.runModal() == .OK, let url = panel.url {
-            store.importCustomFont(from: url)
-        }
-    }
 }
 
 
-/// 插件设置：扫描包列表（工作台 .plugins/ + 全局），启用/禁用、主题应用、Finder 显示
+/// 插件设置：扫描包列表（工作台 .plugins/ + 全局），启用/禁用、Finder 显示
 private struct PluginsSettingsTab: View {
     @State private var packages: [PluginPackage] = []
-    @State private var themes: [PluginTheme] = []
-    @State private var selectedThemeID = ""
     @State private var note = ""
 
     var body: some View {
@@ -276,7 +292,15 @@ private struct PluginsSettingsTab: View {
                     ForEach(packages) { pkg in
                         Toggle(isOn: Binding(
                             get: { pkg.enabled },
-                            set: { _ in PluginManager.shared.toggle(pkg.id); reload() }
+                            set: { _ in
+                                switch PluginManager.shared.toggle(pkg.id) {
+                                case .blockedLastTheme:
+                                    note = _L("至少保留一个主题包兜底，无法关闭。", "At least one theme package must stay enabled.")
+                                case .ok:
+                                    note = ""
+                                }
+                                reload()
+                            }
                         )) {
                             HStack(spacing: 8) {
                                 Text(pkg.name).font(.callout.weight(.medium))
@@ -284,7 +308,7 @@ private struct PluginsSettingsTab: View {
                                 Text(pkg.kind.displayName)
                                     .font(.caption2)
                                     .padding(.horizontal, 5).padding(.vertical, 1)
-                                    .background(Color.accentColor.opacity(0.14), in: Capsule())
+                                    .background(appAppearance.accent.opacity(0.14), in: Capsule())
                                 Text(pkg.isGlobal ? _L("全局", "Global") : _L("工作台", "Workspace"))
                                     .font(.caption2).foregroundStyle(.tertiary)
                             }
@@ -293,38 +317,16 @@ private struct PluginsSettingsTab: View {
                         .controlSize(.small)
                     }
                 }
-            }
-            
-            
-            
-            if !themes.isEmpty {
-                Section(_L("插件主题", "Plugin Themes")) {
-                    ForEach(themes) { t in
-                        Button {
-                            PluginManager.shared.setTheme(t.id)
-                            selectedThemeID = t.id
-                        } label: {
-                            HStack(spacing: 8) {
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color(hex: t.swatchHex))
-                                    .frame(width: 18, height: 18)
-                                Text(t.name).font(.callout)
-                                Spacer()
-                                Image(systemName: selectedThemeID == t.id ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selectedThemeID == t.id ? Color.accentColor : Color.secondary)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    Text(note).font(.caption2).foregroundStyle(.tertiary)
+                if !note.isEmpty {
+                    Text(note)
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
                 }
             }
         }
         .padding()
         .formStyle(.grouped)
         .onAppear {
-            reload()
-            PluginManager.shared.scan(workspaceDir: nil)
             reload()
         }
         .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
@@ -334,8 +336,6 @@ private struct PluginsSettingsTab: View {
 
     private func reload() {
         packages = PluginManager.shared.allPackages()
-        themes = PluginManager.shared.allThemes()
-        selectedThemeID = UserDefaults.standard.string(forKey: "pluginThemeID") ?? ""
     }
 }
 

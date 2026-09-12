@@ -1,0 +1,147 @@
+/* BUBBLE POP · 亮色（像素糖果）
+   背景 #FFF6FA · 面板 #FFFFFF · 主色 #FF5FB0 · 紫 #7C4DFF · 薄荷 #2FA36B · 奶油 #FFC93C */
+:root,
+:root[data-theme="dawn"],
+:root[data-theme="night"] {
+  --bg: #FFFAFC;
+  --surface: #FFFFFF;
+  --text: #2E2140;
+  --text-secondary: #6E5E80;
+  --border: rgba(46, 33, 64, 0.12);
+  --border-strong: rgba(46, 33, 64, 0.22);
+  --accent: #FF3D9E;
+  --accent-ink: #B81463;
+  --accent-soft: rgba(255, 61, 158, 0.16);
+  --code-bg: #FDF2F8;
+  --code-border: rgba(56, 40, 74, 0.12);
+  --code-text: #42285C;
+  --note: #6E35FF;
+  --note-bg: rgba(110, 53, 255, 0.12);
+  --tip: #0A7040;
+  --tip-bg: rgba(23, 160, 95, 0.14);
+  --warn: #96660A;
+  --warn-bg: rgba(255, 201, 60, 0.26);
+  --danger: #C4264C;
+  --danger-bg: rgba(232, 57, 95, 0.14);
+  --info: #1A66C4;
+  --info-bg: rgba(30, 123, 232, 0.14);
+  --muted: #9C8FAA;
+  --hl-kw: #B01E96;
+  --hl-str: #1B7D46;
+  --hl-num: #6631E8;
+  --hl-comment: #7A6A88;
+  --hl-type: #1A66C4;
+  --hl-func: #96660A;
+  --hl-tag: #C4264C;
+  --hl-attr: #6E4200;
+}
+
+body {
+  font-family: "Fusion Pixel 12px Proportional zh_hans", "PingFang SC", sans-serif;
+}
+.markdown-body code,
+.markdown-body pre,
+.codefile code {
+  font-family: "Fusion Pixel 12px Monospaced zh_hans", "Departure Mono", "SF Mono", monospace !important;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  font-family: "Silkscreen", "Fusion Pixel 12px Proportional zh_hans", sans-serif;
+}
+.markdown-body img,
+.attach-card {
+  image-rendering: pixelated;
+}
+.markdown-body a,
+.footnote-ref a,
+.footnote-backref {
+  color: var(--accent-ink, var(--accent));
+}
+
+/* 多彩钩子：标题 / 加粗 / 斜体各一色相（同明度带，保持和谐） */
+:root {
+  --h1: #E0198A;
+  --h2: #6E35FF;
+  --h3: #0089A0;
+  --strong: #C4264C;
+  --em: #A86700;
+  --hr: #FFB3DC;
+}
+
+/* ── 编辑器 Markdown 语法色（auditVersion 5 必填）──
+   标记中性、内容分色：标题三级 / 粗体 / 斜体 / 代码 / 链接 / 公式 / 高亮 / 删除 / 插入 各自色相。 */
+:root {
+  --md-h1: #D6197F;
+  --md-h2: #6E35FF;
+  --md-h3: #00798D;
+  --md-bold: #C4264C;
+  --md-italic: #B0561E;
+  --md-code: #8A6A0A;
+  --md-link: #1A66C4;
+  --md-quote: #6E5E80;
+  --md-math: #8A4A12;
+  --md-highlight: #A8262E;
+  --md-strike: #9A5A6A;
+  --md-insert: #007F59;
+  --md-callout: #96660A;
+  --md-table-head: #4A3A5E;
+  --md-embed: #1A66C4;
+  --md-kbd: #7A3FA8;
+  --md-mention: #B01E96;
+  --md-emoji: #7A6A8A;
+  --md-badge: #8A4A12;
+  --md-timeline: #008174;
+  --md-term: #2F7A3A;
+  --md-mermaid: #6E35FF;
+  --md-marker: #9386A0;
+  --md-url: #9386A0;
+  --md-list: #9386A0;
+  --md-number: #9386A0;
+  --md-task: #9386A0;
+  --md-hr: #958896;
+  --md-table: #7A6A8A;
+  --md-fence: #8A7A90;
+  --md-html: #8A7A90;
+  --md-code-bg: #FDF2F8;
+  --md-highlight-bg: rgba(255, 201, 60, 0.26);
+}
+
+/* ── 编辑器 Markdown 语法色（auditVersion 5 必填）──
+   标记中性、内容分色：标题三级 / 粗体 / 斜体 / 代码 / 链接 / 公式 / 高亮 / 删除 / 插入 各自色相。 */
+:root {
+  --md-h1: #D6197F;
+  --md-h2: #6E35FF;
+  --md-h3: #00798D;
+  --md-bold: #C4264C;
+  --md-italic: #B0561E;
+  --md-code: #8A6A0A;
+  --md-link: #1A66C4;
+  --md-quote: #6E5E80;
+  --md-math: #8A4A12;
+  --md-highlight: #A8262E;
+  --md-strike: #9A5A6A;
+  --md-insert: #007F59;
+  --md-callout: #96660A;
+  --md-table-head: #4A3A5E;
+  --md-embed: #1A66C4;
+  --md-kbd: #7A3FA8;
+  --md-mention: #B01E96;
+  --md-emoji: #7A6A8A;
+  --md-badge: #8A4A12;
+  --md-timeline: #008174;
+  --md-term: #2F7A3A;
+  --md-mermaid: #6E35FF;
+  --md-list: #D6197F;
+  --md-number: #6E35FF;
+  --md-task: #007F59;
+  --md-marker: #9386A0;
+  --md-url: #9386A0;
+  --md-hr: #958896;
+  --md-table: #7A6A8A;
+  --md-fence: #8A7A90;
+  --md-html: #8A7A90;
+  --md-code-bg: #FDF2F8;
+  --md-highlight-bg: rgba(255, 201, 60, 0.26);
+}

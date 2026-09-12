@@ -256,7 +256,7 @@ private struct CommandRow: View {
         HStack(spacing: 10) {
             Image(systemName: item.icon)
                 .font(.system(size: 12))
-                .foregroundStyle(selected ? Color.accentColor : .secondary)
+                .foregroundStyle(selected ? appAppearance.accent : .secondary)
                 .frame(width: 18)
             Text(item.title)
                 .font(.system(size: 13, weight: selected ? .semibold : .regular))
@@ -267,7 +267,7 @@ private struct CommandRow: View {
                 Text("×\(count)")
                     .font(.caption2)
                     .monospacedDigit()
-                    .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(selected ? appAppearance.accent : Color.secondary)
             }
             Text(item.category)
                 .font(.caption2)
@@ -275,7 +275,7 @@ private struct CommandRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(selected ? Color.accentColor.opacity(0.14) : .clear,
+        .background(selected ? appAppearance.accent.opacity(0.14) : .clear,
                     in: RoundedRectangle(cornerRadius: 6))
     }
 }

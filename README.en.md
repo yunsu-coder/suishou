@@ -57,7 +57,7 @@ open build/随手.app
 | `⌘1/2/3` | Editor only / Split / Preview only |
 | `⌘⇧I` | Import files; `⌘⇧O` switch workspace |
 | `⌥⌘↑/↓` | Previous / next note |
-| `⌘,` | Settings (language / appearance / fonts / glass) |
+| `⌘,` | Settings (language / theme / font size / zoom) |
 | `⇧⌘A` / `⌥⌘A` | Toggle AI panel |
 | `⌃⇧P` | Command palette |
 | `⌃+scroll` | Layered zoom (editor=font, preview=text, otherwise=window) |

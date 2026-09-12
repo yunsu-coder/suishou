@@ -51,9 +51,101 @@ final class MarkdownHighlighterTests: XCTestCase {
         let big = String(repeating: "a", count: 600_000)
         XCTAssertTrue(MarkdownHighlighter.tokenize(big).isEmpty)
     }
+
+    /// v5：标记与内容分开（#、** 等走 .marker），标题带级别，表格结构与表头单独成 token。
+    func testMarkerHeadingLevelAndTableTokens() {
+        let md = """
+        ### 三级标题
+
+        **粗体** 与 ~~删除~~
+
+        | 列 A | 列 B |
+        | --- | --- |
+        | 1 | 2 |
+        """
+        let tokens = MarkdownHighlighter.tokenize(md)
+        func count(_ kind: MDKind) -> Int { tokens.filter { $0.kind == kind }.count }
+        XCTAssertGreaterThanOrEqual(count(.marker), 4, "标题 #、**、~~ 都应标成标记")
+        XCTAssertEqual(tokens.first { $0.kind == .heading }?.level, 3, "标题应带级别")
+        XCTAssertGreaterThanOrEqual(count(.tableCell), 6, "表格竖线应标成单元格结构符")
+        XCTAssertEqual(count(.tableSep), 1, "分隔行单独成 token")
+        XCTAssertEqual(count(.tableHead), 2, "表头两个单元格")
+    }
+
+    /// 回归：编辑器扩展名必须落到 markdown，否则整条语法着色链路会被跳过（曾经的真实 bug）。
+    func testEditorExtensionFallsBackToMarkdown() {
+        XCTAssertEqual(EditorView.editorExtension(for: nil), "md")
+        XCTAssertEqual(EditorView.editorExtension(for: "随手.md"), "md")
+        XCTAssertEqual(EditorView.editorExtension(for: "source/code.SWIFT"), "swift")
+        XCTAssertTrue(MarkdownEditorView.isMarkdownExt(EditorView.editorExtension(for: nil)),
+                      "无扩展名文档必须走 Markdown 着色")
+        XCTAssertTrue(MarkdownEditorView.isMarkdownExt(EditorView.editorExtension(for: "笔记")),
+                      "无扩展名标题必须走 Markdown 着色")
+    }
+
+    /// 回归：嵌套列表的标记必须落在真实位置（曾经把颜色涂到缩进空格上，嵌套列表等于没着色）。
+
+    /// API Key 策略：只存本机、粘贴带空白会被裁掉、掩码不泄露全量。
+    func testAPIKeyHandling() {
+        let original = UserDefaults.standard.string(forKey: LLM.kAPIKey)
+        defer {
+            if let original { UserDefaults.standard.set(original, forKey: LLM.kAPIKey) }
+            else { UserDefaults.standard.removeObject(forKey: LLM.kAPIKey) }
+        }
+
+        LLM.setAPIKey("  sk-test-1234567890abcdef  \n")
+        XCTAssertEqual(UserDefaults.standard.string(forKey: LLM.kAPIKey), "sk-test-1234567890abcdef",
+                       "粘贴的 key 必须裁掉首尾空白与换行")
+        XCTAssertTrue(LLM.configured)
+        XCTAssertFalse(LLM.maskedKey.contains("1234567890abcdef"), "设置页只能显示掩码")
+        XCTAssertTrue(LLM.maskedKey.hasPrefix("sk-tes"))
+        XCTAssertTrue(LLM.maskedKey.hasSuffix("cdef"))
+
+        LLM.setAPIKey("   ")
+        XCTAssertFalse(LLM.configured, "空白输入等于清除")
+        LLM.setAPIKey("sk-again-1234567890")
+        XCTAssertTrue(LLM.configured)
+        LLM.clearAPIKey()
+        XCTAssertFalse(LLM.configured)
+    }
+    func testNestedListMarkerRanges() {
+        let md = "- 顶层\n  - 嵌套\n    - 更深\n    1. 深层有序\n  > 缩进引用\n"
+        let ns = md as NSString
+        let tokens = MarkdownHighlighter.tokenize(md)
+        let text = { (kind: MDKind) in
+            tokens.filter { $0.kind == kind }.map { ns.substring(with: $0.range) }
+        }
+        XCTAssertEqual(text(.listBullet), ["- ", "- ", "- "], "三层无序列表都要标到标记本身")
+        XCTAssertEqual(text(.listNumber), ["1. "])
+        XCTAssertEqual(text(.quote), [">"])
+    }
 }
 
 final class ImagePipelineTests: XCTestCase {
+    @MainActor
+    func testShortImageReferenceImportsAndResolves() throws {
+        let (store, dir) = try TestEnv.makeStore()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let ref = try XCTUnwrap(store.saveImage(
+            Data([0x89, 0x50, 0x4E, 0x47]),
+            ext: "png",
+            noteID: "note",
+            preferredName: "我的 图.png"
+        ))
+        XCTAssertEqual(ref, "我的%20图.png", "插入正文应使用短文件名，仅编码必要字符")
+        let saved = try XCTUnwrap(store.resolvedImageURL(for: ref))
+        XCTAssertEqual(saved.lastPathComponent, "我的 图.png")
+        XCTAssertEqual(saved.deletingLastPathComponent().lastPathComponent, "image")
+
+        let manualDir = dir.appendingPathComponent("source/img", isDirectory: true)
+        try FileManager.default.createDirectory(at: manualDir, withIntermediateDirectories: true)
+        try Data([1, 2, 3]).write(to: manualDir.appendingPathComponent("manual.png"))
+        XCTAssertEqual(store.resolvedImageURL(for: "manual.png")?.lastPathComponent, "manual.png")
+        XCTAssertEqual(store.resolvedImageURL(for: "img/manual.png")?.lastPathComponent, "manual.png")
+        XCTAssertEqual(store.resolvedImageURL(for: "source/img/manual.png")?.lastPathComponent, "manual.png")
+    }
+
     func testResampleWideImage() throws {
         // 纯 CGContext 生成 2000×1000 JPEG（避开 NSBitmapImageRep 在 CI/宿主环境的不稳定构造）
         let ctx = CGContext(

@@ -1,0 +1,27 @@
+{
+  "id": "theme-forest-night",
+  "name": "深林夜",
+  "nameEn": "Forest Night",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "暗色单主题：墨绿底 + 苔藓绿，楷书标题、19 个多色语义图标、叶片光尘与萤火彩蛋",
+  "descEn": "Dark-only forest theme with moss accent, calligraphic display font, 19 multi-hue semantic icons, drifting leaves and a firefly easter egg",
+  "features": [
+    "暗色单主题：纸底 #0E1512（亮度 <0.2），不做半成品灰调",
+    "19 个语义图标按文件类型分色（暗底提亮，同明度带），透明字形无底板，14px 可辨",
+    "专属字体：马善政楷书标题 + JetBrains Mono 编辑字体",
+    "33 个编辑器语法色：标记中性、内容分色，列表 / 序号 / 任务用可见色",
+    "叶片光尘氛围 + 图标签弹跳 + 页签弹簧；连点图标 5 次 → 萤火 +「夜深了」"
+  ],
+  "featuresEn": [
+    "Dark-only palette (#0E1512, luminance <0.2)",
+    "19 multi-hue semantic icons, transparent glyphs, readable at 14px",
+    "Bundled fonts: Ma Shan Zheng display + JetBrains Mono for the editor",
+    "33 editor syntax colours; markers stay quiet, lists stay visible",
+    "Drifting leaves, icon bounce, tab spring; click the icon 5× for fireflies"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "leaf"
+}

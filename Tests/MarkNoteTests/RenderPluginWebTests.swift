@@ -6,6 +6,27 @@ import Foundation
 
 final class RenderPluginWebTests: XCTestCase {
 
+    private func loadPreviewWeb() throws -> WKWebView {
+        let pkg = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let bundlePath = pkg.appendingPathComponent(".build/arm64-apple-macosx/debug/MarkNote_MarkNote.bundle")
+        let resources = bundlePath.appendingPathComponent("Resources", isDirectory: true)
+        let html = resources.appendingPathComponent("preview.html")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: html.path))
+
+        let web = WKWebView(frame: NSRect(x: -5000, y: -5000, width: 640, height: 480))
+        web.loadFileURL(html, allowingReadAccessTo: resources)
+        for _ in 0..<60 {
+            var ok: Any?
+            let e = expectation(description: "poll")
+            web.evaluateJavaScript("typeof window.renderMd") { r, _ in ok = r; e.fulfill() }
+            wait(for: [e], timeout: 2)
+            if (ok as? String) == "function" { return web }
+        }
+        XCTFail("渲染管线应就绪")
+        return web
+    }
+
     func testPluginInjectionProducesDOMAndCSS() throws {
         let pkg = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -63,5 +84,47 @@ final class RenderPluginWebTests: XCTestCase {
         let parsed = (result as? String) ?? ""
         XCTAssertTrue(parsed.contains("found"), "应返回 JSON：" + parsed)
         XCTAssertTrue(parsed.contains("cssApplied"), "CSS 计算值存在：" + parsed)
+    }
+
+    func testPluginThemeCSSOverridesPreviewVariables() throws {
+        let web = try loadPreviewWeb()
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let css = try String(contentsOf: root.appendingPathComponent("plugins-market/theme-bubble-pop/theme.css"),
+                             encoding: .utf8)
+        let json = try JSONSerialization.data(withJSONObject: [css])
+        let arr = try XCTUnwrap(String(data: json, encoding: .utf8))
+        let cssJSON = String(arr.dropFirst().dropLast())
+
+        let script = """
+        window.__enabledModules = {};
+        window.renderMd("# H\\n\\n[link](https://example.com)", "file:///", { dark: true });
+        document.documentElement.dataset.theme = "night";
+        var s = document.createElement("style");
+        s.id = "plugin-theme-css";
+        s.textContent = \(cssJSON);
+        document.head.appendChild(s);
+        JSON.stringify({
+          bg: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim(),
+          accent: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(),
+          link: getComputedStyle(document.querySelector(".markdown-body p a")).color,
+          heading: getComputedStyle(document.querySelector(".markdown-body h1")).color
+        });
+        """
+        var result: Any?
+        var jsError: Error?
+        let done = expectation(description: "theme")
+        web.evaluateJavaScript(script) { r, e in
+            result = r; jsError = e; done.fulfill()
+        }
+        wait(for: [done], timeout: 10)
+        XCTAssertNil(jsError)
+        let jsonString = try XCTUnwrap(result as? String)
+        let data = try XCTUnwrap(jsonString.data(using: .utf8))
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: String])
+        XCTAssertEqual(dict["bg"], "#FFFAFC")
+        XCTAssertEqual(dict["accent"], "#FF3D9E")
+        XCTAssertEqual(dict["link"], "rgb(184, 20, 99)")     // --accent-ink
+        XCTAssertEqual(dict["heading"], "rgb(224, 25, 138)") // 多彩钩子 --h1
     }
 }

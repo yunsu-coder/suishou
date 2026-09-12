@@ -46,6 +46,17 @@
   }
 }
 
+/* 页面根与正文显式使用主题变量：插件主题注入后底色/正文色即时同步；
+   毛玻璃开启时由 PreviewView 写内联 transparent 覆盖背景。 */
+:root {
+  color: var(--text);
+  background: var(--bg);
+}
+body {
+  color: var(--text);
+  background: var(--bg);
+}
+
 /* ═══ 主题：夜航者（深空 · 蓝）════════════════════════════════════════════════
    行业标准（Linear/Obsidian 级）：冷调中性灰（不偏色）、文本 ≥4.5:1、UI ≥3:1、
    层级阶梯一致（bg→surface→border→text-secondary→text）。
@@ -124,7 +135,7 @@
 
 /* ===== 代码 ===== */
 .markdown-body code {
-  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-family: var(--theme-code-font, "SF Mono", Menlo, Consolas, monospace);
   font-size: 0.88em;
   background: var(--code-bg);
   color: var(--code-text);
@@ -160,7 +171,7 @@
 }
 .markdown-body pre .code-card-head .lang {
   flex: 1; min-width: 0;
-  font-size: 0.72em; font-family: "SF Mono", Menlo, monospace;
+  font-size: 0.72em; font-family: var(--theme-code-font, "SF Mono", Menlo, monospace);
   color: var(--muted);
   text-transform: uppercase; letter-spacing: 0.06em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -226,7 +237,7 @@
 }
 
 .markdown-body kbd {
-  font-family: "SF Mono", Menlo, monospace;
+  font-family: var(--theme-code-font, "SF Mono", Menlo, monospace);
   font-size: 0.85em;
   background: var(--code-bg);
   border: 1px solid var(--border-strong);
@@ -300,7 +311,7 @@
   justify-content: center;
   width: 38px; height: 38px;
   border-radius: 9px;
-  font-family: "SF Mono", Menlo, monospace;
+  font-family: var(--theme-code-font, "SF Mono", Menlo, monospace);
   font-size: 10px; font-weight: 700;
   letter-spacing: .02em;
   color: #fff;
@@ -452,4 +463,46 @@ html { scroll-behavior: smooth; }
 .codefile-head { display: flex; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); }
 .codefile-lang { font-weight: 600; }
 .codefile-pre { margin: 0; padding: 14px 16px; overflow: auto; font-size: 13px; line-height: 1.55; }
-.codefile-pre code { background: transparent; padding: 0; font-family: "SF Mono", Menlo, monospace; }
+.codefile-pre code { background: transparent; padding: 0; font-family: var(--theme-code-font, "SF Mono", Menlo, monospace); }
+
+
+/* ═══ 主题字体桥 ═══
+   宿主在渲染前写入 --theme-display-font / --theme-code-font（来自主题包声明的字体）。
+   这样任何主题的预览都会自动套用自己的标题字体与编辑字体，主题 CSS 只需要管颜色。 */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6,
+.toc-title,
+.md-callout-title,
+.md-timeline .md-tl-label {
+  font-family: var(--theme-display-font, inherit);
+}
+.markdown-body kbd,
+.mention,
+.md-badge,
+.md-term,
+.md-tabs-nav {
+  font-family: var(--theme-ui-font, inherit);
+}
+
+/* 主题色驱动的细节：引用条、选中、表格斑马、任务勾选、图注 */
+.markdown-body ::selection { background: var(--accent-soft); }
+.markdown-body blockquote { border-left: 3px solid var(--accent); background: var(--accent-soft); }
+.markdown-body table tr:nth-child(2n) { background: var(--surface); }
+.markdown-body .task-list-item input[type="checkbox"] { accent-color: var(--accent); }
+.markdown-body figcaption { color: var(--text-secondary); }
+
+/* 多彩钩子：主题可以用 --h1/--h2/--h3/--strong/--em 给不同层级的文字分配色相。
+   不声明时回落到正文色 —— 所以老主题不受影响，多彩主题能一眼看出层级。 */
+.markdown-body h1 { color: var(--h1, var(--text)); }
+.markdown-body h2 { color: var(--h2, var(--text)); }
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 { color: var(--h3, var(--text)); }
+.markdown-body strong { color: var(--strong, var(--text)); }
+.markdown-body em { color: var(--em, var(--text)); }
+.markdown-body hr { border-top-color: var(--hr, var(--border-strong)); }

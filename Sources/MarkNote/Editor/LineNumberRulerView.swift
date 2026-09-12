@@ -27,18 +27,18 @@ final class LineNumberRulerView: NSRulerView {
         let text = tv.string as NSString
         guard text.length > 0 else { return }
 
-        let digitFont = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+        let digitFont = rulerFont(size: 10, bold: false)
         let para = NSMutableParagraphStyle()
         para.alignment = .right
 
         // 行号色按主题显式（.tertiaryLabelColor 依赖外观，主题切换时可能黑底黑号）
-        let numColor: NSColor = currentTheme == .night ? NSColor.sRGB(0.55, 0.58, 0.66) : NSColor.tertiaryLabelColor
+        let numColor = appAppearance.lineNumber
         let normalAttrs: [NSAttributedString.Key: Any] = [
             .font: digitFont, .foregroundColor: numColor, .paragraphStyle: para,
         ]
         let highlightAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .semibold),
-            .foregroundColor: NSColor.controlAccentColor, .paragraphStyle: para,
+            .font: rulerFont(size: 10, bold: true),
+            .foregroundColor: appAppearance.caret, .paragraphStyle: para,
         ]
 
         let x = ruleThickness - 6
@@ -74,10 +74,22 @@ final class LineNumberRulerView: NSRulerView {
                 let fragment = lm.lineFragmentUsedRect(forGlyphAt: glyph, effectiveRange: nil)
                 let y = fragment.origin.y + tv.textContainerOrigin.y
                 let bar = NSRect(x: 2, y: y, width: ruleThickness - 4, height: fragment.height).insetBy(dx: 0, dy: -1)
-                NSColor.controlAccentColor.withAlphaComponent(0.10).setFill()
+                NSColor(appAppearance.accent).withAlphaComponent(0.10).setFill()
                 NSBezierPath(roundedRect: bar, xRadius: 3, yRadius: 3).fill()
             }
         }
+    }
+
+    /// 行号字体跟随主题编辑字体；未声明时回退系统等宽。
+    private func rulerFont(size: CGFloat, bold: Bool) -> NSFont {
+        let base: NSFont
+        if let family = appAppearance.codeFontFamily, let f = NSFont(name: family, size: size) {
+            base = f
+        } else {
+            base = NSFont.monospacedDigitSystemFont(ofSize: size, weight: bold ? .semibold : .regular)
+            return base
+        }
+        return bold ? (NSFontManager.shared.convert(base, toHaveTrait: .boldFontMask)) : base
     }
 
     // MARK: - 手动拖拽宽度（右缘热区；双击恢复自动；持久化）

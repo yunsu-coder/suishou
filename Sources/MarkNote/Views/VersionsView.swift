@@ -18,7 +18,7 @@ struct VersionsView: View {
             if versions.isEmpty {
                 Spacer()
                 VStack(spacing: 8) {
-                    Image(systemName: "clock.arrow.circlepath")
+                    ThemeIcon(name: "clock.arrow.circlepath", fallback: "clock.arrow.circlepath", size: 16)
                         .font(.system(size: 30))
                         .foregroundStyle(.tertiary)
                     Text(_LL("暂无历史版本", "No versions yet"))

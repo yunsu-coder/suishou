@@ -1,0 +1,146 @@
+/* MISTY TEAL · 雾青：纸感亮色 + 青瓷主色。纯色，无渐变。
+   亮色单主题：dawn / night 两个变体指向同一套纸色，选哪侧都保持同一外观。 */
+:root,
+:root[data-theme="dawn"],
+:root[data-theme="night"] {
+  --bg: #FAFCF9;
+  --icon.other: #8A948D;
+  --icon.doc: #2C6FB5;
+  --icon.folder: #1B7A65;
+  --aux: #E8B93C;
+  --accent2: #C77DD6;
+  --sel: #D6EEE2;
+  --line: #D6E2DA;
+  --card2: #F3F8F4;
+  --card: #FFFFFF;
+  --status: #E9F0EC;
+  --rail: #EBF2EE;
+  --sidebar: #F1F6F2;
+  --surface: #FFFFFF;
+  --text: #25302B;
+  --text-secondary: #64736B;
+  --border: rgba(37, 48, 43, 0.14);
+  --border-strong: rgba(37, 48, 43, 0.26);
+  --accent: #1FA084;
+  --accent-ink: #17735F;
+  --accent-soft: rgba(31, 160, 132, 0.14);
+  --code-bg: #F3F8F4;
+  --code-border: rgba(37, 48, 43, 0.12);
+  --code-text: #25302B;
+  --note: #2C6FB5;   --note-bg: rgba(44, 111, 181, 0.12);
+  --tip: #0F7350;    --tip-bg: rgba(23, 142, 99, 0.13);
+  --warn: #8F6114;   --warn-bg: rgba(232, 185, 60, 0.16);
+  --danger: #C0434F; --danger-bg: rgba(192, 67, 79, 0.12);
+  --info: #2C6FB5;   --info-bg: rgba(44, 111, 181, 0.12);
+  --muted: #8A948D;
+  --hl-kw: #177C63; --hl-str: #8A4FB0; --hl-num: #A8741B;
+  --hl-comment: #74837B; --hl-type: #2C6FB5; --hl-func: #B06A12;
+  --hl-tag: #C0434F; --hl-attr: #6B5A2F;
+}
+
+body {
+  font-family: "Hiragino Sans GB", "PingFang SC", -apple-system, sans-serif;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  font-family: "站酷小薇体", "Songti SC", serif;
+  font-weight: 400;
+}
+.markdown-body code,
+.markdown-body pre,
+.codefile code {
+  font-family: "JetBrains Mono", "SF Mono", monospace !important;
+}
+.markdown-body a,
+.footnote-ref a,
+.footnote-backref {
+  color: var(--accent-ink, var(--accent));
+}
+
+/* 多彩钩子：标题 / 加粗 / 斜体各一色相（同明度带，保持和谐） */
+:root {
+  --h1: #17735F;
+  --h2: #2C6FB5;
+  --h3: #7A4FB0;
+  --strong: #C0434F;
+  --em: #178E63;
+  --hr: #CFE0D6;
+}
+
+/* ── 编辑器 Markdown 语法色（auditVersion 5 必填）──
+   标记中性、内容分色：标题三级 / 粗体 / 斜体 / 代码 / 链接 / 公式 / 高亮 / 删除 / 插入 各自色相。 */
+:root {
+  --md-h1: #0B6B59;
+  --md-h2: #1668B0;
+  --md-h3: #5A3FC0;
+  --md-bold: #C43A4E;
+  --md-italic: #A63A8E;
+  --md-code: #8A6A0A;
+  --md-link: #0A6E92;
+  --md-quote: #5F6E67;
+  --md-math: #8A4A12;
+  --md-highlight: #B4551E;
+  --md-strike: #9A4A55;
+  --md-insert: #0E7A4A;
+  --md-callout: #916409;
+  --md-table-head: #3C5A52;
+  --md-embed: #1F6E8A;
+  --md-kbd: #6A4FB0;
+  --md-mention: #8A3FA8;
+  --md-emoji: #67736C;
+  --md-badge: #8A5A12;
+  --md-timeline: #0F7E63;
+  --md-term: #2F7A3A;
+  --md-mermaid: #5A3FC0;
+  --md-marker: #828B85;
+  --md-url: #828B85;
+  --md-list: #828B85;
+  --md-number: #828B85;
+  --md-task: #828B85;
+  --md-hr: #88918C;
+  --md-table: #6E7A73;
+  --md-fence: #7A8780;
+  --md-html: #7A8780;
+  --md-code-bg: #F3F8F4;
+  --md-highlight-bg: rgba(232, 185, 60, 0.16);
+}
+
+/* ── 编辑器 Markdown 语法色（auditVersion 5 必填）──
+   标记中性、内容分色：标题三级 / 粗体 / 斜体 / 代码 / 链接 / 公式 / 高亮 / 删除 / 插入 各自色相。 */
+:root {
+  --md-h1: #0B6B59;
+  --md-h2: #1668B0;
+  --md-h3: #5A3FC0;
+  --md-bold: #C43A4E;
+  --md-italic: #A63A8E;
+  --md-code: #8A6A0A;
+  --md-link: #0A6E92;
+  --md-quote: #5F6E67;
+  --md-math: #8A4A12;
+  --md-highlight: #B4551E;
+  --md-strike: #9A4A55;
+  --md-insert: #0E7A4A;
+  --md-callout: #916409;
+  --md-table-head: #3C5A52;
+  --md-embed: #1F6E8A;
+  --md-kbd: #6A4FB0;
+  --md-mention: #8A3FA8;
+  --md-emoji: #67736C;
+  --md-badge: #8A5A12;
+  --md-timeline: #0F7E63;
+  --md-term: #2F7A3A;
+  --md-mermaid: #5A3FC0;
+  --md-list: #118267;
+  --md-number: #1668B0;
+  --md-task: #0E7A4A;
+  --md-marker: #828B85;
+  --md-url: #828B85;
+  --md-hr: #88918C;
+  --md-table: #6E7A73;
+  --md-fence: #7A8780;
+  --md-html: #7A8780;
+  --md-code-bg: #F3F8F4;
+  --md-highlight-bg: rgba(232, 185, 60, 0.16);
+}

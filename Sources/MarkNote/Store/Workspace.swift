@@ -46,6 +46,31 @@ enum Workspace {
         }
     }
 
+    /// 文件扩展名 → 主题语义图标槽位（文件夹 / 格式分类 / 颜色层级）。
+    static func themeIconKey(for ext: String) -> String {
+        switch ext.lowercased() {
+        case "md", "markdown", "mdown", "mdx": return "file.markdown"
+        case "json", "jsonc", "yaml", "yml", "toml", "plist", "ini", "cfg", "conf",
+             "properties", "gradle", "csv", "tsv", "lock", "lockb":
+            return "file.data"
+        case "png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "tiff", "tif", "svg", "ico":
+            return "file.image"
+        case "mp4", "mov", "m4v", "webm", "mkv", "avi": return "file.video"
+        case "mp3", "m4a", "wav", "flac", "aac", "ogg": return "file.audio"
+        case "pdf", "doc", "docx", "pages", "rtf", "odt", "wps", "txt", "rst", "log":
+            return "file.document"
+        case "zip", "rar", "7z", "gz", "tar", "dmg": return "file.archive"
+        case "html", "htm", "xml", "xib", "storyboard", "css", "scss", "sass", "less", "styl",
+             "swift", "m", "mm", "c", "h", "cpp", "hpp", "cc", "mpp", "cs", "java", "kt", "go", "rs",
+             "py", "rb", "php", "pl", "lua", "js", "jsx", "ts", "tsx", "mjs", "cjs", "vue", "svelte",
+             "sh", "bash", "zsh", "fish", "sql", "ps1", "bat", "cmd", "vim", "asm", "s", "zig", "nim",
+             "ex", "exs", "erl", "hs", "makefile", "dockerfile":
+            return "file.code"
+        default:
+            return "file.other"
+        }
+    }
+
     /// 注释符号表（⌘/ 按语言切换；未匹配 → "#"）；插件覆盖优先
     static func lineComment(for ext: String) -> String {
         let key = ext.lowercased()

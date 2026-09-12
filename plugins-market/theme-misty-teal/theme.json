@@ -1,0 +1,62 @@
+[
+  {
+    "id": "misty-teal",
+    "name": "雾青",
+    "desc": "纸感亮色 + 青瓷主色；植物语义图标、叶片光尘动效与开花彩蛋",
+    "reviewed": true,
+    "auditVersion": 5,
+    "cssFile": "theme.css",
+    "displayFont": {
+      "file": "fonts/ZCOOLXiaoWei-Regular.ttf",
+      "family": "站酷小薇体",
+      "size": 18
+    },
+    "codeFont": {
+      "file": "fonts/JetBrainsMono.ttf",
+      "family": "JetBrains Mono",
+      "size": 13
+    },
+    "icons": {
+      "folder": "icons/folder-64.png",
+      "folder.open": "icons/folder.open-64.png",
+      "file.markdown": "icons/file.markdown-64.png",
+      "file.code": "icons/file.code-64.png",
+      "file.data": "icons/file.data-64.png",
+      "file.image": "icons/file.image-64.png",
+      "file.video": "icons/file.video-64.png",
+      "file.audio": "icons/file.audio-64.png",
+      "file.document": "icons/file.document-64.png",
+      "file.archive": "icons/file.archive-64.png",
+      "file.other": "icons/file.other-64.png",
+      "puzzlepiece.extension": "icons/plugin-64.png",
+      "shippingbox": "icons/box-64.png",
+      "gearshape": "icons/settings-64.png",
+      "sidebar.left": "icons/sidebar-64.png",
+      "magnifyingglass": "icons/search-64.png",
+      "sparkles": "icons/sparkle-64.png",
+      "clock.arrow.circlepath": "icons/history-64.png",
+      "paw": "icons/paw-64.png"
+    },
+    "easterEgg": {
+      "trigger": "icon-click",
+      "clicks": 5,
+      "symbols": [
+        "❀",
+        "✿",
+        "❁",
+        "✧"
+      ],
+      "message": "花开"
+    },
+    "motion": {
+      "ambientPollen": true,
+      "iconBounce": true,
+      "tabSpring": true,
+      "durationMs": 260,
+      "respectReduceMotion": true
+    },
+    "glass": 0,
+    "swatchHex": "#1FA084",
+    "reviewedHash": "edd69d0a2f246e002a711632e01fed91c11985005e234b2270e2b143529d067b"
+  }
+]

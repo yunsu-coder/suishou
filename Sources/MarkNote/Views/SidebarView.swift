@@ -43,6 +43,8 @@ struct SidebarView: View {
     @State private var panel: SidePanel = .workspace
 
     @State private var showMarket = false
+    /// 主题彩蛋点击计数（按主题声明次数触发）
+    @State private var easterEggClicks = 0
 
     var body: some View {
         HStack(spacing: 0) {
@@ -56,9 +58,23 @@ struct SidebarView: View {
                     showMarket = true
                 }
                 Spacer()
+                if let egg = appAppearance.easterEgg {
+                    Button {
+                        easterEggClicks += 1
+                        if easterEggClicks >= egg.clicks {
+                            easterEggClicks = 0
+                            NotificationCenter.default.post(name: .themeEasterEggTriggered, object: nil)
+                        }
+                    } label: {
+                        ThemeIcon(name: "paw", fallback: "pawprint.fill", size: 16)
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(easterEggClicks > 0 ? 1 : 0.72)
+                    .help(_L("主题彩蛋", "Theme easter egg"))
+                }
                 SettingsLink {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 13, weight: .semibold))
+                    ThemeIcon(name: "gearshape", fallback: "gearshape", size: 16)
                         .foregroundStyle(Color.secondary)
                         .frame(width: 28, height: 28)
                         .background(RoundedRectangle(cornerRadius: 7).fill(Color.clear))
@@ -70,6 +86,11 @@ struct SidebarView: View {
             .padding(.bottom, 8)
             .frame(width: 36)
             .background(.quaternary.opacity(0.35))
+            .background {
+                if let surface = appAppearance.surface {
+                    Color(nsColor: surface).opacity(0.85)
+                }
+            }
 
             Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: 1)
 
@@ -77,6 +98,11 @@ struct SidebarView: View {
                 .environment(store)
         }
         .frame(minWidth: 110, idealWidth: 170, maxWidth: 420)
+        .background {
+            if let surface = appAppearance.surface {
+                Color(nsColor: surface)
+            }
+        }
         // 插件市场：居中宽面板（网格 + 详情，App Store 风格）
         .sheet(isPresented: $showMarket) {
             PluginMarketView()
@@ -146,12 +172,12 @@ struct SidebarView: View {
         .overlay {
             if dropping {
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(currentTheme.accent, lineWidth: 2)
+                    .stroke(appAppearance.accent, lineWidth: 2)
                     .padding(4)
                     .overlay {
                         Label(_LL("拖入导入为新文件", "Drop to import as new file"), systemImage: "square.and.arrow.down")
                             .font(.callout)
-                            .foregroundStyle(currentTheme.accent)
+                            .foregroundStyle(appAppearance.accent)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(.regularMaterial, in: Capsule())
@@ -356,7 +382,7 @@ struct SidebarView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(currentTheme.accent.opacity(0.10))
+                .background(appAppearance.accent.opacity(0.10))
                 .overlay(alignment: .top) { Divider() }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
@@ -589,7 +615,7 @@ private final class MenuActionHandler: NSObject {
             if !store.searchQuery.isEmpty {
                 Text(_LL("\(store.filteredIndex.count) / \(store.index.count) 匹配", "\(store.filteredIndex.count) / \(store.index.count) Matching"))
                     .font(.caption2)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(appAppearance.accent)
                     .monospacedDigit()
             } else {
                 Text(_LL("\(store.filteredIndex.count) 篇", "\(store.filteredIndex.count) Notes"))
@@ -718,7 +744,7 @@ private struct NoteRow: View {
                     text = text + Text(String(s[cursor..<hit.lowerBound]))
                 }
                 text = text + Text(String(s[hit.lowerBound..<hit.upperBound]))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(appAppearance.accent)
                     .fontWeight(.semibold)
                 cursor = hit.upperBound
             } else {
@@ -751,11 +777,11 @@ private extension SidebarView {
         } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 7)
-                    .fill(active ? currentTheme.accent.opacity(0.16) : Color.clear)
+                    .fill(active ? appAppearance.accent.opacity(0.16) : Color.clear)
                     .frame(width: 28, height: 28)
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(active ? currentTheme.accent : Color.secondary)
+                ThemeIcon(name: icon, fallback: icon, size: 16)
+                    .foregroundStyle(active ? appAppearance.accent : Color.secondary)
+                    .opacity(active ? 1 : 0.72)
             }
         }
         .buttonStyle(.plain)

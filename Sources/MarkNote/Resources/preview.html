@@ -15,6 +15,18 @@
   <script src="vendor/highlight.min.js"></script>
   <script src="vendor/katex.min.js"></script>
   <script src="preview.js"></script>
+  <!-- 内置渲染增强（原来作为插件分发，现直接内置；插件市场只保留主题包）
+       必须排在 preview.js 之后：注册函数由 preview.js 提供 -->
+  <script src="renders/alert.js"></script>
+  <script src="renders/badge.js"></script>
+  <script src="renders/tabs.js"></script>
+  <script src="renders/timeline.js"></script>
+  <script src="renders/term.js"></script>
+  <script src="renders/kbd.js"></script>
+  <script src="renders/mention.js"></script>
+  <script src="renders/quote.js"></script>
+  <script src="renders/imagefig.js"></script>
+  <script src="renders/copy.js"></script>
 </head>
 <body>
   <article id="content" class="markdown-body"></article>

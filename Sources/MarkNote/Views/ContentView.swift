@@ -17,8 +17,6 @@ struct ContentView: View {
     @State private var sidebarHidden = false
     /// 资源管理器宽度（拖拽手柄调整；持久化）
     @AppStorage("explorerWidth") private var explorerWidth = 170.0
-    /// 毛玻璃强度（设置页滑杆；0 = 关闭）；主窗口与子视图各自读同键即改即生效
-    @AppStorage(Glass.key) private var windowGlass = 0.0
     /// ⌃+滚动 分层缩放监视器（与设置页同键；本窗口级别的作用目标也在此裁决）
     @State private var ctrlScrollMonitor: Any?
     /// ⇧⌘/ 反缩进监视器：该键被系统「帮助搜索」以菜单级 keyEquivalent 占用（非菜单项，剥不掉）
@@ -28,6 +26,13 @@ struct ContentView: View {
     @State private var aiShortcutMonitor: Any?
     @AppStorage("editorFontSize") private var editorFontSize = 13.0
     @AppStorage("previewFontScale") private var previewFontScale = 1.0
+    /// 启用中的插件主题 token（变化 → .id 整体重建；深浅/色调全局生效）
+    @State private var pluginThemeToken = "-"
+    /// 主题彩蛋覆盖层
+    @State private var easterEggActive = false
+    @State private var easterEggSymbols: [String] = []
+    @State private var easterEggMessage: String?
+    @State private var easterEggDismiss: DispatchWorkItem?
 
     /// AI 面板开关（⌥⌘A / ⇧⌘A 双组合，keyCode 0）；独立监视器，菜单快捷键失效时兜底
     private func installAIShortcutMonitor() {
@@ -127,13 +132,26 @@ struct ContentView: View {
                 }
             }
         }
-        // 毛玻璃：窗口透明化 + behindWindow 模糊垫层（桌面壁纸透出；0 时透明背景撤掉还原原生观感）
+        // 主题氛围特效（按 motion 配置组合；减少动态效果时自动关闭）
+        .background { ThemeAmbientLayer() }
+        // 插件主题窗口底色（内置主题为 nil，保持系统外观）
         .background {
-            if windowGlass > 0 {
-                Glass.Backdrop(alpha: windowGlass)
+            if let bg = appAppearance.windowBackground {
+                // 非透明主题必须覆盖标题栏安全区；玻璃主题保留可透出的比例。
+                Color(nsColor: bg)
+                    .opacity(appAppearance.glass > 0 ? max(0.35, 1 - appAppearance.glass) : 1)
+                    .ignoresSafeArea()
+            } else if appAppearance.glass == 0 {
+                Color(nsColor: .windowBackgroundColor).ignoresSafeArea()
             }
         }
-        .background(Glass.Window(enabled: windowGlass > 0))
+        // 毛玻璃：窗口透明化 + behindWindow 模糊垫层（桌面壁纸透出；0 时透明背景撤掉还原原生观感）
+        .background {
+            if appAppearance.glass > 0 {
+                Glass.Backdrop(alpha: appAppearance.glass).ignoresSafeArea()
+            }
+        }
+        .background(Glass.Window(enabled: appAppearance.glass > 0, backgroundColor: appAppearance.windowBackground))
         .navigationSplitViewStyle(.balanced)
         // Finder/launch services 打开 .md/.txt → 导入为新文件并打开
         .onOpenURL { url in
@@ -144,9 +162,17 @@ struct ContentView: View {
                 store.showHint(_L("无法读取：\(url.lastPathComponent)", "Cannot read: \(url.lastPathComponent)"))
             }
         }
-        .tint(currentTheme.accent)
-        .preferredColorScheme(currentTheme.colorScheme)
-        .id(store.themeVersion) // 主题切换时整体重建（应用深浅/色调生效）
+        .tint(appAppearance.accent)
+        .font(appAppearance.uiFontFamily.map { Font.custom($0, size: CGFloat(appAppearance.uiFontSize)) } ?? .body)
+        .preferredColorScheme(appAppearance.scheme)
+        .id("\(store.themeVersion)-\(pluginThemeToken)") // 内置/插件主题切换时整体重建（深浅/色调生效）
+        // 插件主题启用/切换 → 重建 token（.id 触发整体重建，插件主题作用于全局）
+        .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
+            pluginThemeToken = PluginManager.shared.enabledTheme()?.id ?? "-"
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .themeEasterEggTriggered)) { _ in
+            triggerThemeEasterEgg()
+        }
         // ⌘B 切换侧栏（自绘布局专用）
         .onReceive(NotificationCenter.default.publisher(for: .toggleSidebarRequested)) { _ in
             sidebarHidden.toggle()
@@ -162,6 +188,12 @@ struct ContentView: View {
             let valid = newSet.filter { id in store.index.contains(where: { $0.id == id }) }
             if valid.count != newSet.count {
                 store.selectedNoteIDs = valid
+            }
+        }
+        .overlay {
+            if easterEggActive {
+                ThemeEasterEggOverlay(symbols: easterEggSymbols, message: easterEggMessage)
+                    .transition(.opacity)
             }
         }
         // 轻提示 Toast：点击屏幕任意处关闭，或 3.5 秒自动消失
@@ -256,6 +288,19 @@ struct ContentView: View {
         }
     }
 
+    private func triggerThemeEasterEgg() {
+        let egg = appAppearance.easterEgg
+        easterEggSymbols = egg?.symbols ?? ["✨", "🫧", "🍬"]
+        easterEggMessage = egg?.message
+        easterEggDismiss?.cancel()
+        withAnimation(.easeOut(duration: 0.2)) { easterEggActive = true }
+        let work = DispatchWorkItem {
+            withAnimation(.easeOut(duration: 0.35)) { easterEggActive = false }
+        }
+        easterEggDismiss = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.4, execute: work)
+    }
+
     /// 自下而上匹配祖先视图（命中面板判断）
     private static func inAncestors(_ v: NSView?, is type: NSView.Type) -> Bool {
         var a = v
@@ -335,7 +380,7 @@ struct ResizeHandle: View {
 
     var body: some View {
         Rectangle()
-            .fill(hovering ? Color.accentColor.opacity(0.55) : Color(nsColor: .separatorColor))
+            .fill(hovering ? appAppearance.accent.opacity(0.55) : Color(nsColor: .separatorColor))
             .frame(width: 3)
             .padding(.horizontal, 4)   // 视觉 3pt、命中区 ~11pt（好抓）
             .contentShape(Rectangle())

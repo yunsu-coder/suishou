@@ -1,0 +1,25 @@
+{
+  "id": "theme-sumi-paper",
+  "name": "墨纸",
+  "nameEn": "Sumi Paper",
+  "version": "1.0.0",
+  "kind": "theme",
+  "desc": "宣纸墨线、朱砂落款；亮色书写主题，自带书法字体、墨线图标与印章彩蛋",
+  "descEn": "Flat paper-and-ink writing theme with calligraphic fonts, exclusive icons and a seal easter egg",
+  "features": [
+    "亮色单主题：不做暗色半成品，之后另行补充",
+    "Ma Shan Zheng 书法标题 + ZCOOL 小薇正文",
+    "9 个随手语义墨线图标（含朱砂点）",
+    "墨点晕开 + 页签弹簧 + 印章彩蛋"
+  ],
+  "featuresEn": [
+    "Paper/ink twin palettes, zero gradients",
+    "Ma Shan Zheng display + ZCOOL XiaoWei body",
+    "9 Sumi-style semantic icons with vermilion accents",
+    "Ink diffusion, tab spring and seal easter egg"
+  ],
+  "author": "随手社区",
+  "main": "theme.json",
+  "minAppVersion": "1.8.0",
+  "icon": "seal"
+}

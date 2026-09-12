@@ -1,0 +1,70 @@
+[
+  {
+    "id": "bubble-pop",
+    "name": "Bubble Pop",
+    "desc": "像素糖果亮色主题：粉紫糖果配色、像素字体、专属像素图标与气泡彩蛋",
+    "reviewed": true,
+    "cssFile": "theme.css",
+    "uiFont": {
+      "file": "fonts/FusionPixel12pxProportionalSC.ttf",
+      "family": "Fusion Pixel 12px Proportional zh_hans",
+      "size": 12
+    },
+    "codeFont": {
+      "file": "fonts/FusionPixel12pxMonospacedSC.ttf",
+      "family": "Fusion Pixel 12px Monospaced zh_hans",
+      "size": 12
+    },
+    "displayFont": {
+      "file": "fonts/Silkscreen-Regular.ttf",
+      "family": "Silkscreen",
+      "size": 12
+    },
+    "icons": {
+      "folder": "icons/folder-64.png",
+      "puzzlepiece.extension": "icons/plugin-64.png",
+      "shippingbox": "icons/plugin-64.png",
+      "gearshape": "icons/settings-64.png",
+      "sidebar.left": "icons/sidebar-64.png",
+      "magnifyingglass": "icons/search-64.png",
+      "sparkles": "icons/sparkle-64.png",
+      "paw": "icons/paw-64.png",
+      "clock.arrow.circlepath": "icons/branch-64.png",
+      "folder.open": "icons/folder.open-64.png",
+      "file.markdown": "icons/file.markdown-64.png",
+      "file.code": "icons/file.code-64.png",
+      "file.data": "icons/file.data-64.png",
+      "file.image": "icons/file.image-64.png",
+      "file.video": "icons/file.video-64.png",
+      "file.audio": "icons/file.audio-64.png",
+      "file.document": "icons/file.document-64.png",
+      "file.archive": "icons/file.archive-64.png",
+      "file.other": "icons/file.other-64.png"
+    },
+    "easterEgg": {
+      "trigger": "icon-click",
+      "clicks": 5,
+      "symbols": [
+        "🫧",
+        "🍬",
+        "✨",
+        "💖",
+        "🌸",
+        "⭐️",
+        "🧁"
+      ],
+      "message": "Bubble Pop!"
+    },
+    "motion": {
+      "ambientBubbles": true,
+      "iconBounce": true,
+      "tabSpring": true,
+      "durationMs": 280,
+      "respectReduceMotion": true
+    },
+    "glass": 0.16,
+    "auditVersion": 5,
+    "swatchHex": "#FF3D9E",
+    "reviewedHash": "894c614f6077d54aa6d28114bed099c38072c55263c22b42d3af94903e08af04"
+  }
+]

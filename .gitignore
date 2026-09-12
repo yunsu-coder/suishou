@@ -2,3 +2,6 @@
 build/
 .DS_Store
 *.xcuserstate
+scripts/__pycache__/
+plugins-market/_review/archive/
+plugins-market/_review/
