@@ -107,7 +107,9 @@ struct EditorView: View {
             .onReceive(NotificationCenter.default.publisher(for: .insertTextAtCursor)) { note in
                 guard let text = note.object as? String, let tv = textViewRef else { return }
                 let sel = tv.selectedRange()
-                tv.insertText(text, replacementRange: sel)
+                // 块级素材引用（视频/音频/附件卡）独占整行，避免与相邻内容挤在一行
+                tv.insertText(MarkdownTextView.blockAligned(text, in: tv.string, at: sel.location),
+                             replacementRange: sel)
                 tv.window?.makeFirstResponder(tv)
             }
             // 仅"真正装载了文件"才聚焦编辑器（双击打开后；单击多选时焦点留在列表 → ⇧/⌘ 可用）

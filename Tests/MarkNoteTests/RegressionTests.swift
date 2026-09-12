@@ -211,6 +211,27 @@ final class ImagePipelineTests: XCTestCase {
             "    - a"
         )
     }
+
+    /// 素材拖拽 / 插入：块级引用（视频 / 音频 / 附件卡）独占整行；行内图片原样。
+    func testAssetBlockAlignment() {
+        // 行内图片：不做任何包裹
+        XCTAssertEqual(MarkdownTextView.blockAligned("![a](img/a.png)", in: "文字", at: 2),
+                       "![a](img/a.png)")
+        // 块级：两侧都缺换行 → 首尾各补一个
+        XCTAssertEqual(MarkdownTextView.blockAligned("<video src=\"a.mp4\" controls></video>",
+                                                     in: "上一行", at: 3),
+                       "\n<video src=\"a.mp4\" controls></video>\n")
+        // 已经在行首、行尾是文末 → 只补尾部
+        XCTAssertEqual(MarkdownTextView.blockAligned("@[名](p.pdf)", in: "标题\n", at: 3),
+                       "@[名](p.pdf)\n")
+        // 前后都已是换行（空行插入）→ 原样
+        XCTAssertEqual(MarkdownTextView.blockAligned("<audio src=\"b.mp3\" controls></audio>",
+                                                     in: "a\n\nb", at: 2),
+                       "<audio src=\"b.mp3\" controls></audio>")
+        // 空文档插入 → 只补尾部换行（开头视为行首）
+        XCTAssertEqual(MarkdownTextView.blockAligned("<video src=\"v\" controls></video>", in: "", at: 0),
+                       "<video src=\"v\" controls></video>\n")
+    }
 }
 
 /// 复现测试：在真实 NSTextView 上执行整块缩进，断言选区保持（VS Code 语义：锚内容、跨度含插入缩进）

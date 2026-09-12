@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import AVFoundation
 
 /// 素材网格 —— 视图插件 `assetGrid` 的内置渲染器（侧栏面板）。
 ///
@@ -151,20 +152,12 @@ struct AssetGridView: View {
     private func tile(_ item: NotesStore.AttachmentItem) -> some View {
         let isSel = selected?.url == item.url
         let refs = refCounts[item.name] ?? 0
+        let kind = Self.kind(forExt: item.url.pathExtension)
         return VStack(alignment: .leading, spacing: 4) {
             ZStack {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground))
-                if item.isImage, let img = NSImage(contentsOf: item.url) {
-                    Image(nsImage: img)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                } else {
-                    Image(systemName: Self.symbol(for: item.url.pathExtension))
-                        .font(.system(size: 20))
-                        .foregroundStyle(.tertiary)
-                }
+                AssetThumbView(item: item, symbol: Self.symbol(for: item.url.pathExtension))
             }
             .frame(height: 64)
             .overlay(RoundedRectangle(cornerRadius: 6)
@@ -183,9 +176,54 @@ struct AssetGridView: View {
         .onTapGesture { selected = item }
         // 拖到编辑器：携带**短引用文本**（不是文件 URL —— 否则编辑器会再存一份素材）
         .onDrag {
-            NSItemProvider(object: Self.markdownRef(name: item.name, path: relativePath(item)) as NSString)
+            NSItemProvider(object: Self.reference(name: item.name, path: relativePath(item)) as NSString)
         }
         .help("\(item.name) · \(Self.sizeLabel(item.size))")
+    }
+
+    fileprivate final class PosterInfo: NSObject, @unchecked Sendable {
+        let image: NSImage
+        let duration: String?
+        init(image: NSImage, duration: String?) {
+            self.image = image
+            self.duration = duration
+            super.init()
+        }
+    }
+
+    /// 首帧缓存：滚出/滚回视口不重复解码（按文件路径缓存，仅内存）。
+    private static let posterCache = NSCache<NSString, PosterInfo>()
+
+    /// 首帧（0.3s，避开片头黑帧）+ 时长文案；失败返回 nil（回退为类型图标）。
+    fileprivate static func poster(for url: URL) async -> PosterInfo? {
+        let key = url.path as NSString
+        if let hit = posterCache.object(forKey: key) { return hit }
+        let asset = AVURLAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 360, height: 360)
+        let time = CMTime(seconds: 0.3, preferredTimescale: 600)
+        let cg: CGImage? = await withCheckedContinuation { cont in
+            generator.generateCGImageAsynchronously(for: time) { image, _, _ in
+                cont.resume(returning: image)
+            }
+        }
+        guard let cg else { return nil }
+        var label: String?
+        if let d = try? await asset.load(.duration) {
+            let secs = CMTimeGetSeconds(d)
+            if secs.isFinite, secs > 0 { label = durationLabel(secs) }
+        }
+        let info = PosterInfo(image: NSImage(cgImage: cg, size: .zero), duration: label)
+        posterCache.setObject(info, forKey: key)
+        return info
+    }
+
+    /// 秒 → 「3:05」/「1:02:03」
+    static func durationLabel(_ seconds: Double) -> String {
+        let total = Int(seconds.rounded())
+        let h = total / 3600, m = (total % 3600) / 60, s = total % 60
+        return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%d:%02d", m, s)
     }
 
     // MARK: - 底部：选中素材的操作
@@ -257,18 +295,56 @@ struct AssetGridView: View {
     /// 插入短引用：交给编辑器在光标处插入（通知解耦，编辑器不在时自动忽略）。
     private func insert(_ item: NotesStore.AttachmentItem) {
         NotificationCenter.default.post(name: .insertTextAtCursor,
-                                        object: Self.markdownRef(name: item.name, path: relativePath(item)))
+                                        object: Self.reference(name: item.name, path: relativePath(item)))
     }
 
     private func copyRef(_ item: NotesStore.AttachmentItem) {
         let board = NSPasteboard.general
         board.clearContents()
-        board.setString(Self.markdownRef(name: item.name, path: relativePath(item)), forType: .string)
+        board.setString(Self.reference(name: item.name, path: relativePath(item)), forType: .string)
     }
 
-    /// 素材引用文本（插入 / 复制 / 拖拽三处共用一套写法）。
-    static func markdownRef(name: String, path: String) -> String {
-        "![\(title(name))](\(path))"
+    /// 素材类型：决定插入语法、缩略图与图标策略。
+    enum AssetKind: Equatable {
+        case image, video, audio, file
+    }
+
+    static func kind(forExt ext: String) -> AssetKind {
+        switch ext.lowercased() {
+        case "png", "jpg", "jpeg", "gif", "webp", "heic", "heif", "avif", "tiff", "tif", "bmp", "svg":
+            return .image
+        case "mp4", "mov", "m4v", "mv4", "webm", "mkv", "avi":
+            return .video
+        case "mp3", "m4a", "wav", "flac", "aac", "ogg", "aiff":
+            return .audio
+        default:
+            return .file
+        }
+    }
+
+    /// 素材引用文本（插入 / 复制 / 拖拽三处共用一套写法）——按类型给**语义正确**的语法：
+    /// · 图片 → `![名](路径)` 行内图片
+    /// · 视频 → `<video src="路径" controls></video>` 预览内嵌播放器
+    /// · 音频 → `<audio src="路径" controls></audio>` 预览内嵌播放器
+    /// · 其他（pdf/zip/docx…）→ `@[名](路径)` 附件卡（点击打开）
+    static func reference(name: String, path: String) -> String {
+        let p = escapePath(path)
+        switch kind(forExt: (name as NSString).pathExtension) {
+        case .image: return "![\(title(name))](\(p))"
+        case .video: return "<video src=\"\(p)\" controls></video>"
+        case .audio: return "<audio src=\"\(p)\" controls></audio>"
+        case .file:  return "@[\(title(name))](\(p))"
+        }
+    }
+
+    /// 链接路径里的空格 / 括号 / # 等会破坏 Markdown 与附件卡语法解析 → 百分号编码（保留中文，便于阅读）。
+    static func escapePath(_ path: String) -> String {
+        var out = path
+        for (raw, enc) in [(" ", "%20"), ("(", "%28"), (")", "%29"),
+                           ("#", "%23"), ("[", "%5B"), ("]", "%5D")] {
+            out = out.replacingOccurrences(of: raw, with: enc)
+        }
+        return out
     }
 
     static func title(_ fileName: String) -> String {
@@ -289,5 +365,55 @@ struct AssetGridView: View {
         case "zip", "rar", "7z", "gz", "tar": return "archivebox"
         default: return "doc"
         }
+    }
+}
+
+/// 单个素材的缩略图单元：图片直接读；视频异步取首帧 + 时长角标；其余显示类型图标。
+/// 缩略图状态放在子视图内部 —— 加载完成只刷新自己，**不触发整个网格重建**
+/// （网格重建发生在拖拽会话开始时会让拖拽携带错误的素材引用）。
+private struct AssetThumbView: View {
+    let item: NotesStore.AttachmentItem
+    let symbol: String
+    @State private var poster: AssetGridView.PosterInfo?
+
+    private var kind: AssetGridView.AssetKind { AssetGridView.kind(forExt: item.url.pathExtension) }
+
+    var body: some View {
+        ZStack {
+            if item.isImage, let img = NSImage(contentsOf: item.url) {
+                thumb(img)
+            } else if kind == .video, let poster {
+                thumb(poster.image)
+            } else {
+                Image(systemName: symbol)
+                    .font(.system(size: 20))
+                    .foregroundStyle(.tertiary)
+            }
+            if kind == .video {
+                HStack(spacing: 3) {
+                    Image(systemName: "play.fill").font(.system(size: 7))
+                    if let d = poster?.duration {
+                        Text(d).font(.system(size: 8, weight: .medium))
+                    }
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(Capsule().fill(Color.black.opacity(0.58)))
+                .padding(4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            }
+        }
+        .task(id: item.url) {
+            guard kind == .video, poster == nil else { return }
+            poster = await AssetGridView.poster(for: item.url)
+        }
+    }
+
+    private func thumb(_ img: NSImage) -> some View {
+        Image(nsImage: img)
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }

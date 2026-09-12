@@ -335,6 +335,31 @@ body {
 }
 .attach-type { font-size: 11px; color: var(--text-secondary); }
 
+/* ===== 内嵌媒体（视频 / 音频）：尺寸克制 + 主题适配 ===== */
+.markdown-body .md-media { display: block; max-width: 100%; margin: .9em 0; }
+.markdown-body video.md-media {
+  max-height: 68vh;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #000;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, .14);
+  transition: box-shadow .2s cubic-bezier(.33, 1, .68, 1),
+              transform .2s cubic-bezier(.33, 1, .68, 1),
+              border-color .2s;
+}
+.markdown-body video.md-media:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .22);
+}
+:root[data-theme="night"] .markdown-body video.md-media { box-shadow: 0 2px 16px rgba(0, 0, 0, .5); }
+.markdown-body audio.md-media {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+}
+
 /* ===== 公式 & 图表 ===== */
 .markdown-body .katex { font-size: 1.12em; }
 .markdown-body .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.3em 0; }

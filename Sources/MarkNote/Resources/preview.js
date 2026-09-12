@@ -297,7 +297,11 @@ if (typeof katex !== 'undefined') {
     return html.replace(/(<img[^>]*src=")([^"]+)(")/g, function (m, pre, src, post) {
       if (/^(https?:|data:|file:)/.test(src)) return m;
       var key = src.replace(/^\.?\//, '');
+      // 插入时对空格/括号做了百分号编码 → 解回来再查注册表（双键查找，原样键优先）
+      var keyDecoded = key;
+      try { keyDecoded = decodeURIComponent(key); } catch (e) {}
       if (IMG_REG[key]) { return pre + IMG_REG[key] + post; }   // 注册表命中：data URL 直出
+      if (IMG_REG[keyDecoded]) { return pre + IMG_REG[keyDecoded] + post; }
       if (baseDir) return pre + baseDir + key + post;
       return m;
     });
@@ -599,12 +603,16 @@ if (typeof katex !== 'undefined') {
     function card(title, href) {
       return '<div class="attach-card" style="margin:.8em 0;"><a href="' + href + '" class="attach-link">📄 ' + title + '</a></div>';
     }
-    html = html.replace(/<img[^>]*src="([^"]+\.(?:mp4|mov|webm|m4v))"[^>]*>/gi,
-      function (m, src) { return '<video controls preload="metadata" style="max-width:100%;margin:.6em 0;border-radius:8px;" src="' + src + '"></video>'; });
-    html = html.replace(/<img[^>]*src="([^"]+\.(?:mp3|wav|m4a|aac|ogg))"[^>]*>/gi,
-      function (m, src) { return '<audio controls preload="metadata" style="width:100%;margin:.6em 0;" src="' + src + '"></audio>'; });
+    // 旧写法兼容：![x](a.mp4) 由 markdown-it 渲染成 <img> → 这里换成内嵌播放器
+    // （素材面板现在的规范写法直接产出 <video src controls>，不再依赖本兼容层）
+    html = html.replace(/<img[^>]*src="([^"]+\.(?:mp4|mov|webm|m4v|mkv|avi|mv4))"[^>]*>/gi,
+      function (m, src) { return '<video class="md-media" controls preload="metadata" src="' + src + '"></video>'; });
+    html = html.replace(/<img[^>]*src="([^"]+\.(?:mp3|wav|m4a|aac|ogg|flac|aiff))"[^>]*>/gi,
+      function (m, src) { return '<audio class="md-media" controls preload="metadata" src="' + src + '"></audio>'; });
     html = html.replace(/<img[^>]*src="([^"]+\.(?:pdf|docx?|xlsx?|pptx?|zip|txt))"[^>]*alt="([^"]*)"[^>]*>/gi,
       function (m, src, alt) { return card(alt || src.split('/').pop(), src); });
+    // 手写 HTML 内嵌媒体：统一挂主题 class，样式全部交给 CSS（主题可随时换皮）
+    html = html.replace(/<(video|audio)\b(?![^>]*\bclass=)/gi, '<$1 class="md-media"');
     return html;
   }
 

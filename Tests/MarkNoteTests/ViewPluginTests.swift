@@ -116,11 +116,32 @@ final class ViewPluginTests: XCTestCase {
     }
 
     /// 插入 / 复制 / 拖拽三处共用同一套引用写法（拖进编辑器后长得和手动插入完全一致）。
-    func testAssetMarkdownRefIsSharedByInsertCopyAndDrag() {
-        XCTAssertEqual(AssetGridView.markdownRef(name: "09-11-手绘线稿.png", path: "img/09-11-手绘线稿.png"),
+    func testAssetReferenceSyntaxMatchesAssetKind() {
+        // 图片 → 行内图片
+        XCTAssertEqual(AssetGridView.reference(name: "09-11-手绘线稿.png", path: "img/09-11-手绘线稿.png"),
                        "![09-11-手绘线稿](img/09-11-手绘线稿.png)")
-        XCTAssertEqual(AssetGridView.markdownRef(name: "字段 表.pdf", path: "pdf/字段 表.pdf"),
-                       "![字段 表](pdf/字段 表.pdf)")
+        // 视频 / 音频 → 内嵌播放器（不再伪装成图片）
+        XCTAssertEqual(AssetGridView.reference(name: "v.mp4", path: "source/mp4/v.mp4"),
+                       "<video src=\"source/mp4/v.mp4\" controls></video>")
+        XCTAssertEqual(AssetGridView.reference(name: "录屏 09-12.mov", path: "source/mp4/录屏 09-12.mov"),
+                       "<video src=\"source/mp4/录屏%2009-12.mov\" controls></video>")
+        XCTAssertEqual(AssetGridView.reference(name: "bgm.mp3", path: "source/audio/bgm.mp3"),
+                       "<audio src=\"source/audio/bgm.mp3\" controls></audio>")
+        // 其他文件 → 附件卡；含空格/括号的路径做编码，避免破坏语法
+        XCTAssertEqual(AssetGridView.reference(name: "1 (1).pdf", path: "source/pdf/1 (1).pdf"),
+                       "@[1 (1)](source/pdf/1%20%281%29.pdf)")
+    }
+
+    /// 素材类型判定 + 视频时长文案。
+    func testAssetKindAndDurationLabel() {
+        XCTAssertEqual(AssetGridView.kind(forExt: "PNG"), .image)
+        XCTAssertEqual(AssetGridView.kind(forExt: "mov"), .video)
+        XCTAssertEqual(AssetGridView.kind(forExt: "mp4"), .video)
+        XCTAssertEqual(AssetGridView.kind(forExt: "mp3"), .audio)
+        XCTAssertEqual(AssetGridView.kind(forExt: "pdf"), .file)
+        XCTAssertEqual(AssetGridView.kind(forExt: "zip"), .file)
+        XCTAssertEqual(AssetGridView.durationLabel(65), "1:05")
+        XCTAssertEqual(AssetGridView.durationLabel(3723), "1:02:03")
     }
 
     /// 跨工作台导入：复制进当前工作台、原库只读、同名加序号（隔离规则第 2 条）。

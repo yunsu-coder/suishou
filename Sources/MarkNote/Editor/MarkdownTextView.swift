@@ -404,8 +404,9 @@ final class MarkdownTextView: NSTextView {
             let idx = characterIndexForInsertion(at: point)
             let length = (string as NSString).length
             let range = NSRange(location: min(max(0, idx), length), length: 0)
-            if shouldChangeText(in: range, replacementString: ref) {
-                replaceCharacters(in: range, with: ref)
+            let text = Self.blockAligned(ref, in: string, at: range.location)
+            if shouldChangeText(in: range, replacementString: text) {
+                replaceCharacters(in: range, with: text)
                 didChangeText()
             }
             return true
@@ -485,15 +486,38 @@ final class MarkdownTextView: NSTextView {
         return nil
     }
 
-    /// 素材拖拽识别：文本形如 `![名称](img/xxx.png)`（素材面板 `/ 插入 / 复制` 三处共用同一套写法）。
-    /// 只认「markdown 图片引用」这一种，避免把普通文本拖拽也吃掉。
+    /// 块级素材引用（`<video>` / `<audio>` / 附件卡 `@[…]`）应当独占整行：插入位置缺换行时自动补齐，
+    /// 避免两个视频 / 卡片挤在同一行。行内语法（图片等）原样返回。
+    static func blockAligned(_ text: String, in string: String, at index: Int) -> String {
+        let isBlock = text.hasPrefix("<video") || text.hasPrefix("<audio") || text.hasPrefix("@[")
+        guard isBlock else { return text }
+        let ns = string as NSString
+        let loc = min(max(0, index), ns.length)
+        var out = text
+        // 文首 / 文末分别视为「已是行首」「尚无字符」：文末要补换行，让块级元素闭合成整行
+        let before = loc > 0 ? ns.substring(with: NSRange(location: loc - 1, length: 1)) : "\n"
+        if before != "\n" { out = "\n" + out }
+        let after = loc < ns.length ? ns.substring(with: NSRange(location: loc, length: 1)) : ""
+        if after != "\n" { out += "\n" }
+        return out
+    }
+
+    /// 素材拖拽识别（素材面板「插入 / 复制 / 拖拽」三处共用同一套写法，按素材类型分派）：
+    /// · 图片 `![名称](img/xxx.png)`；附件卡 `@[名称](path)`；
+    /// · 视频 / 音频内嵌播放器 `<video src="…" controls></video>`、`<audio …></audio>`。
+    /// 只认这几种「素材引用」形态，避免把普通文本拖拽也吃掉。
     private static func dragAssetRef(_ sender: NSDraggingInfo) -> String? {
         let pb = sender.draggingPasteboard
         guard let text = pb.string(forType: .string)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
-            text.hasPrefix("!["), text.hasSuffix(")"),
-            text.contains("](") else { return nil }
-        return text
+            !text.isEmpty else { return nil }
+        if (text.hasPrefix("![") || text.hasPrefix("@[")),
+           text.hasSuffix(")"), text.contains("](") {
+            return text
+        }
+        if text.hasPrefix("<video"), text.hasSuffix("</video>") { return text }
+        if text.hasPrefix("<audio"), text.hasSuffix("</audio>") { return text }
+        return nil
     }
 
     private static func dragImageData(_ sender: NSDraggingInfo) -> (Data, String?)? {
