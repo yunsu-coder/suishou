@@ -182,8 +182,10 @@ struct ContentView: View {
         // 插件主题启用/切换 → 重建 token（.id 触发整体重建，插件主题作用于全局）
         .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
             pluginThemeToken = PluginManager.shared.enabledTheme()?.id ?? "-"
+            let hadCards = cardsView != nil
             cardsView = PluginManager.shared.mainAreaView(type: .noteCards)
-            if cardsView == nil { mainViewKind = "editor" }   // 插件被卸载/停用 → 回编辑器
+            // 只有「原本有卡片墙、现在没了」才回编辑器；启动瞬间插件尚未扫完时不动用户选择
+            if cardsView == nil, hadCards { mainViewKind = "editor" }
         }
         .onAppear { cardsView = PluginManager.shared.mainAreaView(type: .noteCards) }
         .onReceive(NotificationCenter.default.publisher(for: .themeEasterEggTriggered)) { _ in

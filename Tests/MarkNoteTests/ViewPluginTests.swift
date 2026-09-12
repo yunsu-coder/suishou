@@ -114,4 +114,57 @@ final class ViewPluginTests: XCTestCase {
         XCTAssertEqual(AssetGridView.symbol(for: "mp4"), "film")
         XCTAssertEqual(AssetGridView.symbol(for: "zip"), "archivebox")
     }
+
+    /// 跨工作台导入：复制进当前工作台、原库只读、同名加序号（隔离规则第 2 条）。
+    @MainActor
+    func testCrossWorkspaceImportCopiesAndNeverTouchesSource() throws {
+        // 两个工作台：source（源）/ dest（当前）
+        let fm = FileManager.default
+        let base = fm.temporaryDirectory.appendingPathComponent("mn-import-\(UUID().uuidString)")
+        let srcRoot = base.appendingPathComponent("note")
+        let dstRoot = base.appendingPathComponent("origin")
+        defer { try? fm.removeItem(at: base) }
+
+        let srcImg = srcRoot.appendingPathComponent("source/image")
+        try fm.createDirectory(at: srcImg, withIntermediateDirectories: true)
+        try "PNGDATA".write(to: srcImg.appendingPathComponent("封面.png"), atomically: true, encoding: .utf8)
+        let srcPDF = srcRoot.appendingPathComponent("source/pdf")
+        try fm.createDirectory(at: srcPDF, withIntermediateDirectories: true)
+        try "PDF".write(to: srcPDF.appendingPathComponent("字段表.pdf"), atomically: true, encoding: .utf8)
+        try fm.createDirectory(at: dstRoot, withIntermediateDirectories: true)
+
+        // 扫描源工作台（只读）
+        let found = NotesStore.scanAssets(in: srcRoot)
+        XCTAssertEqual(found.count, 2, "应扫到两个素材")
+        XCTAssertTrue(found.contains { $0.isImage && $0.name == "封面.png" })
+
+        // 目标目录预置同名文件 → 导入必须加序号而不是覆盖
+        let destImgDir = dstRoot.appendingPathComponent("source/image")
+        try fm.createDirectory(at: destImgDir, withIntermediateDirectories: true)
+        try "EXISTING".write(to: destImgDir.appendingPathComponent("封面.png"), atomically: true, encoding: .utf8)
+
+        let previous = UserDefaults.standard.string(forKey: NotesStore.kDirKey)
+        UserDefaults.standard.set(dstRoot.path, forKey: NotesStore.kDirKey)
+        defer {
+            if let previous { UserDefaults.standard.set(previous, forKey: NotesStore.kDirKey) }
+            else { UserDefaults.standard.removeObject(forKey: NotesStore.kDirKey) }
+        }
+        let store = NotesStore()
+        let result = store.importAssets(from: found.map(\.url))
+        XCTAssertEqual(result.ok, 2, "两个素材都该导入成功")
+        XCTAssertEqual(result.failed, 0)
+
+        // 目标工作台：新文件存在、且没有覆盖已有同名文件
+        let destNames = try fm.contentsOfDirectory(atPath: destImgDir.path).sorted()
+        XCTAssertTrue(destNames.contains("封面.png"))
+        XCTAssertTrue(destNames.contains("封面 (1).png"), "同名应自动加序号，实际：\(destNames)")
+        let preserved = try String(contentsOf: destImgDir.appendingPathComponent("封面.png"), encoding: .utf8)
+        XCTAssertEqual(preserved, "EXISTING", "已有文件绝不能被覆盖")
+        XCTAssertTrue(fm.fileExists(atPath: dstRoot.appendingPathComponent("source/pdf/字段表.pdf").path))
+
+        // 源工作台只读：文件一个不少、内容不变
+        let srcNames = try fm.contentsOfDirectory(atPath: srcImg.path).sorted()
+        XCTAssertEqual(srcNames, ["封面.png"])
+        XCTAssertEqual(try String(contentsOf: srcImg.appendingPathComponent("封面.png"), encoding: .utf8), "PNGDATA")
+    }
 }

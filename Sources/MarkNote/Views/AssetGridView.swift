@@ -17,6 +17,9 @@ struct AssetGridView: View {
     @State private var onlyUnreferenced = false
     @State private var selected: NotesStore.AttachmentItem?
     @State private var reloadToken = 0
+    @State private var showImport = false
+    /// 导入后的轻提示（几秒后自动消失）
+    @State private var toast: String?
 
     private var filtered: [NotesStore.AttachmentItem] {
         var list = items
@@ -45,6 +48,19 @@ struct AssetGridView: View {
         .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
             reload()
         }
+        .sheet(isPresented: $showImport) {
+            AssetImportSheet { urls in
+                let result = store.importAssets(from: urls)
+                reload()
+                toast = result.failed == 0
+                    ? _L("已导入 \(result.ok) 个素材到 \(store.notesDir.lastPathComponent)",
+                         "Imported \(result.ok) asset(s) into \(store.notesDir.lastPathComponent)")
+                    : _L("导入 \(result.ok) 个，失败 \(result.failed) 个",
+                         "Imported \(result.ok), failed \(result.failed)")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { toast = nil }
+            }
+            .environment(store)
+        }
     }
 
     // MARK: - 顶部：标题 + 搜索 + 未引用筛选
@@ -56,9 +72,32 @@ struct AssetGridView: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.tertiary)
                 Spacer()
+                // 跨工作台只有一个通道：显式勾选导入（原库只读）
+                if spec.options.allowImport == true, !store.otherWorkspaces.isEmpty {
+                    Button {
+                        showImport = true
+                    } label: {
+                        Text(_L("从其他工作台导入…", "Import…"))
+                            .font(.system(size: 10))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(RoundedRectangle(cornerRadius: 7)
+                                .fill(appAppearance.accent.opacity(0.18)))
+                            .foregroundStyle(appAppearance.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .help(_L("复制其他工作台的素材进来（不改动原库）",
+                             "Copy assets from another workspace (source stays read-only)"))
+                }
                 Text("\(items.count)")
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
+            }
+            if let toast {
+                Text(toast)
+                    .font(.system(size: 10))
+                    .foregroundStyle(appAppearance.accent)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")

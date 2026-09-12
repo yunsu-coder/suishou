@@ -65,7 +65,8 @@ final class NotesStore {
         preparedMD = nil
     }
 
-    private static let kDirKey = "notesDirURL"
+    /// 当前工作台路径的 UserDefaults 键（设置页/测试需要读写）
+    static let kDirKey = "notesDirURL"
     @ObservationIgnored
     private var autosaveTask: Task<Void, Never>?
     @ObservationIgnored
@@ -888,9 +889,14 @@ final class NotesStore {
     /// 当前文件全部附件：图片（images/ 兼容旧库）+ 文件（attachments/）
     func listAttachments(for noteID: String) -> [AttachmentItem] {
         // 工作台语义：附件面板 = 全工作台资源库扫描（source/<type>/ 全部资源，按修改时间倒序）
+        Self.scanAssets(in: notesDir)
+    }
+
+    /// 扫描某个工作台的 source/<type>/ 资源（只读；按修改时间倒序）。
+    static func scanAssets(in root: URL) -> [AttachmentItem] {
         let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "heic", "tiff", "bmp"]
         var out: [AttachmentItem] = []
-        let src = notesDir.appendingPathComponent("source", isDirectory: true)
+        let src = root.appendingPathComponent("source", isDirectory: true)
         guard let typeDirs = try? FileManager.default.contentsOfDirectory(
             at: src, includingPropertiesForKeys: [.isDirectoryKey]) else { return [] }
         for dir in typeDirs {
@@ -907,6 +913,34 @@ final class NotesStore {
             }
         }
         return out.sorted { $0.mtime > $1.mtime }
+    }
+
+    /// 其他工作台（历史记录里的、非当前、且目录仍存在）。
+    var otherWorkspaces: [String] {
+        workspaceRoots.filter { $0 != notesDir.path }
+            .filter { FileManager.default.fileExists(atPath: $0) }
+    }
+
+    /// 从其他工作台导入素材：**复制**进当前工作台 source/<type>/，同名自动加序号；原库只读。
+    /// 返回（成功数，失败数）。
+    @discardableResult
+    func importAssets(from urls: [URL]) -> (ok: Int, failed: Int) {
+        var ok = 0, failed = 0
+        for src in urls {
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: src.path, isDirectory: &isDir), !isDir.boolValue else {
+                failed += 1; continue
+            }
+            let dir = Workspace.ensureSourceDir(notesDir, ext: src.pathExtension)
+            let name = Workspace.uniqueName(in: dir, fileName: src.lastPathComponent)
+            do {
+                try FileManager.default.copyItem(at: src, to: dir.appendingPathComponent(name))
+                ok += 1
+            } catch {
+                failed += 1
+            }
+        }
+        return (ok, failed)
     }
 
     func deleteAttachment(_ url: URL) {
