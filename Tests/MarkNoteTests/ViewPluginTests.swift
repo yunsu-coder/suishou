@@ -118,30 +118,89 @@ final class ViewPluginTests: XCTestCase {
     /// 插入 / 复制 / 拖拽三处共用同一套引用写法（拖进编辑器后长得和手动插入完全一致）。
     func testAssetReferenceSyntaxMatchesAssetKind() {
         // 图片 → 行内图片
-        XCTAssertEqual(AssetGridView.reference(name: "09-11-手绘线稿.png", path: "img/09-11-手绘线稿.png"),
+        XCTAssertEqual(AssetSyntax.reference(name: "09-11-手绘线稿.png", path: "img/09-11-手绘线稿.png"),
                        "![09-11-手绘线稿](img/09-11-手绘线稿.png)")
         // 视频 / 音频 → 内嵌播放器（不再伪装成图片）
-        XCTAssertEqual(AssetGridView.reference(name: "v.mp4", path: "source/mp4/v.mp4"),
+        XCTAssertEqual(AssetSyntax.reference(name: "v.mp4", path: "source/mp4/v.mp4"),
                        "<video src=\"source/mp4/v.mp4\" controls></video>")
-        XCTAssertEqual(AssetGridView.reference(name: "录屏 09-12.mov", path: "source/mp4/录屏 09-12.mov"),
+        XCTAssertEqual(AssetSyntax.reference(name: "录屏 09-12.mov", path: "source/mp4/录屏 09-12.mov"),
                        "<video src=\"source/mp4/录屏%2009-12.mov\" controls></video>")
-        XCTAssertEqual(AssetGridView.reference(name: "bgm.mp3", path: "source/audio/bgm.mp3"),
+        XCTAssertEqual(AssetSyntax.reference(name: "bgm.mp3", path: "source/audio/bgm.mp3"),
                        "<audio src=\"source/audio/bgm.mp3\" controls></audio>")
         // 其他文件 → 附件卡；含空格/括号的路径做编码，避免破坏语法
-        XCTAssertEqual(AssetGridView.reference(name: "1 (1).pdf", path: "source/pdf/1 (1).pdf"),
+        XCTAssertEqual(AssetSyntax.reference(name: "1 (1).pdf", path: "source/pdf/1 (1).pdf"),
                        "@[1 (1)](source/pdf/1%20%281%29.pdf)")
+        // 百分号文件名 → %25（且不二次编码）
+        XCTAssertEqual(AssetSyntax.reference(name: "100%.png", path: "img/100%.png"),
+                       "![100%](img/100%25.png)")
     }
 
     /// 素材类型判定 + 视频时长文案。
     func testAssetKindAndDurationLabel() {
-        XCTAssertEqual(AssetGridView.kind(forExt: "PNG"), .image)
-        XCTAssertEqual(AssetGridView.kind(forExt: "mov"), .video)
-        XCTAssertEqual(AssetGridView.kind(forExt: "mp4"), .video)
-        XCTAssertEqual(AssetGridView.kind(forExt: "mp3"), .audio)
-        XCTAssertEqual(AssetGridView.kind(forExt: "pdf"), .file)
-        XCTAssertEqual(AssetGridView.kind(forExt: "zip"), .file)
+        XCTAssertEqual(AssetSyntax.kind(forExt: "PNG"), .image)
+        XCTAssertEqual(AssetSyntax.kind(forExt: "mov"), .video)
+        XCTAssertEqual(AssetSyntax.kind(forExt: "mp4"), .video)
+        XCTAssertEqual(AssetSyntax.kind(forExt: "mp3"), .audio)
+        XCTAssertEqual(AssetSyntax.kind(forExt: "pdf"), .file)
+        XCTAssertEqual(AssetSyntax.kind(forExt: "zip"), .file)
         XCTAssertEqual(AssetGridView.durationLabel(65), "1:05")
         XCTAssertEqual(AssetGridView.durationLabel(3723), "1:02:03")
+    }
+
+    /// 素材入库命名「日期-描述」：日期取来源修改时间；时间戳样式的长数字噪声剔除。
+    func testMaterialNamingDateAndDescription() {
+        var comps = DateComponents()
+        comps.year = 2026; comps.month = 9; comps.day = 2
+        let sep2 = Calendar(identifier: .gregorian).date(from: comps)!
+        XCTAssertEqual(NotesStore.materialBaseName(originalName: "3.png", modified: sep2), "09-02-3")
+        XCTAssertEqual(NotesStore.materialBaseName(originalName: "录屏 2026-08-08 18.08.12.mov", modified: sep2),
+                       "09-02-录屏 2026-08-08 18.08.12", "普通描述保留原样（含空格）")
+        XCTAssertEqual(NotesStore.materialBaseName(originalName: "1787423369627-95bdc4.png", modified: sep2),
+                       "09-02-95bdc4", "时间戳样式长数字剔除后仍有描述")
+        XCTAssertEqual(NotesStore.materialBaseName(originalName: "1787423369627.png", modified: sep2),
+                       "09-02-1787423369627", "剔除后为空则保留原名，避免变成无意义名")
+        XCTAssertEqual(NotesStore.materialBaseName(originalName: "", modified: sep2), "09-02-asset",
+                       "无描述 → 兜底 asset")
+        XCTAssertEqual(NotesStore.materialBaseName(originalName: "a/b:c.png", modified: sep2), "09-02-b-c",
+                       "路径部分被丢弃，非法分隔符替换为 -")
+    }
+
+    /// 外部拖入分派：文本 → 导入为笔记；图片/视频 → 素材入库（source/ 下「日期-描述」命名）。
+    @MainActor
+    func testExternalDropRoutesTextToNotesAndMediaToAssets() throws {
+        let (store, dir) = try TestEnv.makeStore()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        // 文本 → 笔记导入
+        let md = dir.appendingPathComponent("外稿.md")
+        try "# 外稿\n".write(to: md, atomically: true, encoding: .utf8)
+        XCTAssertEqual(store.handleExternalDrop(md, category: nil), .noteImported)
+
+        // 图片 → 素材入库（img/ 短引用 + source/image 落盘）
+        let png = dir.appendingPathComponent("图 片.png")
+        try Data([0x89, 0x50, 0x4E, 0x47]).write(to: png)
+        guard case .assetStored(let rel) = store.handleExternalDrop(png, category: nil) else {
+            return XCTFail("图片应入库为素材")
+        }
+        XCTAssertTrue(rel.hasPrefix("img/"), "图片走 img/ 短引用，实际：\(rel)")
+        XCTAssertTrue(rel.contains("-图 片"), "命名应带日期前缀与描述，实际：\(rel)")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent("source/image").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: md.path), "笔记导入不得删除源文件")
+
+        // 源文件仍在原处（复制语义，不是移动）
+        XCTAssertTrue(FileManager.default.fileExists(atPath: png.path), "素材入库为复制，源文件保持不动")
+    }
+
+    /// 素材删除：文件移到废纸篓（可恢复）；不存在路径返回 false。
+    @MainActor
+    func testTrashAssetMovesToTrashAndMissingFails() throws {
+        let (store, dir) = try TestEnv.makeStore()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let src = dir.appendingPathComponent("待删.png")
+        try Data([1, 2, 3]).write(to: src)
+        XCTAssertTrue(store.trashAsset(src))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: src.path), "原路径应消失（已移入废纸篓）")
+        XCTAssertFalse(store.trashAsset(src), "已不存在的文件返回 false")
     }
 
     /// 跨工作台导入：复制进当前工作台、原库只读、同名加序号（隔离规则第 2 条）。

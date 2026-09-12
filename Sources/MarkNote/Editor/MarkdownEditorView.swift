@@ -37,6 +37,8 @@ struct MarkdownEditorView: NSViewRepresentable {
     var onImage: ((Data, String) -> String?)?
     /// 任意文件附件回调：(data, fileName) -> 相对路径
     var onAttachment: ((Data, String) -> String?)?
+    /// Finder 文件 URL 拖入/粘贴回调：url -> 相对路径（直接复制入库，不读内存）
+    var onFileURL: ((URL) -> String?)?
     /// AI 快捷操作（右键菜单）：action + 选中文本
     var onAIMenu: ((AIQuickAction, String) -> Void)?
     /// 当前文件扩展名（决定着色器：md→Markdown；c/cpp/…→CodeHighlighter）
@@ -66,6 +68,9 @@ struct MarkdownEditorView: NSViewRepresentable {
         }
         tv.attachmentHandler = { [weak coordinator] data, name in
             coordinator?.parent.onAttachment?(data, name)
+        }
+        tv.fileURLHandler = { [weak coordinator] url in
+            coordinator?.parent.onFileURL?(url)
         }
         tv.aiMenuHandler = { [weak coordinator] action, text in
             coordinator?.parent.onAIMenu?(action, text)

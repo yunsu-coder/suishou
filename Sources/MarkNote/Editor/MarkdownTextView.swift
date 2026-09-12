@@ -9,6 +9,8 @@ final class MarkdownTextView: NSTextView {
     var imageHandler: ((Data, String) -> String?)?
     /// 任意文件 (data, fileName) -> 引用路径；用于非图片文件的粘贴/拖拽
     var attachmentHandler: ((Data, String) -> String?)?
+    /// Finder 文件 URL -> 相对引用路径；直接复制文件入库（视频/大文件不读进内存）
+    var fileURLHandler: ((URL) -> String?)?
     /// AI 快捷操作（翻译/改写/润色）：右键菜单回调（action, 选中文本）
     var aiMenuHandler: ((AIQuickAction, String) -> Void)?
     /// 当前文件扩展名（⌘/ 注释符号选择；EditorView 注入）
@@ -374,6 +376,10 @@ final class MarkdownTextView: NSTextView {
     // MARK: - 粘贴
 
     override func paste(_ sender: Any?) {
+        // Finder 复制的文件（图片/视频/PDF…）→ 直接复制入库，保留原始文件
+        if let url = Self.fileURL(in: NSPasteboard.general), handleFileURL(url) {
+            return
+        }
         if let (data, ext) = Self.extractBitmap(NSPasteboard.general), handleImage(data, ext: ext) {
             return
         }
@@ -387,6 +393,9 @@ final class MarkdownTextView: NSTextView {
     // MARK: - 拖拽
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        if Self.fileURL(in: sender.draggingPasteboard) != nil {
+            return .copy
+        }
         if Self.dragImageData(sender) != nil {
             return .copy
         }
@@ -409,6 +418,10 @@ final class MarkdownTextView: NSTextView {
                 replaceCharacters(in: range, with: text)
                 didChangeText()
             }
+            return true
+        }
+        // Finder 文件（图片/视频/音频/文档）→ 入库并插入对应语法
+        if let url = Self.fileURL(in: sender.draggingPasteboard), handleFileURL(url) {
             return true
         }
         if let (data, ext) = Self.dragImageData(sender), handleImage(data, ext: ext) {
@@ -437,7 +450,7 @@ final class MarkdownTextView: NSTextView {
             finalExt = "png"
         }
         guard let rel = handler(finalData, finalExt) else { return false }
-        insertText(_L("![图片](\(rel))", "![Image](\(rel))"), replacementRange: selectedRange())
+        insertAssetReference(AssetSyntax.reference(name: "图片.\(finalExt)", path: rel))
         return true
     }
 
@@ -445,11 +458,36 @@ final class MarkdownTextView: NSTextView {
     private func handleAttachment(_ data: Data, name: String) -> Bool {
         guard let handler = attachmentHandler else { return false }
         guard let rel = handler(data, name) else { return false }
-        insertText("[\(name)](\(rel))", replacementRange: selectedRange())
+        insertAssetReference(AssetSyntax.reference(name: name, path: rel))
+        return true
+    }
+
+    /// Finder 文件 URL：复制入库 + 按类型插入语法；返回是否被消费（不读内存，大文件友好）
+    private func handleFileURL(_ url: URL) -> Bool {
+        guard let handler = fileURLHandler, let rel = handler(url) else { return false }
+        insertAssetReference(AssetSyntax.reference(name: url.lastPathComponent, path: rel))
+        return true
+    }
+
+    /// 在光标处插入素材引用（块级自动独占整行）
+    @discardableResult
+    private func insertAssetReference(_ ref: String) -> Bool {
+        let range = selectedRange()
+        let text = Self.blockAligned(ref, in: string, at: range.location)
+        guard shouldChangeText(in: range, replacementString: text) else { return false }
+        replaceCharacters(in: range, with: text)
+        didChangeText()
         return true
     }
 
     // MARK: - 粘贴板解析
+
+    /// 粘贴板 / 拖拽中的文件 URL（Finder 文件），取第一个
+    private static func fileURL(in pb: NSPasteboard) -> URL? {
+        guard let urls = pb.readObjects(forClasses: [NSURL.self],
+                                        options: [.urlReadingFileURLsOnly: true]) as? [URL] else { return nil }
+        return urls.first
+    }
 
     private static func extractBitmap(_ pb: NSPasteboard) -> (Data, String?)? {
         // 1. Finder 复制文件（含图片文件）

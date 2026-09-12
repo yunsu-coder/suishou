@@ -133,10 +133,15 @@ final class ImagePipelineTests: XCTestCase {
             noteID: "note",
             preferredName: "我的 图.png"
         ))
-        XCTAssertEqual(ref, "我的%20图.png", "插入正文应使用短文件名，仅编码必要字符")
+        // 写入按「日期-描述」命名、返回未编码的短相对路径；编码统一由 AssetSyntax.reference 负责
+        XCTAssertTrue(ref.hasPrefix("img/"), "短引用前缀，实际：\(ref)")
+        XCTAssertTrue(ref.hasSuffix("-我的 图.png"), "日期前缀 + 原描述，实际：\(ref)")
         let saved = try XCTUnwrap(store.resolvedImageURL(for: ref))
-        XCTAssertEqual(saved.lastPathComponent, "我的 图.png")
+        XCTAssertEqual(saved.lastPathComponent, String(ref.dropFirst("img/".count)))
         XCTAssertEqual(saved.deletingLastPathComponent().lastPathComponent, "image")
+        // 已编码的引用路径同样能解析（历史文件 / 预览链路）
+        let encoded = AssetSyntax.escapePath(ref)
+        XCTAssertEqual(store.resolvedImageURL(for: encoded)?.lastPathComponent, saved.lastPathComponent)
 
         let manualDir = dir.appendingPathComponent("source/img", isDirectory: true)
         try FileManager.default.createDirectory(at: manualDir, withIntermediateDirectories: true)

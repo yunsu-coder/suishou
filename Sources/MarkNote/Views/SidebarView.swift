@@ -204,13 +204,16 @@ struct SidebarView: View {
                     p.loadObject(ofClass: NSURL.self) { obj, _ in
                         if let url = obj as? URL {
                             DispatchQueue.main.async {
-                                // 文件夹 → 递归导入（子目录自动成分类）；文件 → 文本导入治理 / 非文本原始放入
-                                if url.hasDirectoryPath {
-                                    _ = store.importFolder(url)
-                                } else {
-                                    if store.importDroppedFile(from: url, into: nil) == nil {
-                                        store.showHint(_L("无法导入：\(url.lastPathComponent)", "Cannot import: \(url.lastPathComponent)"))
-                                    }
+                                // 文件夹 → 递归导入成分类；文本 → 导入为笔记；其余 → 素材入库（source/ + 日期-描述）
+                                switch store.handleExternalDrop(url, category: nil) {
+                                case .assetStored:
+                                    NotificationCenter.default.post(name: .assetsChanged, object: nil)
+                                    store.showHint(_L("已入库素材：\(url.lastPathComponent)",
+                                                      "Stored asset: \(url.lastPathComponent)"))
+                                case .noteImported:
+                                    break
+                                case .failed:
+                                    store.showHint(_L("无法导入：\(url.lastPathComponent)", "Cannot import: \(url.lastPathComponent)"))
                                 }
                             }
                         }

@@ -823,15 +823,16 @@ final class NotesStore {
         let baseName: String
         if let preferredName, !preferredName.isEmpty {
             let last = (preferredName as NSString).lastPathComponent
-            let stem = (last as NSString).deletingPathExtension
-            baseName = stem.isEmpty ? "img-\(Self.randomHex(3))" : stem
+            // 有来源文件名 → 统一「日期-描述」命名（与外部拖入 / 附件面板一致）
+            baseName = Self.materialBaseName(originalName: last)
         } else {
             baseName = "img-\(Self.randomHex(3))"
         }
         let name = Workspace.uniqueName(in: dir, fileName: "\(baseName).\(ext)")
         do {
             try data.write(to: dir.appendingPathComponent(name), options: .atomic)
-            return Self.markdownImageReference(name)
+            // 返回**未编码**的短相对路径；编码统一由 AssetSyntax.reference 处理（避免二次编码）
+            return "img/\(name)"
         } catch {
             return nil
         }
@@ -864,17 +865,113 @@ final class NotesStore {
 
     /// 保存任意文件附件；自动按扩展名归类到 source/<type>/
     @discardableResult
-    func saveAttachment(_ data: Data, fileName: String, noteID: String) -> String? {
+    func saveAttachment(_ data: Data, fileName: String, noteID: String,
+                        modified: Date = Date()) -> String? {
         let ext = (fileName as NSString).pathExtension.lowercased()
         let type = Workspace.sourceFolder(for: ext)
         let dir = Workspace.ensureSourceDir(notesDir, ext: ext)
-        var name = Workspace.uniqueName(in: dir, fileName: fileName)
+        let base = Self.materialBaseName(originalName: fileName, modified: modified)
+        let stored = ext.isEmpty ? base : "\(base).\(ext)"
+        let name = Workspace.uniqueName(in: dir, fileName: stored)
         do {
             try data.write(to: dir.appendingPathComponent(name), options: .atomic)
             return "source/\(type)/\(name)"
         } catch {
             return nil
         }
+    }
+
+    /// 外部文件入库（Finder 拖入等）：**直接复制**进当前工作台 `source/<type>/`，
+    /// 命名「日期-描述」（日期取来源文件修改时间）；返回相对路径（图片映射为 `img/…` 短前缀）。
+    /// 不读入内存（大视频友好）、不覆盖同名文件。
+    @discardableResult
+    func ingestAsset(from url: URL) -> String? {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), !isDir.boolValue else {
+            return nil
+        }
+        let ext = url.pathExtension
+        let type = Workspace.sourceFolder(for: ext)
+        let dir = Workspace.ensureSourceDir(notesDir, ext: ext)
+        let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey])
+            .contentModificationDate) ?? Date()
+        let base = Self.materialBaseName(originalName: url.lastPathComponent, modified: modified)
+        let stored = ext.isEmpty ? base : "\(base).\(ext.lowercased())"
+        let name = Workspace.uniqueName(in: dir, fileName: stored)
+        do {
+            try FileManager.default.copyItem(at: url, to: dir.appendingPathComponent(name))
+            let rel = "source/\(type)/\(name)"
+            return type == "image" ? rel.replacingOccurrences(of: "source/image/", with: "img/") : rel
+        } catch {
+            return nil
+        }
+    }
+
+    /// 外部拖入的统一结果：笔记导入 / 素材入库 / 失败。
+    enum ExternalDropResult: Equatable {
+        case noteImported
+        case assetStored(rel: String)
+        case failed
+    }
+
+    /// 外部拖入的统一入口（窗口任意区域）：
+    /// · 文本 / 笔记类（md / txt / 代码）→ 导入为笔记（沿用既有导入治理）
+    /// · 其余文件（图片 / 视频 / 音频 / PDF / 压缩包…）→ **素材入库**（source/ + 「日期-描述」命名）
+    @discardableResult
+    func handleExternalDrop(_ url: URL, category: String?) -> ExternalDropResult {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else { return .failed }
+        let ext = url.pathExtension.lowercased()
+        if isDir.boolValue {
+            return importFolder(url) > 0 ? .noteImported : .failed
+        }
+        if !ext.isEmpty, Self.importableTextExts.contains(ext) {
+            return importDroppedFile(from: url, into: category) != nil ? .noteImported : .failed
+        }
+        if let rel = ingestAsset(from: url) {
+            return .assetStored(rel: rel)
+        }
+        return .failed
+    }
+
+    /// 素材删除 → 移到废纸篓（可恢复，符合「每一步可撤销」）；返回是否成功。
+    @discardableResult
+    func trashAsset(_ url: URL) -> Bool {
+        var resulting: NSURL?
+        do {
+            try FileManager.default.trashItem(at: url, resultingItemURL: &resulting)
+            // 删除后引用计数缓存失效（下次扫描自然刷新）
+            invalidatePreparedImages()
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// 素材入库命名「日期-描述」（不含扩展名）：
+    /// 日期取来源文件修改时间（MM-dd）；描述取原文件名主体，清洗非法字符与时间戳噪声。
+    nonisolated static func materialBaseName(originalName: String, modified: Date = Date()) -> String {
+        // 先取 lastPathComponent 防路径注入，再去扩展名
+        let last = (originalName as NSString).lastPathComponent
+        let stem = materialStem((last as NSString).deletingPathExtension)
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = "MM-dd"
+        return "\(df.string(from: modified))-\(stem)"
+    }
+
+    /// 描述清洗：去掉路径分隔符与控制字符、时间戳样式的长数字段，压缩重复分隔符。
+    nonisolated static func materialStem(_ raw: String) -> String {
+        var s = raw
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        // 10 位以上连续数字多为时间戳/随机 ID；整段删掉后若还有可读内容才采纳
+        let noStamp = s.replacingOccurrences(of: #"\d{10,}"#, with: "", options: .regularExpression)
+        if !noStamp.trimmingCharacters(in: CharacterSet(charactersIn: "-_. ")).isEmpty { s = noStamp }
+        s = s.replacingOccurrences(of: #"[-_\s]{2,}"#, with: "-", options: .regularExpression)
+        s = s.trimmingCharacters(in: CharacterSet(charactersIn: "-_. "))
+        return s.isEmpty ? "asset" : s
     }
 
     struct AttachmentItem: Identifiable, Equatable {

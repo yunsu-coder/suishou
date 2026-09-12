@@ -240,11 +240,21 @@ struct EditorView: View {
             },
             onImage: { data, ext in
                 guard let id = store.selectedNoteID else { return nil }
-                return store.saveImage(data, ext: ext, noteID: id)
+                guard let rel = store.saveImage(data, ext: ext, noteID: id) else { return nil }
+                NotificationCenter.default.post(name: .assetsChanged, object: nil)
+                return rel
             },
             onAttachment: { data, name in
                 guard let id = store.selectedNoteID else { return nil }
-                return store.saveAttachment(data, fileName: name, noteID: id)
+                guard let rel = store.saveAttachment(data, fileName: name, noteID: id) else { return nil }
+                NotificationCenter.default.post(name: .assetsChanged, object: nil)
+                return rel
+            },
+            onFileURL: { url in
+                // Finder 拖入/粘贴文件：复制入库（命名「日期-描述」）→ 素材面板同步刷新
+                guard store.selectedNoteID != nil, let rel = store.ingestAsset(from: url) else { return nil }
+                NotificationCenter.default.post(name: .assetsChanged, object: nil)
+                return rel
             },
             fileExtension: Self.editorExtension(for: store.selectedNoteID),
             revision: store.documentRevision,
@@ -372,30 +382,23 @@ struct EditorView: View {
             panel.allowsMultipleSelection = true
             panel.canChooseDirectories = false
             panel.allowedContentTypes = [] // 不限制：图片/PDF/文本/压缩包均可
-            guard panel.runModal() == .OK, let id = store.selectedNoteID else {
+            guard panel.runModal() == .OK, store.selectedNoteID != nil else {
                 window.makeFirstResponder(tv)
                 return
             }
-            let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "tiff"]
             var inserted = 0
             for url in panel.urls {
-                guard let data = try? Data(contentsOf: url) else { continue }
-                let ext = url.pathExtension.lowercased()
-                let displayName = url.lastPathComponent
-                if imageExts.contains(ext) {
-                    if let rel = store.saveImage(data, ext: ext == "jpeg" ? "jpg" : (ext.isEmpty ? "png" : ext),
-                                                 noteID: id, preferredName: displayName) {
-                        tv.insertText("![\(displayName)](\(rel))\n", replacementRange: tv.selectedRange())
-                        inserted += 1
-                    }
-                } else {
-                    if let rel = store.saveAttachment(data, fileName: displayName, noteID: id) {
-                        // @ 前缀 = 附件卡语义（预览渲染为卡，任意类型；与普通链接区分）
-                        tv.insertText("@[\(displayName)](\(rel))\n", replacementRange: tv.selectedRange())
-                        inserted += 1
-                    }
-                }
+                // 统一入库（复制文件、命名「日期-描述」）→ 按素材类型插入正确语法
+                guard let rel = store.ingestAsset(from: url) else { continue }
+                let ref = AssetSyntax.reference(name: url.lastPathComponent, path: rel)
+                let loc = tv.selectedRange().location
+                var text = MarkdownTextView.blockAligned(ref, in: tv.string, at: loc)
+                // 面板里通常一次插多个：行内图片补一个换行，保持「一项一行」的观感
+                if !AssetSyntax.isBlockReference(ref), !text.hasSuffix("\n") { text += "\n" }
+                tv.insertText(text, replacementRange: tv.selectedRange())
+                inserted += 1
             }
+            if inserted > 0 { NotificationCenter.default.post(name: .assetsChanged, object: nil) }
             if inserted == 0 {
                 let alert = NSAlert(error: NSError(domain: "MarkNote", code: -1,
                                                    userInfo: [NSLocalizedDescriptionKey: _L("附件保存失败，请检查文件是否可读", "Failed to save attachment. Check that the file is readable")]))
@@ -472,9 +475,17 @@ struct EditorView: View {
                 p.loadObject(ofClass: NSURL.self) { obj, _ in
                     if let url = obj as? URL {
                         DispatchQueue.main.async {
-                            // 文本→导入；非文本（MP4/PDF）→原始放入当前文件夹
                             let category = store.index.first { $0.id == store.selectedNoteID }?.category ?? nil
-                            if store.importDroppedFile(from: url, into: category) == nil {
+                            // 文本 → 导入为笔记；其余（图片/视频/PDF…）→ 素材入库，并插入引用到光标处
+                            switch store.handleExternalDrop(url, category: category) {
+                            case .assetStored(let rel):
+                                NotificationCenter.default.post(
+                                    name: .insertTextAtCursor,
+                                    object: AssetSyntax.reference(name: url.lastPathComponent, path: rel))
+                                NotificationCenter.default.post(name: .assetsChanged, object: nil)
+                            case .noteImported:
+                                break
+                            case .failed:
                                 store.showHint(_L("无法导入：\(url.lastPathComponent)", "Cannot import: \(url.lastPathComponent)"))
                             }
                         }

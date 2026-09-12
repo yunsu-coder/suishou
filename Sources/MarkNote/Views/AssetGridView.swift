@@ -21,6 +21,8 @@ struct AssetGridView: View {
     @State private var showImport = false
     /// 导入后的轻提示（几秒后自动消失）
     @State private var toast: String?
+    /// 待确认删除的素材（引用计数提示后再移入废纸篓）
+    @State private var pendingDelete: NotesStore.AttachmentItem?
 
     private var filtered: [NotesStore.AttachmentItem] {
         var list = items
@@ -48,6 +50,18 @@ struct AssetGridView: View {
         .onAppear(perform: reload)
         .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
             reload()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .assetsChanged)) { _ in
+            reload()
+        }
+        .alert(_L("删除素材？", "Delete this asset?"),
+               isPresented: Binding(get: { pendingDelete != nil },
+                                    set: { if !$0 { pendingDelete = nil } }),
+               presenting: pendingDelete) { item in
+            Button(_L("移到废纸篓", "Move to Trash"), role: .destructive) { trash(item) }
+            Button(_L("取消", "Cancel"), role: .cancel) { pendingDelete = nil }
+        } message: { item in
+            Text(deleteWarning(item))
         }
         .sheet(isPresented: $showImport) {
             AssetImportSheet { urls in
@@ -152,7 +166,7 @@ struct AssetGridView: View {
     private func tile(_ item: NotesStore.AttachmentItem) -> some View {
         let isSel = selected?.url == item.url
         let refs = refCounts[item.name] ?? 0
-        let kind = Self.kind(forExt: item.url.pathExtension)
+        let kind = AssetSyntax.kind(forExt: item.url.pathExtension)
         return VStack(alignment: .leading, spacing: 4) {
             ZStack {
                 RoundedRectangle(cornerRadius: 6)
@@ -176,7 +190,7 @@ struct AssetGridView: View {
         .onTapGesture { selected = item }
         // 拖到编辑器：携带**短引用文本**（不是文件 URL —— 否则编辑器会再存一份素材）
         .onDrag {
-            NSItemProvider(object: Self.reference(name: item.name, path: relativePath(item)) as NSString)
+            NSItemProvider(object: AssetSyntax.reference(name: item.name, path: relativePath(item)) as NSString)
         }
         .help("\(item.name) · \(Self.sizeLabel(item.size))")
     }
@@ -251,6 +265,13 @@ struct AssetGridView: View {
                 }
                 .controlSize(.small)
                 .help(_L("在 Finder 中显示", "Reveal in Finder"))
+                Button {
+                    pendingDelete = item
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .controlSize(.small)
+                .help(_L("删除素材（移到废纸篓）", "Delete asset (moves to Trash)"))
             }
         }
         .padding(10)
@@ -295,56 +316,35 @@ struct AssetGridView: View {
     /// 插入短引用：交给编辑器在光标处插入（通知解耦，编辑器不在时自动忽略）。
     private func insert(_ item: NotesStore.AttachmentItem) {
         NotificationCenter.default.post(name: .insertTextAtCursor,
-                                        object: Self.reference(name: item.name, path: relativePath(item)))
+                                        object: AssetSyntax.reference(name: item.name, path: relativePath(item)))
     }
 
     private func copyRef(_ item: NotesStore.AttachmentItem) {
         let board = NSPasteboard.general
         board.clearContents()
-        board.setString(Self.reference(name: item.name, path: relativePath(item)), forType: .string)
+        board.setString(AssetSyntax.reference(name: item.name, path: relativePath(item)), forType: .string)
     }
 
-    /// 素材类型：决定插入语法、缩略图与图标策略。
-    enum AssetKind: Equatable {
-        case image, video, audio, file
-    }
-
-    static func kind(forExt ext: String) -> AssetKind {
-        switch ext.lowercased() {
-        case "png", "jpg", "jpeg", "gif", "webp", "heic", "heif", "avif", "tiff", "tif", "bmp", "svg":
-            return .image
-        case "mp4", "mov", "m4v", "mv4", "webm", "mkv", "avi":
-            return .video
-        case "mp3", "m4a", "wav", "flac", "aac", "ogg", "aiff":
-            return .audio
-        default:
-            return .file
+    /// 删除确认文案：引用计数提示（被 N 篇笔记引用 → 引用会失效）+ 可恢复说明。
+    private func deleteWarning(_ item: NotesStore.AttachmentItem) -> String {
+        let refs = refCounts[item.name] ?? 0
+        let recover = _L("文件会移到废纸篓，可随时恢复。", "The file moves to Trash and can be recovered.")
+        if refs > 0 {
+            return _L("该素材被 \(refs) 篇笔记引用，删除后这些引用会失效。" + recover,
+                      "Referenced by \(refs) note(s); those references will break. " + recover)
         }
+        return _L("未被任何笔记引用。" + recover, "Not referenced by any note. " + recover)
     }
 
-    /// 素材引用文本（插入 / 复制 / 拖拽三处共用一套写法）——按类型给**语义正确**的语法：
-    /// · 图片 → `![名](路径)` 行内图片
-    /// · 视频 → `<video src="路径" controls></video>` 预览内嵌播放器
-    /// · 音频 → `<audio src="路径" controls></audio>` 预览内嵌播放器
-    /// · 其他（pdf/zip/docx…）→ `@[名](路径)` 附件卡（点击打开）
-    static func reference(name: String, path: String) -> String {
-        let p = escapePath(path)
-        switch kind(forExt: (name as NSString).pathExtension) {
-        case .image: return "![\(title(name))](\(p))"
-        case .video: return "<video src=\"\(p)\" controls></video>"
-        case .audio: return "<audio src=\"\(p)\" controls></audio>"
-        case .file:  return "@[\(title(name))](\(p))"
-        }
-    }
-
-    /// 链接路径里的空格 / 括号 / # 等会破坏 Markdown 与附件卡语法解析 → 百分号编码（保留中文，便于阅读）。
-    static func escapePath(_ path: String) -> String {
-        var out = path
-        for (raw, enc) in [(" ", "%20"), ("(", "%28"), (")", "%29"),
-                           ("#", "%23"), ("[", "%5B"), ("]", "%5D")] {
-            out = out.replacingOccurrences(of: raw, with: enc)
-        }
-        return out
+    /// 删除素材 → 移到废纸篓（可恢复）；刷新网格与选中态。
+    private func trash(_ item: NotesStore.AttachmentItem) {
+        let ok = store.trashAsset(item.url)
+        if selected?.url == item.url { selected = nil }
+        pendingDelete = nil
+        reload()
+        toast = ok ? _L("已移到废纸篓：\(item.name)", "Moved to Trash: \(item.name)")
+                   : _L("删除失败：\(item.name)", "Delete failed: \(item.name)")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { toast = nil }
     }
 
     static func title(_ fileName: String) -> String {
@@ -376,7 +376,7 @@ private struct AssetThumbView: View {
     let symbol: String
     @State private var poster: AssetGridView.PosterInfo?
 
-    private var kind: AssetGridView.AssetKind { AssetGridView.kind(forExt: item.url.pathExtension) }
+    private var kind: AssetSyntax.Kind { AssetSyntax.kind(forExt: item.url.pathExtension) }
 
     var body: some View {
         ZStack {

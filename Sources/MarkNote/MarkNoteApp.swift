@@ -23,6 +23,8 @@ extension Notification.Name {
     static let quickOpenRequested = Notification.Name("quickOpenRequested")
     /// 插入文本到编辑器光标处（素材面板等宿主外部视图使用）
     static let insertTextAtCursor = Notification.Name("insertTextAtCursor")
+    /// 素材库变化（外部拖入入库 / 删除 / 导入）→ 素材面板刷新
+    static let assetsChanged = Notification.Name("assetsChanged")
     /// 切换侧边栏（⌘B）
     static let toggleSidebarRequested = Notification.Name("toggleSidebarRequested")
     /// 编辑器查找/替换（⌘F / ⇧⌘F）浮条请求
