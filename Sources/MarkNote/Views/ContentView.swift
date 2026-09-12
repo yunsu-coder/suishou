@@ -15,6 +15,13 @@ struct ContentView: View {
     @State private var aiModel = AIChatModel()
     /// 侧栏显示态（⌘B 切换；自绘布局，不复用系统分栏）
     @State private var sidebarHidden = false
+    /// 阅读专注态（临时 UI 状态：隐藏侧栏 / AI 面板 / tab 栏，只留预览；退出即还原，不写偏好）
+    @State private var readerFocus = false
+    @State private var readerKeyMonitor: Any?
+    /// 鼠标是否停在窗口顶部 8pt 内（含标题栏区域，由 mouseMoved 监听驱动；
+    /// 低频变化，可安全放在父级 —— 高频的条悬停状态留在 ReaderFocusOverlay 内部）
+    @State private var readerTopZone = false
+    @State private var readerMouseMonitor: Any?
     /// 资源管理器宽度（拖拽手柄调整；持久化）
     @AppStorage("explorerWidth") private var explorerWidth = 170.0
     /// ⌃+滚动 分层缩放监视器（与设置页同键；本窗口级别的作用目标也在此裁决）
@@ -111,11 +118,26 @@ struct ContentView: View {
     }
 
     var body: some View {
+        // 阅读专注态 overlay 单独挂一层（body 保持极简：整链过长会让 Swift 类型检查超时）
+        mainContentInner
+            .overlay(alignment: .top) { readerOverlay }
+    }
+
+    private var readerOverlay: some View {
+        ReaderFocusOverlay(active: readerFocus,
+                           topZone: readerTopZone,
+                           accent: appAppearance.accent,
+                           onExit: { exitReaderFocus() })
+    }
+
+    /// 三段拆分之「布局 + 背景特效」（原单条修饰符链过长，编译器泛型推断会超时）
+    @ViewBuilder
+    private var mainContentLayout: some View {
         @Bindable var store = store
         // 自绘三栏（macOS 26 NavigationSplitView 侧栏会悬浮覆盖内容 —— (b) 叠盖 bug 的病根，
         // 放弃系统分栏，改为可控 HStack；⌘B 切换侧栏见菜单项）
         HStack(spacing: 0) {
-            if !sidebarHidden {
+            if !sidebarHidden && !readerFocus {
                 SidebarView(showVersions: $showVersions)
                     .frame(width: explorerWidth)
                 // 分隔线即拖拽手柄（3pt；拖动调整侧栏宽度，最小 110 / 最大 420）
@@ -134,10 +156,10 @@ struct ContentView: View {
                     .environment(store)
                     .frame(minWidth: 560)
                 } else {
-                    EditorView(showVersions: $showVersions)
+                    EditorView(showVersions: $showVersions, readerFocus: readerFocus)
                         .frame(minWidth: 560)
                 }
-                if aiPanelVisible {
+                if aiPanelVisible && !readerFocus {
                     AIPanelView()
                         .environment(store)
                         .environment(aiModel)
@@ -166,6 +188,11 @@ struct ContentView: View {
         }
         .background(Glass.Window(enabled: appAppearance.glass > 0, backgroundColor: appAppearance.windowBackground))
         .navigationSplitViewStyle(.balanced)
+    }
+
+    /// 三段拆分之「外观 / 身份 / 导入入口」
+    private var mainContentChrome: some View {
+        mainContentLayout
         // Finder/launch services 打开 .md/.txt → 导入为新文件并打开
         .onOpenURL { url in
             guard url.isFileURL else { return }
@@ -181,19 +208,24 @@ struct ContentView: View {
         .id("\(store.themeVersion)-\(pluginThemeToken)") // 内置/插件主题切换时整体重建（深浅/色调生效）
         // 插件主题启用/切换 → 重建 token（.id 触发整体重建，插件主题作用于全局）
         .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
-            pluginThemeToken = PluginManager.shared.enabledTheme()?.id ?? "-"
-            let hadCards = cardsView != nil
-            cardsView = PluginManager.shared.mainAreaView(type: .noteCards)
-            // 只有「原本有卡片墙、现在没了」才回编辑器；启动瞬间插件尚未扫完时不动用户选择
-            if cardsView == nil, hadCards { mainViewKind = "editor" }
+            syncPluginState()
         }
         .onAppear { cardsView = PluginManager.shared.mainAreaView(type: .noteCards) }
+    }
+
+    /// 三段拆分之「事件监听 / 浮层 / 生命周期」
+    private var mainContentInner: some View {
+        mainContentChrome
         .onReceive(NotificationCenter.default.publisher(for: .themeEasterEggTriggered)) { _ in
             triggerThemeEasterEgg()
         }
         // ⌘B 切换侧栏（自绘布局专用）
         .onReceive(NotificationCenter.default.publisher(for: .toggleSidebarRequested)) { _ in
             sidebarHidden.toggle()
+        }
+        // ⌘⇧R / 双击预览空白 → 阅读专注态（临时状态，不改任何偏好）
+        .onReceive(NotificationCenter.default.publisher(for: .readerFocusToggle)) { _ in
+            toggleReaderFocus()
         }
         // 菜单「视图」切模式 → 同步工具栏 AppStorage 状态
         .onReceive(NotificationCenter.default.publisher(for: .editorModeDidChange)) { _ in
@@ -243,14 +275,7 @@ struct ContentView: View {
             aiPanelVisible.toggle()
         }
         .onAppear {
-            // 面板上下文 = 当前文件内容（停靠面板与编辑器同窗，读 store 实时值）
-            aiModel.fileContext = { store.workingText }
-            // 文件代理：工作台内读/写/管理（越界、隐藏目录被硬拦截）
-            aiModel.agent = WorkspaceAgent(store: store)
-            // @ 文件引用数据源
-            aiModel.indexProvider = { store.index }
-            // 对话历史持久化位置（工作台 .ai-history/，点目录不进入索引）
-            aiModel.historyBaseDir = { store.notesDir }
+            configureAIModel()
         }
         // 快速打开（⌘P，VSCode Quick Open）
         .onReceive(NotificationCenter.default.publisher(for: .quickOpenRequested)) { _ in
@@ -286,23 +311,92 @@ struct ContentView: View {
         //   指针在预览 → 正文缩放；指针在编辑器（非焦点态）→ 源码字号
         //   其余（焦点在侧栏/搜索/无焦点）→ 只缩放窗口尺寸
         .onAppear {
-            installCtrlScrollMonitor()
-            installHelpSlashMonitor()
-            installAIShortcutMonitor()
+            installMonitors()
         }
         .onDisappear {
-            if let m = ctrlScrollMonitor {
-                NSEvent.removeMonitor(m)
-                ctrlScrollMonitor = nil
+            removeMonitors()
+        }
+    }
+
+    /// 事件监视器统一安装 / 卸载（分函数化：内联在 body 会让类型检查超时）
+    private func installMonitors() {
+        installCtrlScrollMonitor()
+        installHelpSlashMonitor()
+        installAIShortcutMonitor()
+        installReaderKeyMonitor()
+        installReaderMouseMonitor()
+    }
+
+    /// 阅读专注态：鼠标移到窗口顶部（含标题栏 8pt）→ 滑出退出条。
+    /// 只在「进入 / 离开」热区时更新状态，移动过程不产生额外重算。
+    private func installReaderMouseMonitor() {
+        readerMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { event in
+            guard readerFocus, let win = event.window,
+                  win.identifier?.rawValue != "com_apple_SwiftUI_Settings" else { return event }
+            let topInset = max(0, win.frame.height - win.contentLayoutRect.height)
+            let fromTop = win.frame.height - event.locationInWindow.y
+            let inZone = fromTop <= topInset + 8
+            if readerTopZone != inZone { readerTopZone = inZone }
+            return event
+        }
+    }
+
+    /// 插件启用 / 切换后的状态同步（独立函数化：内联在 onReceive 闭包里类型检查超时）
+    private func syncPluginState() {
+        pluginThemeToken = PluginManager.shared.enabledTheme()?.id ?? "-"
+        let hadCards = cardsView != nil
+        cardsView = PluginManager.shared.mainAreaView(type: .noteCards)
+        // 只有「原本有卡片墙、现在没了」才回编辑器；启动瞬间插件尚未扫完时不动用户选择
+        if cardsView == nil, hadCards { mainViewKind = "editor" }
+    }
+
+    /// AI 面板数据源接线（独立函数化：内联在 onAppear 闭包里类型检查超时）
+    private func configureAIModel() {
+        // 面板上下文 = 当前文件内容（停靠面板与编辑器同窗，读 store 实时值）
+        aiModel.fileContext = { store.workingText }
+        // 文件代理：工作台内读/写/管理（越界、隐藏目录被硬拦截）
+        aiModel.agent = WorkspaceAgent(store: store)
+        // @ 文件引用数据源
+        aiModel.indexProvider = { store.index }
+        // 对话历史持久化位置（工作台 .ai-history/，点目录不进入索引）
+        aiModel.historyBaseDir = { store.notesDir }
+    }
+
+    private func removeMonitors() {
+        if let m = ctrlScrollMonitor { NSEvent.removeMonitor(m); ctrlScrollMonitor = nil }
+        if let m = helpSlashMonitor { NSEvent.removeMonitor(m); helpSlashMonitor = nil }
+        if let m = aiShortcutMonitor { NSEvent.removeMonitor(m); aiShortcutMonitor = nil }
+        if let m = readerKeyMonitor { NSEvent.removeMonitor(m); readerKeyMonitor = nil }
+        if let m = readerMouseMonitor { NSEvent.removeMonitor(m); readerMouseMonitor = nil }
+    }
+
+    // MARK: - 阅读专注态
+
+    private func toggleReaderFocus() {
+        if readerFocus { exitReaderFocus() }
+        else {
+            withAnimation(.timingCurve(0.25, 1, 0.4, 1, duration: 0.22)) { readerFocus = true }
+        }
+    }
+
+    private func exitReaderFocus() {
+        withAnimation(.timingCurve(0.25, 1, 0.4, 1, duration: 0.22)) { readerFocus = false }
+    }
+
+    /// Esc 退出；开始打字（无修饰的字符键）也退出，回到编辑。
+    private func installReaderKeyMonitor() {
+        readerKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard readerFocus else { return event }
+            if event.keyCode == 53 {   // Esc
+                exitReaderFocus()
+                return nil
             }
-            if let m = helpSlashMonitor {
-                NSEvent.removeMonitor(m)
-                helpSlashMonitor = nil
+            let mods = event.modifierFlags.intersection([.command, .option, .control])
+            if mods.isEmpty, let ch = event.charactersIgnoringModifiers?.first,
+               ch.isLetter || ch.isNumber || ch.isPunctuation || ch == " " {
+                exitReaderFocus()
             }
-            if let m = aiShortcutMonitor {
-                NSEvent.removeMonitor(m)
-                aiShortcutMonitor = nil
-            }
+            return event
         }
     }
 
@@ -417,5 +511,66 @@ struct ResizeHandle: View {
                     .onEnded { _ in baseW = nil }
             )
             .help(_LL("拖动调整资源管理器宽度", "Drag to resize the explorer width"))
+    }
+}
+
+/// 阅读专注态的顶部退出条（独立小视图：内联在 ContentView 会让类型检查超时）。
+/// 顶部 8pt 热区滑出；鼠标离开热区与条本身 → 自动收起。
+private struct ReaderFocusOverlay: View {
+    let active: Bool
+    let topZone: Bool
+    let accent: Color
+    let onExit: () -> Void
+
+    /// 条本身的悬停状态放在组件内部：父级持有时高频 hover 会重算整棵视图树（含预览 WebView）。
+    @State private var barHovered = false
+
+    private var barVisible: Bool { topZone || barHovered }
+
+    var body: some View {
+        if active {
+            VStack(spacing: 0) {
+                if barVisible {
+                    ReaderFocusBar(accent: accent, onExit: onExit, onHoverChange: { barHovered = $0 })
+                        .padding(.horizontal, 16)
+                        .padding(.top, 6)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+                Spacer()
+            }
+            .animation(.easeOut(duration: 0.16), value: barVisible)
+        }
+    }
+}
+
+private struct ReaderFocusBar: View {
+    let accent: Color
+    let onExit: () -> Void
+    let onHoverChange: (Bool) -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "book.pages.fill")
+                .font(.system(size: 12))
+                .foregroundStyle(accent)
+            Text(_L("阅读模式", "Reading mode"))
+                .font(.system(size: 12, weight: .medium))
+            Spacer()
+            Text(_L("Esc 或开始打字退出", "Esc or start typing to exit"))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            Button(action: onExit) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12)
+            .stroke(accent.opacity(0.22), lineWidth: 1))
+        .onHover(perform: onHoverChange)
     }
 }

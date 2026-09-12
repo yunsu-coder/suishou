@@ -798,4 +798,15 @@ window.renderMd = function (md, baseDir, opts) {
   };
 
   window.__ready = true;
+
+  // ===== 双击正文空白 → 阅读专注态（交给宿主；不劫持链接 / 图片 / 代码 / 已选中文本上的双击）=====
+  document.addEventListener('dblclick', function (e) {
+    var mh = window.webkit && window.webkit.messageHandlers;
+    if (!mh || !mh.readerFocus) return;
+    var t = e.target;
+    if (t && t.closest && t.closest('a, img, video, audio, pre, code, table, .attach-card, input, textarea, button')) return;
+    var sel = window.getSelection ? String(window.getSelection()) : '';
+    if (sel && sel.length > 0) return;   // 双击选词时不触发
+    mh.readerFocus.postMessage('toggle');
+  });
 })();

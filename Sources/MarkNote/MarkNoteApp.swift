@@ -27,6 +27,8 @@ extension Notification.Name {
     static let assetsChanged = Notification.Name("assetsChanged")
     /// 切换侧边栏（⌘B）
     static let toggleSidebarRequested = Notification.Name("toggleSidebarRequested")
+    /// 阅读专注态切换（⌘⇧R / 双击预览空白）：只影响界面布局，不碰笔记内容
+    static let readerFocusToggle = Notification.Name("readerFocusToggle")
     /// 编辑器查找/替换（⌘F / ⇧⌘F）浮条请求
     static let findReplaceRequested = Notification.Name("findReplaceRequested")
     /// 主题彩蛋触发（侧栏主题图标连续点击）
@@ -431,6 +433,10 @@ struct MarkNoteApp: App {
                     NotificationCenter.default.post(name: .toggleSidebarRequested, object: nil)
                 }
                 .keyboardShortcut("b", modifiers: [.command])
+                Button(_LL("阅读模式", "Reading Mode")) {
+                    NotificationCenter.default.post(name: .readerFocusToggle, object: nil)
+                }
+                .keyboardShortcut("r", modifiers: [.command, .shift])
                 Divider()
                 ForEach(themeCatalog.options) { t in
                     Button {

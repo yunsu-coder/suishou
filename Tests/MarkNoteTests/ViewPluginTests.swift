@@ -221,6 +221,23 @@ final class ViewPluginTests: XCTestCase {
         XCTAssertNil(stats["B.md"], "没有任务列表的笔记不入表")
     }
 
+    /// 预览镜像指纹：覆盖同名资源（目录 mtime 不变）也必须被侦测到 ——
+    /// 否则改了 preview.css/js 后，工作台 `.preview/` 镜像会长期停留在旧资源。
+    func testPreviewMirrorFingerprintDetectsOverwrite() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("mn-fp-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let file = dir.appendingPathComponent("preview.js")
+        try "abc".write(to: file, atomically: true, encoding: .utf8)
+        let fp1 = PreviewView.resourcesFingerprint(dir)
+        XCTAssertEqual(fp1, PreviewView.resourcesFingerprint(dir), "同内容指纹稳定")
+        // 覆盖同名文件（条目不变，仅大小/时间变）→ 指纹必须变化
+        try "abcd".write(to: file, atomically: true, encoding: .utf8)
+        let fp2 = PreviewView.resourcesFingerprint(dir)
+        XCTAssertNotEqual(fp1, fp2, "覆盖同名文件后指纹必须变化")
+        XCTAssertTrue(fp2.contains("preview.js"), "指纹包含文件条目")
+    }
+
     /// 跨工作台导入：复制进当前工作台、原库只读、同名加序号（隔离规则第 2 条）。
     @MainActor
     func testCrossWorkspaceImportCopiesAndNeverTouchesSource() throws {

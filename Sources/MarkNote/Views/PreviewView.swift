@@ -79,6 +79,7 @@ struct PreviewView: NSViewRepresentable {
         config.userContentController.add(handler, name: "openURL")
         config.userContentController.add(handler, name: "openImage")
         config.userContentController.add(handler, name: "openFile")
+        config.userContentController.add(handler, name: "readerFocus")
 
         let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = context.coordinator
@@ -110,9 +111,13 @@ struct PreviewView: NSViewRepresentable {
         let previewDir = base.appendingPathComponent(".preview", isDirectory: true)
         let mirroredHTML = previewDir.appendingPathComponent("preview.html")
         let sourceDir = html.deletingLastPathComponent()
-        let srcMtime = (try? sourceDir.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-        let dstMtime = (try? mirroredHTML.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
-        if srcMtime > dstMtime {
+        // 指纹判定：只看目录 mtime 会漏掉「覆盖同名文件」的更新（目录 mtime 不变）——
+        // 结果就是改了 preview.css/js 后镜像长期停留在旧资源。指纹 = 全文件 路径+时间+大小。
+        let fingerprintFile = previewDir.appendingPathComponent(".fingerprint")
+        let fingerprint = resourcesFingerprint(sourceDir)
+        let mirrored = (try? String(contentsOf: fingerprintFile, encoding: .utf8)) == fingerprint
+            && fm.fileExists(atPath: mirroredHTML.path)
+        if !mirrored {
             try? fm.removeItem(at: previewDir)
             try? fm.createDirectory(at: previewDir, withIntermediateDirectories: true)
             guard let items = try? fm.contentsOfDirectory(at: sourceDir, includingPropertiesForKeys: nil) else { return nil }
@@ -120,8 +125,22 @@ struct PreviewView: NSViewRepresentable {
                 let dest = previewDir.appendingPathComponent(u.lastPathComponent)
                 try? fm.copyItem(at: u, to: dest)
             }
+            try? fingerprint.write(to: fingerprintFile, atomically: true, encoding: .utf8)
         }
         return fm.fileExists(atPath: mirroredHTML.path) ? mirroredHTML : nil
+    }
+
+    /// 资源目录指纹：全部文件的「相对名 + 修改时间 + 大小」排序拼接（纯 stat，无 IO 读内容）。
+    static func resourcesFingerprint(_ dir: URL) -> String {
+        guard let en = FileManager.default.enumerator(
+            at: dir, includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey]) else { return "" }
+        var parts: [String] = []
+        for case let u as URL in en {
+            let v = try? u.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+            let m = Int(v?.contentModificationDate?.timeIntervalSince1970 ?? 0)
+            parts.append("\(u.lastPathComponent):\(m):\(v?.fileSize ?? 0)")
+        }
+        return parts.sorted().joined(separator: "|")
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
@@ -399,6 +418,11 @@ struct PreviewView: NSViewRepresentable {
                 }
                 if let url {
                     parent.onOpenFile(url)
+                }
+            case "readerFocus":
+                // 双击正文空白 → 阅读专注态（由 ContentView 统一处理布局）
+                if s == "toggle" {
+                    NotificationCenter.default.post(name: .readerFocusToggle, object: nil)
                 }
             default:
                 break

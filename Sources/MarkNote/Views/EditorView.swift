@@ -25,6 +25,13 @@ struct EditorView: View {
     @State private var findCurrent = 0
     @FocusState private var findFocused: Bool
     @AppStorage("editorMode") private var mode = EditorMode.split.rawValue
+    /// 阅读专注态（ContentView 注入）：隐藏 tab 栏/状态栏，只留预览
+    var readerFocus: Bool = false
+
+    /// 实际生效的视图模式：阅读专注态下强制「仅预览」（不改用户偏好，退出即还原）
+    private var effectiveMode: EditorMode {
+        readerFocus ? .preview : (EditorMode(rawValue: mode) ?? .split)
+    }
     // 字体/字号/缩放直接用 @AppStorage（与设置窗口同键）：UserDefaults 变更即时触发本视图重渲
     // （store.editorFontSize 这类经 store 计算的属性不追踪 UserDefaults —— 设置窗口改完主窗口不动）
     @AppStorage("editorFontSize") private var editorFontSize = 13.0
@@ -45,9 +52,9 @@ struct EditorView: View {
                 .frame(minWidth: 520)
         } else {
             VStack(spacing: 0) {
-                header
+                if !readerFocus { header }
                 Group {
-                    switch EditorMode(rawValue: mode) ?? .split {
+                    switch effectiveMode {
                     case .editor:
                         editorPane
                             // 动画① 触发点：过渡挂分支视图本身；compositingGroup 离屏栅格化防卡
@@ -76,8 +83,8 @@ struct EditorView: View {
                     }
                 }
                 .layoutPriority(1)
-                .animation(.timingCurve(0.25, 1, 0.4, 1, duration: 0.18), value: mode)
-                statusBar
+                .animation(.timingCurve(0.25, 1, 0.4, 1, duration: 0.18), value: effectiveMode)
+                if !readerFocus { statusBar }
             }
             // 动画② 触发点（笔记切换 6pt + fade 0.12s）：整块内容随 loadedNoteID 换档（防卡：轻量） 
             .id("doc-\(store.loadedNoteID ?? "none")")
