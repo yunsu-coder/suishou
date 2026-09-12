@@ -1064,6 +1064,29 @@ final class NotesStore {
         listAttachments(for: "").map(\.name)
     }
 
+    /// 笔记待办统计（卡片墙筛选用）：`open` = 未勾选数，`total` = 任务总数。
+    /// 只读全文缓存，不额外扫盘；不是任务列表的笔记不入表。
+    struct TodoStat: Equatable {
+        let open: Int
+        let total: Int
+    }
+
+    func todoStats() -> [String: TodoStat] {
+        var out: [String: TodoStat] = [:]
+        guard let re = try? NSRegularExpression(pattern: #"^[ \t]*[-*+][ \t]+\[([ xX])\][ \t]"#,
+                                                options: [.anchorsMatchLines]) else { return out }
+        for (id, data) in fullTextCache {
+            guard let text = String(data: data, encoding: .utf8), text.contains("[") else { continue }
+            let ns = text as NSString
+            let ms = re.matches(in: text, range: NSRange(location: 0, length: ns.length))
+            guard !ms.isEmpty else { continue }
+            var open = 0
+            for m in ms where ns.substring(with: m.range(at: 1)) == " " { open += 1 }
+            out[id] = TodoStat(open: open, total: ms.count)
+        }
+        return out
+    }
+
     // MARK: - 新建 / 删除 / 重命名
 
     /// 新建文件（空名）→ 根目录“无标题.md”，随后内联命名（VSCode）

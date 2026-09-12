@@ -203,6 +203,24 @@ final class ViewPluginTests: XCTestCase {
         XCTAssertFalse(store.trashAsset(src), "已不存在的文件返回 false")
     }
 
+    /// 卡片墙待办统计：未勾选 / 总数按笔记聚合；无任务的笔记不入表。
+    @MainActor
+    func testTodoStats() throws {
+        let (store, dir) = try TestEnv.makeStore()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let fm = FileManager.default
+        try fm.createDirectory(at: dir.appendingPathComponent("test"), withIntermediateDirectories: true)
+        try "# A\n- [ ] 待办一\n- [x] 已完成\n- [ ] 待办二\n"
+            .write(to: dir.appendingPathComponent("test/A.md"), atomically: true, encoding: .utf8)
+        try "# B\n没有任务清单\n".write(to: dir.appendingPathComponent("B.md"), atomically: true, encoding: .utf8)
+        store.reloadIndex()
+        TestEnv.pump()
+        let stats = store.todoStats()
+        XCTAssertEqual(stats["test/A.md"]?.open, 2, "两条未勾选")
+        XCTAssertEqual(stats["test/A.md"]?.total, 3, "含已完成共三条")
+        XCTAssertNil(stats["B.md"], "没有任务列表的笔记不入表")
+    }
+
     /// 跨工作台导入：复制进当前工作台、原库只读、同名加序号（隔离规则第 2 条）。
     @MainActor
     func testCrossWorkspaceImportCopiesAndNeverTouchesSource() throws {

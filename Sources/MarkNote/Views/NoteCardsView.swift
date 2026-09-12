@@ -13,8 +13,26 @@ struct NoteCardsView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("cardWall.starred") private var starredRaw = ""
     @AppStorage("cardWall.previewLines") private var previewLines = 6
+    @AppStorage("cardWall.filter") private var filterRaw = CardFilter.all.rawValue
+    /// 待办统计（本机缓存，索引变化时重算；不额外扫盘）
+    @State private var todoStats: [String: NotesStore.TodoStat] = [:]
     /// 打开笔记（由 ContentView 注入：切回编辑器 + 选中该笔记）
     let onOpen: (String) -> Void
+
+    /// 卡片墙筛选（本机 UI 偏好，不进入笔记文件）
+    enum CardFilter: String, CaseIterable {
+        case all, starred, todo
+
+        var label: String {
+            switch self {
+            case .all: return _L("全部", "All")
+            case .starred: return _L("加星", "Starred")
+            case .todo: return _L("待办", "Todos")
+            }
+        }
+    }
+
+    private var filter: CardFilter { CardFilter(rawValue: filterRaw) ?? .all }
 
     private var starred: Set<String> {
         Set(starredRaw.split(separator: "\n").map(String.init))
@@ -22,15 +40,23 @@ struct NoteCardsView: View {
 
     private var lines: Int { max(1, min(20, spec.options.previewLines ?? previewLines)) }
 
+    /// 当前筛选下要展示的笔记（只收笔记文件；素材在素材面板看）。
+    private var visibleNotes: [NoteIndexItem] {
+        let notes = store.index.filter { Self.isNoteFile($0.id) }
+        switch filter {
+        case .all: return notes
+        case .starred: return notes.filter { starred.contains($0.id) }
+        case .todo: return notes.filter { (todoStats[$0.id]?.open ?? 0) > 0 }
+        }
+    }
+
     /// 按天分组（今天 / 昨天 / 更早），组内按修改时间倒序。
     private var groups: [(title: String, items: [NoteIndexItem])] {
         var buckets: [String: [NoteIndexItem]] = [:]
         var order: [String] = []
         let cal = Calendar.current
         let iso = ISO8601DateFormatter()
-        // 卡片墙只收「笔记」：跳过图片/音视频/压缩包等素材文件（它们在素材面板里看）
-        let sorted = store.index
-            .filter { Self.isNoteFile($0.id) }
+        let sorted = visibleNotes
             .sorted { (iso.date(from: $0.updated) ?? .distantPast)
                 > (iso.date(from: $1.updated) ?? .distantPast) }
         for note in sorted {
@@ -50,24 +76,74 @@ struct NoteCardsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 18) {
-                ForEach(groups, id: \.title) { group in
-                    Text(group.title)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 4)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16)],
-                              alignment: .leading, spacing: 16) {
-                        ForEach(group.items) { note in
-                            card(note)
+        VStack(spacing: 0) {
+            filterBar
+            Divider()
+            if groups.isEmpty {
+                emptyState
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 18) {
+                        ForEach(groups, id: \.title) { group in
+                            Text(group.title)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 4)
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 16)],
+                                      alignment: .leading, spacing: 16) {
+                                ForEach(group.items) { note in
+                                    card(note)
+                                }
+                            }
                         }
                     }
+                    .padding(20)
                 }
             }
-            .padding(20)
         }
         .background(Color(nsColor: appAppearance.editorBackground))
+        .onAppear { todoStats = store.todoStats() }
+        .onChange(of: store.index) { _, _ in todoStats = store.todoStats() }
+    }
+
+    private var filterBar: some View {
+        HStack(spacing: 6) {
+            ForEach(CardFilter.allCases, id: \.rawValue) { f in
+                chip(f.label, on: filter == f) { filterRaw = f.rawValue }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+    }
+
+    private func chip(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 11, weight: on ? .semibold : .regular))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: 8)
+                    .fill(on ? Color(nsColor: appAppearance.accentNS).opacity(0.16) : Color.clear))
+                .foregroundStyle(on ? Color(nsColor: appAppearance.accentNS) : Color.secondary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: filter == .starred ? "star" : (filter == .todo ? "checklist" : "square.grid.2x2"))
+                .font(.system(size: 26))
+                .foregroundStyle(.tertiary)
+            Text(filter == .starred
+                 ? _L("还没有加星的笔记", "No starred notes yet")
+                 : (filter == .todo ? _L("没有待办中的笔记", "No notes with open todos")
+                                    : _L("这个工作台还没有笔记", "No notes in this workspace")))
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func card(_ note: NoteIndexItem) -> some View {
@@ -95,6 +171,13 @@ struct NoteCardsView: View {
                     HStack(spacing: 10) {
                         Text(Self.folderLabel(note.category))
                         Text(shortDate(note.updated))
+                        if let stat = todoStats[note.id], stat.total > 0 {
+                            HStack(spacing: 3) {
+                                Image(systemName: stat.open > 0 ? "checklist" : "checkmark.circle")
+                                Text(stat.open > 0 ? "\(stat.open)/\(stat.total)" : "\(stat.total)")
+                            }
+                            .foregroundStyle(stat.open > 0 ? accent : Color.secondary)
+                        }
                         Spacer()
                         Button {
                             toggleStar(note.id)
