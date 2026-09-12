@@ -6,7 +6,7 @@ import SwiftUI
 /// 包结构：manifest.json（schema 见 PluginManifest）+ 按 kind 的数据文件。
 
 enum PluginKind: String, Codable, CaseIterable {
-    case experts, theme, filetypes, snippets, render, commands
+    case experts, theme, filetypes, snippets, render, commands, views
 
     var displayName: String {
         switch self {
@@ -16,6 +16,7 @@ enum PluginKind: String, Codable, CaseIterable {
         case .snippets: return _L("插入模板", "Snippet")
         case .render: return _L("渲染扩展", "Render Extension")
         case .commands: return _L("命令", "Command")
+        case .views: return _L("视图", "View")
         }
     }
 }
@@ -101,6 +102,7 @@ struct PluginPackage: Identifiable {
         case .snippets: return "text.insert"
         case .render: return "wand.and.stars"
         case .commands: return "command"
+        case .views: return "rectangle.grid.2x2"
         }
     }
 
@@ -113,6 +115,7 @@ struct PluginPackage: Identifiable {
         case .snippets: return Color(red: 0.95, green: 0.62, blue: 0.25)
         case .render: return Color(red: 0.25, green: 0.55, blue: 0.95)
         case .commands: return Color(red: 0.55, green: 0.57, blue: 0.62)
+        case .views: return Color(red: 0.20, green: 0.66, blue: 0.52)
         }
     }
 }
@@ -243,6 +246,74 @@ struct ThemeSpec: Codable {
 struct RenderPlugin: Identifiable {
     let id: String
     let js: String
+}
+
+
+// MARK: - 视图插件（声明式：插件只声明配置，界面由 app 用主题变量渲染）
+
+/// 视图类型：app 内置渲染器，插件不提供代码。
+enum PluginViewType: String, Codable, CaseIterable {
+    case noteCards
+    case assetGrid
+
+    var displayName: String {
+        switch self {
+        case .noteCards: return _L("卡片墙", "Note Cards")
+        case .assetGrid: return _L("素材网格", "Asset Grid")
+        }
+    }
+}
+
+/// 作用域：workspace = 只读当前工作台；global = 本机 UI 偏好（不读笔记内容）
+enum PluginViewScope: String, Codable {
+    case workspace, global
+}
+
+/// 放置位置：main = 占主区域（可切换）；panel = 侧边面板
+enum PluginViewPlacement: String, Codable {
+    case main, panel
+}
+
+/// 视图选项（受控字段；未知键会被忽略，避免插件塞私有配置）
+struct PluginViewOptions: Codable, Equatable {
+    /// day | folder | none
+    var groupBy: String?
+    /// 卡片预览行数（3 / 6 / 10）
+    var previewLines: Int?
+    var showProgress: Bool?
+    /// open | star | archive
+    var actions: [String]?
+    /// assetGrid：扫描哪些目录（默认 source）
+    var dirs: [String]?
+    var showRefCount: Bool?
+    /// assetGrid：是否允许「从其他工作台导入」
+    var allowImport: Bool?
+
+    static let `default` = PluginViewOptions()
+}
+
+/// views.json 中的单条视图声明。
+struct ViewSpec: Codable {
+    let id: String
+    let name: String
+    let nameEn: String?
+    let type: String
+    let scope: String
+    let placement: String
+    let options: PluginViewOptions?
+}
+
+/// 注册后的视图（含来源包目录）。
+struct PluginView: Identifiable {
+    let id: String
+    let name: String
+    let type: PluginViewType
+    let scope: PluginViewScope
+    let placement: PluginViewPlacement
+    let options: PluginViewOptions
+    let dir: String
+
+    var previewLines: Int { max(1, min(20, options.previewLines ?? 6)) }
 }
 
 /// 命令插件（P4）：命令面板注册；action 为宿主白名单动作

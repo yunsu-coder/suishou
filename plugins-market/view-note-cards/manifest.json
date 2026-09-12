@@ -1,0 +1,25 @@
+{
+  "id": "view-note-cards",
+  "name": "卡片墙",
+  "nameEn": "Note Cards",
+  "version": "1.0.0",
+  "kind": "views",
+  "desc": "把当前工作台的笔记摊成按天分组的卡片墙，适合回顾：标题 + 正文前几行 + 最近状态；只读，不改动任何文件",
+  "descEn": "A read-only card wall grouped by day: title + first lines of each note. Workspace-scoped, never modifies files",
+  "features": [
+    "按「今天 / 昨天 / 具体日期」分组，只读当前工作台",
+    "卡片 = 标题 + 正文前 6 行（行数可调 3 / 6 / 10）",
+    "星标与视图偏好只存本机，不写进笔记",
+    "颜色与字体全部取当前主题（四套主题自动适配）"
+  ],
+  "featuresEn": [
+    "Grouped by day, current workspace only",
+    "Card = title + first 6 lines (3 / 6 / 10 adjustable)",
+    "Star + view prefs stay local, never written into notes",
+    "All colors/fonts come from the active theme"
+  ],
+  "author": "随手社区",
+  "main": "views.json",
+  "minAppVersion": "1.8.0",
+  "icon": "rectangle.grid.2x2"
+}

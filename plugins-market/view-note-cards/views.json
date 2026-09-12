@@ -1,0 +1,16 @@
+[
+  {
+    "id": "cards",
+    "name": "卡片墙",
+    "nameEn": "Note Cards",
+    "type": "noteCards",
+    "scope": "workspace",
+    "placement": "main",
+    "options": {
+      "groupBy": "day",
+      "previewLines": 6,
+      "showProgress": true,
+      "actions": ["open", "star"]
+    }
+  }
+]

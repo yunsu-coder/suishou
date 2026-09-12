@@ -111,6 +111,8 @@ struct AppAppearance {
     let dark: Bool
     /// 全局强调色（.tint / 选中态 / 行高亮）
     let accent: Color
+    /// 强调色的 NSColor 形态（自绘视图取色用；插件视图只许用它，不许写死色值）
+    let accentNS: NSColor
     /// 编辑器底色（插件主题 --bg；缺省内置）
     let editorBackground: NSColor
     /// 编辑器正文色（插件主题 --text；缺省内置）
@@ -236,6 +238,7 @@ private func resolveAppAppearance(base: Theme, plugin: PluginTheme?) -> AppAppea
         scheme: dark ? .dark : .light,
         dark: dark,
         accent: Color(nsColor: resolvedAccent),
+        accentNS: resolvedAccent,
         editorBackground: editorBackground,
         editorForeground: editorForeground,
         caret: AppAppearance.caretColor(accent: resolvedAccent,

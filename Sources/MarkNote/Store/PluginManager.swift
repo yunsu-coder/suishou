@@ -164,6 +164,31 @@ final class PluginManager {
                                             motion: motion,
                                             glass: max(0, min(1, t.glass ?? 0))))
             }
+        case .views:
+            guard let items = try? JSONDecoder().decode([ViewSpec].self, from: Data(contentsOf: pkg.mainURL)) else { return }
+            for v in items {
+                guard !v.id.isEmpty, !v.name.isEmpty else { continue }
+                guard let type = PluginViewType(rawValue: v.type) else {
+                    d.viewIssues[pkg.id, default: []].append("\(v.name)：未知视图类型 \(v.type)（只支持 noteCards / assetGrid）")
+                    continue
+                }
+                guard let scope = PluginViewScope(rawValue: v.scope) else {
+                    d.viewIssues[pkg.id, default: []].append("\(v.name)：作用域必须是 workspace 或 global")
+                    continue
+                }
+                guard let placement = PluginViewPlacement(rawValue: v.placement) else {
+                    d.viewIssues[pkg.id, default: []].append("\(v.name)：placement 必须是 main 或 panel")
+                    continue
+                }
+                // 隔离硬门槛：读笔记内容的视图必须是 workspace 作用域
+                if type == .noteCards && scope != .workspace {
+                    d.viewIssues[pkg.id, default: []].append("\(v.name)：卡片墙读取笔记内容，作用域必须是 workspace")
+                    continue
+                }
+                d.views.append(PluginView(id: "view-\(pkg.id)-\(v.id)", name: v.name,
+                                          type: type, scope: scope, placement: placement,
+                                          options: v.options ?? .default, dir: pkg.dir.path))
+            }
         case .render:
             guard let js = try? String(contentsOf: pkg.mainURL, encoding: .utf8), !js.isEmpty else { return }
             d.renderPlugins.append(RenderPlugin(id: pkg.id, js: js))
@@ -249,6 +274,24 @@ final class PluginManager {
         return data.commands
     }
 
+    /// 已启用包提供的全部视图。
+    func allViews() -> [PluginView] {
+        lock.lock(); defer { lock.unlock() }
+        return data.views
+    }
+
+    /// 某视图包未通过的原因（空 = 通过）。
+    func viewIssues(for packageID: String) -> [String] {
+        lock.lock(); defer { lock.unlock() }
+        return data.viewIssues[packageID] ?? []
+    }
+
+    /// 主区域视图（placement = main）；多个时取第一个。
+    func mainAreaView(type: PluginViewType) -> PluginView? {
+        lock.lock(); defer { lock.unlock() }
+        return data.views.first { $0.type == type && $0.placement == .main }
+    }
+
     func enabledTheme() -> PluginTheme? {
         lock.lock(); defer { lock.unlock() }
         let id = UserDefaults.standard.string(forKey: "pluginThemeID")
@@ -303,4 +346,8 @@ struct PluginData {
     var themeIssues: [String: [String]] = [:]
     var renderPlugins: [RenderPlugin] = []
     var commands: [PluginCommand] = []
+    /// 视图插件（声明式视图：卡片墙 / 素材网格）
+    var views: [PluginView] = []
+    /// 视图包 → 未通过原因（面板可展示）
+    var viewIssues: [String: [String]] = [:]
 }

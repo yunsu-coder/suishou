@@ -30,6 +30,9 @@ struct ContentView: View {
     @State private var pluginThemeToken = "-"
     /// 主题彩蛋覆盖层
     @State private var easterEggActive = false
+    /// 主区域视图（视图插件启用后可选「卡片墙」）
+    @AppStorage("mainViewKind") private var mainViewKind = "editor"
+    @State private var cardsView: PluginView?
     @State private var easterEggSymbols: [String] = []
     @State private var easterEggMessage: String?
     @State private var easterEggDismiss: DispatchWorkItem?
@@ -122,8 +125,18 @@ struct ContentView: View {
             // 侧栏显隐按钮已并入编辑器标题栏最左侧（.toggleSidebarRequested 通知）
             // 编辑器 + AI 停靠面板（VSCode Copilot 范式：右侧副栏，可拖分栏调整宽度）
             HSplitView {
-                EditorView(showVersions: $showVersions)
+                if mainViewKind == "cards", let cards = cardsView {
+                    NoteCardsView(spec: cards) { id in
+                        mainViewKind = "editor"
+                        store.selectedNoteID = id
+                        store.openNote(id)
+                    }
+                    .environment(store)
                     .frame(minWidth: 560)
+                } else {
+                    EditorView(showVersions: $showVersions)
+                        .frame(minWidth: 560)
+                }
                 if aiPanelVisible {
                     AIPanelView()
                         .environment(store)
@@ -169,7 +182,10 @@ struct ContentView: View {
         // 插件主题启用/切换 → 重建 token（.id 触发整体重建，插件主题作用于全局）
         .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
             pluginThemeToken = PluginManager.shared.enabledTheme()?.id ?? "-"
+            cardsView = PluginManager.shared.mainAreaView(type: .noteCards)
+            if cardsView == nil { mainViewKind = "editor" }   // 插件被卸载/停用 → 回编辑器
         }
+        .onAppear { cardsView = PluginManager.shared.mainAreaView(type: .noteCards) }
         .onReceive(NotificationCenter.default.publisher(for: .themeEasterEggTriggered)) { _ in
             triggerThemeEasterEgg()
         }

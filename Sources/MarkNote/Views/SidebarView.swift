@@ -277,12 +277,25 @@ struct SidebarView: View {
     }
 
     /// 视图标题行（VSCode "EXPLORER"）：小号加粗标题 + 右端 ⋯ 更多操作菜单
+    /// 主区域视图（与 ContentView 共用；插件未启用时不存在「卡片」这一档）
+    @AppStorage("mainViewKind") private var mainViewKind = "editor"
+
     private var viewTitleRow: some View {
         HStack(spacing: 6) {
             Text(_LL("资源管理器", "Explorer"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.tertiary)
             Spacer()
+            // 视图插件提供卡片墙时，给一个「树 / 卡片」切换（插件未启用则不出现）
+            if PluginManager.shared.mainAreaView(type: .noteCards) != nil {
+                Picker("", selection: $mainViewKind) {
+                    Text(_L("树", "Tree")).tag("editor")
+                    Text(_L("卡片", "Cards")).tag("cards")
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 96)
+            }
             Menu {
                 Button(_L("新建文件", "New Note")) { beginCreating("=root") }
                 Button(_L("新建文件夹", "New Folder")) { beginCreating("=category") }
