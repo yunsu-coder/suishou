@@ -204,7 +204,11 @@ body {
 
 .markdown-body ul, .markdown-body ol { padding-left: 1.6em; margin: 0.6em 0; }
 .markdown-body li { margin: 0.28em 0; }
+/* 列表标记跟随主题语法色（与编辑器 --md-list / --md-number 同一套变量） */
 .markdown-body li::marker { color: var(--text-secondary); }
+.markdown-body ul > li::marker { color: var(--md-list, var(--text-secondary)); }
+.markdown-body ol > li::marker { color: var(--md-number, var(--text-secondary)); }
+.markdown-body li.task-list-item::marker { color: var(--md-task, var(--text-secondary)); }
 .markdown-body ul { list-style: disc; }
 .markdown-body ul ul { list-style: circle; }
 .markdown-body ol { list-style: decimal; }
@@ -219,12 +223,12 @@ body {
   border-radius: 8px;
 }
 .markdown-body th, .markdown-body td {
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--md-table, var(--border-strong));
   padding: 7px 13px;
   text-align: left;
   white-space: nowrap;
 }
-.markdown-body th { background: var(--code-bg); font-weight: 600; }
+.markdown-body th { background: var(--code-bg); font-weight: 600; color: var(--md-table-head, var(--text)); }
 .markdown-body tr:nth-child(even) td { background: rgba(128, 128, 128, 0.03); }
 
 .markdown-body hr { border: none; border-top: 1px solid var(--border-strong); margin: 2em 0; }
@@ -337,6 +341,13 @@ body {
 
 /* ===== 内嵌媒体（视频 / 音频）：尺寸克制 + 主题适配 ===== */
 .markdown-body .md-media { display: block; max-width: 100%; margin: .9em 0; }
+
+/* ===== 多级编号行（1.1 / 1.1.1 …）：编号原样保留，按层级缩进 ===== */
+.markdown-body .num-line { margin: .1em 0; }
+.markdown-body .num-line.num-depth-1 { padding-left: 1.5em; }
+.markdown-body .num-line.num-depth-2 { padding-left: 3em; }
+.markdown-body .num-line.num-depth-3 { padding-left: 4.5em; }
+.markdown-body .num-line.num-depth-4 { padding-left: 6em; }
 .markdown-body video.md-media {
   max-height: 68vh;
   border-radius: 10px;
@@ -531,3 +542,13 @@ html { scroll-behavior: smooth; }
 .markdown-body strong { color: var(--strong, var(--text)); }
 .markdown-body em { color: var(--em, var(--text)); }
 .markdown-body hr { border-top-color: var(--hr, var(--border-strong)); }
+
+/* 语法色与编辑器对齐（v5 主题的 --md-*）：预览里同一种语法和编辑器同一颜色 ——
+   用户写完一眼就能对上「哪些语法生效了」。字段缺失时回落到原有变量，老主题不受影响。 */
+.markdown-body a { color: var(--md-link, var(--accent)); }
+.markdown-body code { color: var(--md-code, var(--code-text)); }
+.markdown-body del, .markdown-body s { color: var(--md-strike, var(--text-secondary)); }
+.markdown-body mark { color: var(--md-highlight, var(--text)); background: var(--md-highlight-bg, var(--warn-bg)); }
+.markdown-body ins { color: var(--md-insert, var(--text)); }
+.markdown-body blockquote { border-left-color: var(--md-quote, var(--accent)); }
+.markdown-body hr { border-top-color: var(--md-hr, var(--hr, var(--border-strong))); }

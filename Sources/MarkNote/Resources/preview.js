@@ -205,6 +205,12 @@ var __isEN = (window.__appLang === 'en');
       }
       // 0. 附件卡片预处理（先于 markdown-it：接管带空格/中文的附件链接）
       if (isMod('attachments')) { md = preprocessAttachments(md); }
+      // 0.5 多级编号行（`1.1 内容` / `1.1.1 内容` …）：标准 Markdown 不认这种编号，默认会被
+      //     吸进上一个列表项；这里转成按层级缩进的独立行块，编号原样保留（手写章节编号的读感）
+      md = md.replace(/^([ \t]*)(\d+(?:\.\d+)+\.?)[ \t]+(.*\S)[ \t]*$/gm, function (m, ws, num, text) {
+        var depth = Math.min(num.split('.').length - 1, 4);
+        return '<div class="num-line num-depth-' + depth + '">' + escHtml(num) + ' ' + escHtml(text) + '</div>';
+      });
       // 1. 提取脚注定义（HTML block 后的定义 markdown-it 不识别，先挪走）
       var footnoteDefs = '';
       var mdClean = isMod('footnote') ? md.replace(/^\[\^[^\]]+\]:\s*.+(\n\s{2,}.+)*/gm, function (m) {

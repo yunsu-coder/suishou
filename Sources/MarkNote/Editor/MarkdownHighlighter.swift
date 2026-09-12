@@ -136,7 +136,8 @@ enum MarkdownHighlighter {
             out.append(MDToken(range: NSRange(location: lineRange.location + indent,
                                               length: m.upperBound.utf16Offset(in: trimmed)), kind: .listBullet))
             handledRoot = true
-        } else if !handledRoot, let m = trimmed.range(of: #"^\s*\d+\.\s"#, options: [.regularExpression]) {
+        } else if !handledRoot, let m = trimmed.range(of: #"^\s*\d+(?:\.\d+)*\.?\s"#, options: [.regularExpression]) {
+            // 有序列表（含多级编号）：`1. ` / `1.1 ` / `1.1.1 ` / `1.1.1. `（编号与空格一起上色）
             out.append(MDToken(range: NSRange(location: lineRange.location + indent,
                                               length: m.upperBound.utf16Offset(in: trimmed)), kind: .listNumber))
             handledRoot = true

@@ -119,6 +119,16 @@ final class MarkdownHighlighterTests: XCTestCase {
         XCTAssertEqual(text(.listNumber), ["1. "])
         XCTAssertEqual(text(.quote), [">"])
     }
+
+    /// 有序列表多级编号：`1.` / `1.1` / `1.1.1` / `1.1.1.` 都要识别（用户手写章节编号的用法）。
+    func testMultiLevelNumberListMarkers() {
+        let md = "1. 一级\n1.1 二级\n1.1.1 三级\n1.1.1. 带尾点\n   1.2 缩进二级\n1.2.3版本 无空格不高亮\n"
+        let ns = md as NSString
+        let tokens = MarkdownHighlighter.tokenize(md)
+        let nums = tokens.filter { $0.kind == .listNumber }.map { ns.substring(with: $0.range) }
+        XCTAssertEqual(nums, ["1. ", "1.1 ", "1.1.1 ", "1.1.1. ", "1.2 "],
+                       "多级编号按标记上色；无空格分隔的版本号不误判")
+    }
 }
 
 final class ImagePipelineTests: XCTestCase {
