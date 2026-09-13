@@ -252,6 +252,10 @@ struct FlowchartEditorHost: View {
     @State private var keyMonitor: Any?
     @State private var saveTask: Task<Void, Never>?
     @State private var lastSavedName = ""
+    /// 本界面所在的窗口（sheet / 主窗口）。键盘监听只认这个窗口 ——
+    /// 否则导出弹层、重命名弹窗等子窗口里的按键会被画布吞掉
+    /// （方向键挪图形、退格删元素）。
+    @State private var hostWindow: NSWindow?
 
     var body: some View {
         // draw.io 式三栏：左侧形状库（卡片网格）· 中间画布 · 右侧属性（选中时）
@@ -274,6 +278,7 @@ struct FlowchartEditorHost: View {
             }
         }
         .background(Color(nsColor: theme.background))
+        .background(FCWindowReporter { hostWindow = $0 })
         .onAppear {
             installKeyMonitor()
             lastSavedName = editor.doc.name
@@ -487,6 +492,7 @@ struct FlowchartEditorHost: View {
         guard keyMonitor == nil else { return }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard let win = event.window, win.isKeyWindow else { return event }
+            if let host = hostWindow, win !== host { return event }
             if let responder = win.firstResponder, responder is NSTextView || responder is NSTextField {
                 return event   // 正在输入文字：全部放行
             }
@@ -899,5 +905,35 @@ private struct FlowchartInspector: View {
         }
         .buttonStyle(.plain)
         .help(title)
+    }
+}
+
+// MARK: - 窗口上报（键盘监听只认本界面所在窗口）
+
+/// 把所在 NSWindow 上报给上层：sheet / 主窗口里按键要处理，
+/// 导出弹层、重命名弹窗等子窗口里的按键必须放行。
+private struct FCWindowReporter: NSViewRepresentable {
+    let onChange: (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> FCWindowReportView {
+        let view = FCWindowReportView()
+        view.onChange = onChange
+        return view
+    }
+
+    func updateNSView(_ nsView: FCWindowReportView, context: Context) {
+        nsView.onChange = onChange
+    }
+}
+
+private final class FCWindowReportView: NSView {
+    var onChange: ((NSWindow?) -> Void)?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        // 延后一拍再回写 SwiftUI 状态：viewDidMoveToWindow 可能发生在布局期，
+        // 布局期改状态会触发 AppKit 约束更新异常（项目里已有前车之鉴）。
+        let w = window
+        DispatchQueue.main.async { [weak self] in self?.onChange?(w) }
     }
 }

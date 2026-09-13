@@ -761,7 +761,9 @@ struct FCEdgePath: Equatable {
             let obstacles = nodes.values
                 .filter { $0.id != edge.fromNode && $0.id != edge.toNode }
                 .map(\.rect)
-            let routed = FCRouter.route(p0: p0, n0: n0, p1: p1, n1: n1, obstacles: obstacles)
+            // avoid：源 / 目标图形本体（防"线钻进自己的图形/贴边框走"）
+            let routed = FCRouter.route(p0: p0, n0: n0, p1: p1, n1: n1,
+                                        obstacles: obstacles, avoid: [a.rect, b.rect])
             segments = zip(routed, routed.dropFirst()).map { .line($1) }
 
         case .curve:
@@ -1349,8 +1351,9 @@ final class FlowchartEditor: ObservableObject {
         zoom = 1
         let size = canvasSize
         let bounds = doc.contentBounds
-        offset = CGSize(width: (size.width - bounds.midX) / 2 - bounds.minX / 2,
-                        height: (size.height - bounds.midY) / 2 - bounds.minY / 2)
+        // 居中：doc 点 bounds.mid 变换后应落在画布正中（zoom = 1）
+        offset = CGSize(width: size.width / 2 - bounds.midX,
+                        height: size.height / 2 - bounds.midY)
     }
 
     /// 缩放适配：把内容完整放进给定尺寸

@@ -423,6 +423,44 @@ final class FlowchartTests: XCTestCase {
         try? png.write(to: URL(fileURLWithPath: "/tmp/marknote-flowchart-preview.png"))
     }
 
+    /// 100% 缩放必须把内容摆到画布正中（曾经少算半宽/半高，内容偏右下）
+    @MainActor
+    func testResetZoomCentersContent() {
+        var doc = FCDocument()
+        var n = FCNode(kind: .rect, origin: CGPoint(x: 120, y: 80))
+        n.w = 240; n.h = 120
+        doc.nodes = [n]
+        let editor = FlowchartEditor(doc: doc, url: URL(fileURLWithPath: "/tmp/zoom.json"))
+        let size = CGSize(width: 800, height: 600)
+        editor.canvasSize = size
+        editor.zoom = 2.2          // 先弄乱，确认 resetZoom 会重置
+        editor.resetZoom()
+        XCTAssertEqual(editor.zoom, 1, accuracy: 0.001)
+        let t = FCViewTransform(zoom: editor.zoom, offset: editor.offset)
+        let onScreen = t.r(doc.contentBounds)
+        XCTAssertEqual(onScreen.midX, size.width / 2, accuracy: 1, "内容应水平居中")
+        XCTAssertEqual(onScreen.midY, size.height / 2, accuracy: 1, "内容应垂直居中")
+    }
+
+    /// 适应窗口同样要居中（顺带防回归）
+    @MainActor
+    func testFitCentersContent() {
+        var doc = FCDocument()
+        var n = FCNode(kind: .rect, origin: CGPoint(x: 500, y: 400))
+        n.w = 200; n.h = 100
+        doc.nodes = [n]
+        let editor = FlowchartEditor(doc: doc, url: URL(fileURLWithPath: "/tmp/fit.json"))
+        let size = CGSize(width: 900, height: 500)
+        editor.canvasSize = size
+        editor.fit(in: size)
+        let t = FCViewTransform(zoom: editor.zoom, offset: editor.offset)
+        let onScreen = t.r(doc.contentBounds)
+        XCTAssertEqual(onScreen.midX, size.width / 2, accuracy: 1, "内容应水平居中")
+        XCTAssertEqual(onScreen.midY, size.height / 2, accuracy: 1, "内容应垂直居中")
+        XCTAssertLessThanOrEqual(onScreen.width, size.width + 0.5, "内容应放进窗口")
+        XCTAssertLessThanOrEqual(onScreen.height, size.height + 0.5, "内容应放进窗口")
+    }
+
     /// 整屏（工具栏 + 画布 + 检查器）渲染：用来肉眼检查界面，也防止布局整体崩掉
     @MainActor
     func testEditorChromeRenders() throws {

@@ -18,11 +18,16 @@ enum FCRouter {
     // MARK: - 主入口
 
     /// 返回从锚点 p0（法向 n0）到 p1（法向 n1）的正交折线（含两端锚点，已去共线）。
+    ///
+    /// - Parameter obstacles: 中途要绕开的其他图形（会按 `padding` 外扩）
+    /// - Parameter avoid: 源 / 目标图形本体（不外扩）。线可以贴着自己的锚点出发，
+    ///   但**不允许钻进图形内部**——否则贴着边框走、甚至横穿自己的图形。
     static func route(p0: CGPoint, n0: CGVector, p1: CGPoint, n1: CGVector,
-                      obstacles: [CGRect]) -> [CGPoint] {
+                      obstacles: [CGRect], avoid: [CGRect] = []) -> [CGPoint] {
         let s0 = CGPoint(x: p0.x + n0.dx * stub, y: p0.y + n0.dy * stub)
         let s1 = CGPoint(x: p1.x + n1.dx * stub, y: p1.y + n1.dy * stub)
-        let rects = obstacles.map { $0.insetBy(dx: -padding, dy: -padding) }
+        let padded = obstacles.map { $0.insetBy(dx: -padding, dy: -padding) }
+        let rects = padded + avoid
 
         // 候选：L 形 ×2 + Z 形 ×2（端点探头保留，让线从锚点方向"探出去"再走）
         let midX = (s0.x + s1.x) / 2
@@ -39,10 +44,31 @@ enum FCRouter {
             return best
         }
 
-        // 绕行：BFS + 拉直
-        let detour = bfsDetour(from: s0, to: s1, rects: rects)
-        let pulled = stringPull(mergeCollinear([p0] + detour + [p1]), rects: rects)
-        return pulled
+        // 绕行：BFS + 拉直。
+        // 注意：拉直只在**中段**（s0 → s1）进行，两端 16pt 探头必须原样保留 ——
+        // 否则拉直会把探头吞掉，线贴着图形边框走、箭头从侧面插进图形（已复现）。
+        let detour = bfsDetour(from: s0, to: s1, obstacles: obstacles, avoid: avoid)
+        let middle = stringPull(mergeCollinear(detour), rects: rects)
+        return orthogonalize(mergeCollinear([p0] + middle + [p1]))
+    }
+
+    /// 正交化兜底：任何一段斜线拆成两段正交线（先横后竖）。
+    ///
+    /// 为什么需要：BFS 网格端点会被替换成精确的锚点探头点，这一步会留下
+    /// 一段「小于半格」的斜线；若视线拉直无法处理它（被障碍挡住），
+    /// 斜线会原样留在最终路径里（已复现：线以小角度斜插进图形）。
+    /// 有了这道兜底，`route` 的输出**恒为正交折线**。
+    static func orthogonalize(_ pts: [CGPoint]) -> [CGPoint] {
+        guard pts.count >= 2 else { return pts }
+        var out: [CGPoint] = [pts[0]]
+        for i in 1..<pts.count {
+            let a = out[out.count - 1], b = pts[i]
+            if abs(b.x - a.x) > 0.5, abs(b.y - a.y) > 0.5 {
+                out.append(CGPoint(x: b.x, y: a.y))
+            }
+            out.append(b)
+        }
+        return mergeCollinear(out)
     }
 
     // MARK: - 几何工具
@@ -100,13 +126,21 @@ enum FCRouter {
 
     // MARK: - BFS 绕行
 
-    static func bfsDetour(from a: CGPoint, to b: CGPoint, rects: [CGRect], step: CGFloat = 12) -> [CGPoint] {
+    /// - Parameter rects: 已外扩的障碍（网格封锁用保守规则：宁肯多堵一格）
+    /// - Parameter avoid: 源 / 目标图形本体。它们**只堵格心落在图形内部的格子** ——
+    ///   保守规则会把端点所在格子周围也一起堵死（端点离图形只有 16pt，
+    ///   两格以内），BFS 直接失败退化成 L 形，线就穿过障碍了（已复现）。
+    static func bfsDetour(from a: CGPoint, to b: CGPoint, obstacles: [CGRect],
+                          avoid: [CGRect] = [], step: CGFloat = 12) -> [CGPoint] {
         let margin: CGFloat = 240
         let minX = min(a.x, b.x) - margin, maxX = max(a.x, b.x) + margin
         let minY = min(a.y, b.y) - margin, maxY = max(a.y, b.y) + margin
         let cols = Int((maxX - minX) / step) + 1
         let rows = Int((maxY - minY) / step) + 1
-        guard cols > 1, rows > 1, cols < 500, rows < 500 else { return [a, b] }
+        // 兜底也保持正交（L 形）；绝不返回斜线
+        guard cols > 1, rows > 1, cols < 500, rows < 500 else {
+            return [a, CGPoint(x: b.x, y: a.y), b]
+        }
 
         func idx(_ i: Int, _ j: Int) -> Int { j * cols + i }
         func grid(_ p: CGPoint) -> (Int, Int) {
@@ -117,68 +151,154 @@ enum FCRouter {
             CGPoint(x: minX + CGFloat(i) * step, y: minY + CGFloat(j) * step)
         }
 
-        var blocked = [Bool](repeating: false, count: cols * rows)
-        for r in rects {
-            let i0 = max(0, Int(floor((r.minX - minX) / step)))
-            let i1 = min(cols - 1, Int(ceil((r.maxX - minX) / step)))
-            let j0 = max(0, Int(floor((r.minY - minY) / step)))
-            let j1 = min(rows - 1, Int(ceil((r.maxY - minY) / step)))
-            guard i0 <= i1, j0 <= j1 else { continue }
-            for j in j0...j1 {
-                for i in i0...i1 { blocked[idx(i, j)] = true }
-            }
-        }
-
         let (si, sj) = grid(a)
         let (ti, tj) = grid(b)
         let startI = idx(si, sj), targetI = idx(ti, tj)
-        // 起点/终点周围 3×3 清空：网格取整可能把端点贴进障碍 padding，
-        // 只清单格会因邻格被挡导致 BFS 直接失败（表现为兜底斜线）。
-        for (ci, cj) in [(si, sj), (ti, tj)] {
-            for dj in -1...1 {
-                for di in -1...1 {
-                    let ni = ci + di, nj = cj + dj
-                    if ni >= 0, ni < cols, nj >= 0, nj < rows { blocked[idx(ni, nj)] = false }
+        let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+
+        /// 构造封锁网格。
+        /// - conservative：障碍按「外扩 padding + 整格保守封锁」——
+        ///   宁肯多堵一格，路径尽量离图形远一点；
+        /// - 否则只堵【格心落在真实障碍内】的格子：让线能从贴边的窄缝挤过去
+        ///   （端点距离别的图形只有几个点时，保守规则会把出口整个封死，
+        ///   BFS 失败退化成 L 形兜底 → 线直接穿图形，已复现）。
+        func makeBlocked(conservative: Bool) -> [Bool] {
+            var blocked = [Bool](repeating: false, count: cols * rows)
+            let rects = conservative ? obstacles.map { $0.insetBy(dx: -padding, dy: -padding) } : obstacles
+            for r in rects {
+                let i0 = conservative ? max(0, Int(floor((r.minX - minX) / step)))
+                                      : max(0, Int(ceil((r.minX - minX) / step)))
+                let i1 = conservative ? min(cols - 1, Int(ceil((r.maxX - minX) / step)))
+                                      : min(cols - 1, Int(floor((r.maxX - minX) / step)))
+                let j0 = conservative ? max(0, Int(floor((r.minY - minY) / step)))
+                                      : max(0, Int(ceil((r.minY - minY) / step)))
+                let j1 = conservative ? min(rows - 1, Int(ceil((r.maxY - minY) / step)))
+                                      : min(rows - 1, Int(floor((r.maxY - minY) / step)))
+                guard i0 <= i1, j0 <= j1 else { continue }
+                for j in j0...j1 {
+                    for i in i0...i1 { blocked[idx(i, j)] = true }
                 }
             }
-        }
-
-        var prev = [Int32](repeating: -1, count: cols * rows)
-        prev[startI] = Int32(startI)
-        var queue: [Int] = [startI]
-        var head = 0
-        let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-        var found = false
-        while head < queue.count {
-            let cur = queue[head]
-            head += 1
-            if cur == targetI { found = true; break }
-            let ci = cur % cols, cj = cur / cols
-            for (di, dj) in dirs {
-                let ni = ci + di, nj = cj + dj
-                guard ni >= 0, ni < cols, nj >= 0, nj < rows else { continue }
-                let nidx = idx(ni, nj)
-                if blocked[nidx] || prev[nidx] != -1 { continue }
-                prev[nidx] = Int32(cur)
-                queue.append(nidx)
+            // 源/目标图形本体：只堵格心落在图形内的格子（端点必在图形外 10pt 以上）
+            for r in avoid {
+                let i0 = max(0, Int(ceil((r.minX - minX) / step)))
+                let i1 = min(cols - 1, Int(floor((r.maxX - minX) / step)))
+                let j0 = max(0, Int(ceil((r.minY - minY) / step)))
+                let j1 = min(rows - 1, Int(floor((r.maxY - minY) / step)))
+                guard i0 <= i1, j0 <= j1 else { continue }
+                for j in j0...j1 {
+                    for i in i0...i1 { blocked[idx(i, j)] = true }
+                }
             }
+            // 端点周围清空：网格取整可能把端点贴进障碍 padding，
+            // 只清单格会因邻格被挡导致 BFS 失败（表现为兜底 L 形穿图形）。
+            // 从 3×3 起，若整个清空区四周仍被堵死（探头被邻居图形压住，
+            // 两个图形只隔几个点）就逐圈扩大，直到出现出口 —— 宁可让线在
+            // 端口附近贴着邻居走，也不要全局兜底 L 形横穿别的图形。
+            // 源/目标图形本体的格子永远不清（不能在自己身上开洞）。
+            for (ci, cj) in [(si, sj), (ti, tj)] {
+                var radius = 1
+                while true {
+                    for dj in -radius...radius {
+                        for di in -radius...radius {
+                            let ni = ci + di, nj = cj + dj
+                            guard ni >= 0, ni < cols, nj >= 0, nj < rows else { continue }
+                            if avoid.contains(where: { $0.contains(point(ni, nj)) }) { continue }
+                            blocked[idx(ni, nj)] = false
+                        }
+                    }
+                    if radius >= 4 { break }
+                    // 出口检测：清空区里任意一格，在区域外是否有可走邻居
+                    var escaped = false
+                    for dj in -radius...radius where !escaped {
+                        for di in -radius...radius where !escaped {
+                            let ni = ci + di, nj = cj + dj
+                            guard ni >= 0, ni < cols, nj >= 0, nj < rows else { continue }
+                            for (ddi, ddj) in dirs {
+                                let mi = ni + ddi, mj = nj + ddj
+                                guard mi >= 0, mi < cols, mj >= 0, mj < rows else { continue }
+                                if abs(mi - ci) <= radius, abs(mj - cj) <= radius { continue }
+                                if !blocked[idx(mi, mj)] { escaped = true; break }
+                            }
+                        }
+                    }
+                    if escaped { break }
+                    radius += 1
+                }
+            }
+            // 清空不能开洞：源/目标图形内部重新堵上
+            for r in avoid {
+                let i0 = max(0, Int(ceil((r.minX - minX) / step)))
+                let i1 = min(cols - 1, Int(floor((r.maxX - minX) / step)))
+                let j0 = max(0, Int(ceil((r.minY - minY) / step)))
+                let j1 = min(rows - 1, Int(floor((r.maxY - minY) / step)))
+                guard i0 <= i1, j0 <= j1 else { continue }
+                for j in j0...j1 {
+                    for i in i0...i1 { blocked[idx(i, j)] = true }
+                }
+            }
+            blocked[startI] = false
+            blocked[targetI] = false
+            return blocked
         }
-        // 兜底也保持正交（L 形）；绝不返回斜线
-        guard found else { return [a, CGPoint(x: b.x, y: a.y), b] }
 
-        var path: [CGPoint] = []
-        var cur = targetI
-        while cur != startI {
-            path.append(point(cur % cols, cur / cols))
-            cur = Int(prev[cur])
+        /// 跑一次 BFS；找到返回网格路径，找不到返回 nil。
+        func search(_ blocked: [Bool]) -> [CGPoint]? {
+            var prev = [Int32](repeating: -1, count: cols * rows)
+            prev[startI] = Int32(startI)
+            var queue: [Int] = [startI]
+            var head = 0
+            var found = false
+            while head < queue.count {
+                let cur = queue[head]
+                head += 1
+                if cur == targetI { found = true; break }
+                let ci = cur % cols, cj = cur / cols
+                for (di, dj) in dirs {
+                    let ni = ci + di, nj = cj + dj
+                    guard ni >= 0, ni < cols, nj >= 0, nj < rows else { continue }
+                    let nidx = idx(ni, nj)
+                    if blocked[nidx] || prev[nidx] != -1 { continue }
+                    prev[nidx] = Int32(cur)
+                    queue.append(nidx)
+                }
+            }
+            guard found else { return nil }
+            var path: [CGPoint] = []
+            var cur = targetI
+            while cur != startI {
+                path.append(point(cur % cols, cur / cols))
+                cur = Int(prev[cur])
+            }
+            path.append(point(si, sj))
+            path.reverse()
+            if !path.isEmpty {
+                path[0] = a
+                path[path.count - 1] = b
+            }
+            return path
         }
-        path.append(point(si, sj))
-        path.reverse()
-        if !path.isEmpty {
-            path[0] = a
-            path[path.count - 1] = b
+
+        // 两轮都跑一遍：优先「完全没碰到真实障碍」的结果；
+        // 都被迫贴边时，取碰得少的那条（最后一手 L 形兜底只留给彻底无解的布局）。
+        let conservative = search(makeBlocked(conservative: true))
+        if let path = conservative, collisionCount(path, obstacles) == 0 { return path }
+        let relaxed = search(makeBlocked(conservative: false))
+        if let path = relaxed, collisionCount(path, obstacles) == 0 { return path }
+        if let a1 = conservative, let b1 = relaxed {
+            return collisionCount(a1, obstacles) <= collisionCount(b1, obstacles) ? a1 : b1
         }
-        return path
+        return conservative ?? relaxed ?? [a, CGPoint(x: b.x, y: a.y), b]
+    }
+
+    /// 折线穿过多少段障碍（用于比较两轮 BFS 结果谁更干净）
+    static func collisionCount(_ pts: [CGPoint], _ rects: [CGRect]) -> Int {
+        guard pts.count >= 2 else { return 0 }
+        var count = 0
+        for i in 1..<pts.count {
+            for r in rects where segmentIntersects(pts[i - 1], pts[i], r) { count += 1 }
+        }
+        return count
     }
 
     // MARK: - 视线拉直（string pulling）

@@ -811,7 +811,10 @@ struct FlowchartCanvas: View {
             defer { edgeTargetID = nil }
             let tol = 26 / max(editor.zoom, 0.2)
             if let target = editor.doc.node(at: current) ?? nearestNode(to: current, within: tol),
-               let idx = editor.doc.edges.firstIndex(where: { $0.id == id }) {
+               let idx = editor.doc.edges.firstIndex(where: { $0.id == id }),
+               // 不能接成「自己连自己」：自环两端点重合 → 路径退化成单点 →
+               // 连线在画布上整个消失（还会留在数据里），这里直接忽略这次改接
+               target.id != (isFrom ? editor.doc.edges[idx].toNode : editor.doc.edges[idx].fromNode) {
                 editor.commit { doc in
                     if isFrom {
                         doc.edges[idx].fromNode = target.id
