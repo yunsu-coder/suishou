@@ -394,6 +394,16 @@ struct FCDocument: Codable, Equatable {
         for n in nodes { box = box.map { $0.union(n.rect) } ?? n.rect }
         for t in texts { box = box.map { $0.union(t.rect) } ?? t.rect }
         for g in groups { box = box.map { $0.union(g.rect) } ?? g.rect }
+        // 连线的绕行路径可能超出图形包围盒（BFS 避障会绕远）——
+        // 不把它们计入，导出 PNG / 适应窗口会把绕行线段裁掉。
+        let index = nodesByID()
+        for e in edges {
+            guard let path = FCEdgePath(edge: e, nodes: index) else { continue }
+            for p in path.polyline {
+                let dot = CGRect(x: p.x, y: p.y, width: 0, height: 0)
+                box = box.map { $0.union(dot) } ?? dot
+            }
+        }
         guard let b = box, b.width > 1, b.height > 1 else {
             return CGRect(x: 0, y: 0, width: 320, height: 200)
         }
@@ -403,7 +413,8 @@ struct FCDocument: Codable, Equatable {
     var isEmpty: Bool { nodes.isEmpty && texts.isEmpty && groups.isEmpty }
 
     func nodesByID() -> [String: FCNode] {
-        Dictionary(uniqueKeysWithValues: nodes.map { ($0.id, $0) })
+        // uniquingKeysWith：损坏/手工编辑的数据若出现重复 id，取第一个而不是崩溃
+        Dictionary(nodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     // MARK: 命中测试

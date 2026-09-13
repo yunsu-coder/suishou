@@ -237,6 +237,24 @@ final class FlowchartTests: XCTestCase {
         XCTAssertEqual(merged, [CGPoint(x: 0, y: 0), CGPoint(x: 20, y: 0), CGPoint(x: 20, y: 30)])
     }
 
+    /// contentBounds 必须把连线的绕行路径计入：
+    /// 否则导出 PNG / 适应窗口会把绕到图形包围盒外的线段裁掉。
+    func testContentBoundsIncludesEdgeDetour() {
+        var doc = FCDocument()
+        var a = FCNode(kind: .rect, origin: CGPoint(x: 0, y: 0)); a.w = 60; a.h = 40
+        var b = FCNode(kind: .rect, origin: CGPoint(x: 400, y: 0)); b.w = 60; b.h = 40
+        var blocker = FCNode(kind: .rect, origin: CGPoint(x: 150, y: -150)); blocker.w = 120; blocker.h = 400
+        doc.nodes = [a, b, blocker]
+        var e = FCEdge(fromNode: a.id, toNode: b.id)
+        e.fromAnchor = .right
+        e.toAnchor = .left
+        doc.edges = [e]
+
+        let bounds = doc.contentBounds
+        XCTAssertTrue(bounds.minY <= -100 || bounds.maxY >= 200,
+                      "绕行路径（blocker 上下绕）应计入 bounds，实际：\(bounds)")
+    }
+
     /// 远距离 + 多障碍（复现用户画布）：路径必须全程正交、不穿障碍
     func testRouterLongDistanceStaysOrthogonal() {
         let obstacles = [

@@ -101,7 +101,7 @@ enum FCRouter {
     // MARK: - BFS 绕行
 
     static func bfsDetour(from a: CGPoint, to b: CGPoint, rects: [CGRect], step: CGFloat = 12) -> [CGPoint] {
-        let margin: CGFloat = 160
+        let margin: CGFloat = 240
         let minX = min(a.x, b.x) - margin, maxX = max(a.x, b.x) + margin
         let minY = min(a.y, b.y) - margin, maxY = max(a.y, b.y) + margin
         let cols = Int((maxX - minX) / step) + 1
@@ -132,8 +132,16 @@ enum FCRouter {
         let (si, sj) = grid(a)
         let (ti, tj) = grid(b)
         let startI = idx(si, sj), targetI = idx(ti, tj)
-        blocked[startI] = false      // 起点/终点保证可通行（探头本来就在图形外）
-        blocked[targetI] = false
+        // 起点/终点周围 3×3 清空：网格取整可能把端点贴进障碍 padding，
+        // 只清单格会因邻格被挡导致 BFS 直接失败（表现为兜底斜线）。
+        for (ci, cj) in [(si, sj), (ti, tj)] {
+            for dj in -1...1 {
+                for di in -1...1 {
+                    let ni = ci + di, nj = cj + dj
+                    if ni >= 0, ni < cols, nj >= 0, nj < rows { blocked[idx(ni, nj)] = false }
+                }
+            }
+        }
 
         var prev = [Int32](repeating: -1, count: cols * rows)
         prev[startI] = Int32(startI)
@@ -155,7 +163,8 @@ enum FCRouter {
                 queue.append(nidx)
             }
         }
-        guard found else { return [a, b] }
+        // 兜底也保持正交（L 形）；绝不返回斜线
+        guard found else { return [a, CGPoint(x: b.x, y: a.y), b] }
 
         var path: [CGPoint] = []
         var cur = targetI

@@ -36,7 +36,13 @@ struct FlowchartView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: root.path) { reloadWorkspace(autoOpen: true) }
-        .onChange(of: store.notesDir.path) { _, _ in reloadWorkspace(autoOpen: true) }
+        .onChange(of: store.notesDir.path) { _, _ in
+            // 切换工作台：先落盘旧工作台的未保存改动，再彻底换掉编辑器实例
+            // （否则旧工作台的图会挂在新工作台里显示，甚至保存回旧路径）
+            if let current = editor, current.dirty { current.save() }
+            editor = nil
+            reloadWorkspace(autoOpen: true)
+        }
         .alert(_L("无法打开", "Cannot open"), isPresented: Binding(
             get: { alertMessage != nil },
             set: { if !$0 { alertMessage = nil } }
@@ -59,6 +65,8 @@ struct FlowchartView: View {
     }
 
     private func createNew() {
+        // 先落盘当前图的未保存改动，避免"改完立刻新建 → 改动丢失"
+        if let current = editor, current.dirty { current.save() }
         let url = FlowchartStore.uniqueURL(root: root, name: _L("未命名流程图", "Untitled"))
         var doc = FCDocument(name: url.deletingPathExtension().lastPathComponent)
         doc.nodes = [sampleStart()]
