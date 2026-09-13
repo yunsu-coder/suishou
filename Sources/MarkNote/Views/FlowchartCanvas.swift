@@ -368,6 +368,8 @@ struct FlowchartCanvas: View {
     @State private var hoverAnchor: (node: String, anchor: FCAnchor)?
     /// hover 的文档坐标（draw.io 式：绿点跟随光标，落在浮动连接点上）
     @State private var hoverPoint: CGPoint?
+    /// 鼠标悬停的连线（加粗高亮，提示可点选）
+    @State private var hoverEdgeID: String?
     @State private var guideX: CGFloat?
     @State private var guideY: CGFloat?
     /// 画布在窗口中的位置：由 NSView 自己记录，供滚轮命中判断读取。
@@ -484,6 +486,22 @@ struct FlowchartCanvas: View {
             let r = transform.r(node.rect).insetBy(dx: -3, dy: -3)
             ctx.stroke(Path(roundedRect: r, cornerRadius: 6),
                        with: .color(accent), style: StrokeStyle(lineWidth: 2.5))
+        }
+        // 悬停连线：整条线加粗高亮（可点提示）
+        if let hid = hoverEdgeID, let e = editor.doc.edges.first(where: { $0.id == hid }),
+           let path = FCEdgePath(edge: e, nodes: editor.doc.nodesByID()) {
+            var p = Path()
+            p.move(to: transform.p(path.start))
+            for seg in path.segments {
+                switch seg {
+                case .line(let q): p.addLine(to: transform.p(q))
+                case .cubic(let c0, let c1, let q):
+                    p.addCurve(to: transform.p(q), control1: transform.p(c0), control2: transform.p(c1))
+                }
+            }
+            ctx.stroke(p, with: .color(accent.opacity(0.45)),
+                       style: StrokeStyle(lineWidth: max(4, transform.len(e.style.strokeWidth) + 3),
+                                          lineCap: .round))
         }
         // 选中连线 → 两端端点手柄（可拖动改接）
         if editor.selection.count == 1, let id = editor.selection.first,
@@ -631,7 +649,7 @@ struct FlowchartCanvas: View {
         let screenMoved = hypot(value.location.x - value.startLocation.x,
                                 value.location.y - value.startLocation.y)
         let p = transform.doc(value.location)
-        let hitID = editor.doc.hit(p, tolerance: 7 / max(editor.zoom, 0.2))
+        let hitID = editor.doc.hit(p, tolerance: 11 / max(editor.zoom, 0.2))
         let clickLike: Bool = {
             switch drag {
             case .move: return hitID != nil          // 点中元素
@@ -742,7 +760,7 @@ struct FlowchartCanvas: View {
            let edge = editor.doc.edges.first(where: { $0.id == id }),
            let path = FCEdgePath(edge: edge, nodes: editor.doc.nodesByID()),
            let s = path.polyline.first, let e = path.polyline.last {
-            let tol = 8 / max(editor.zoom, 0.2)
+            let tol = 13 / max(editor.zoom, 0.2)
             if hypot(s.x - start.x, s.y - start.y) <= tol {
                 drag = .reconnect(id: id, isFrom: true)
                 editor.pendingEdge = nil
@@ -801,7 +819,7 @@ struct FlowchartCanvas: View {
         }
 
         // 4) 选择工具：点中元素 → 选择 / 移动（群组连带子元素）
-        if let id = editor.doc.hit(start, tolerance: 7 / max(editor.zoom, 0.2)) {
+        if let id = editor.doc.hit(start, tolerance: 11 / max(editor.zoom, 0.2)) {
             let shift = mods.contains(.shift)
             if shift {
                 if editor.selection.contains(id) { editor.selection.remove(id) } else { editor.selection.insert(id) }
@@ -936,17 +954,25 @@ struct FlowchartCanvas: View {
         if let hit = anchorHit(at: p) {
             hoverAnchor = hit
             hoverPoint = p
+            hoverEdgeID = nil
+        } else if let e = editor.doc.edge(at: p, tolerance: 11 / max(editor.zoom, 0.2)) {
+            // 连线悬停：整条线加粗变亮（draw.io 手感——细线也不再"点不中看不见"）
+            hoverEdgeID = e.id
+            hoverAnchor = nil
+            hoverPoint = nil
         } else if let node = editor.doc.node(at: p) {
             hoverAnchor = (node.id, .auto)
             hoverPoint = nil
+            hoverEdgeID = nil
         } else {
             hoverAnchor = nil
             hoverPoint = nil
+            hoverEdgeID = nil
         }
     }
 
     private func beginTextEditing(at p: CGPoint) {
-        guard let id = editor.doc.hit(p, tolerance: 7 / max(editor.zoom, 0.2)) else { return }
+        guard let id = editor.doc.hit(p, tolerance: 11 / max(editor.zoom, 0.2)) else { return }
         if editor.doc.edges.contains(where: { $0.id == id }) {
             guard let edge = editor.doc.edges.first(where: { $0.id == id }), edge.label.isEmpty else {
                 editor.selection = [id]
