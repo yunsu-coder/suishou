@@ -615,7 +615,10 @@ final class FlowchartTests: XCTestCase {
         let e1 = FCEdge(fromNode: "a", toNode: "b")
         let e2 = FCEdge(fromNode: "b", toNode: "a")
         doc.edges = [e1, e2]
-        XCTAssertNotEqual(doc.lane(of: e1), doc.lane(of: e2), "两条平行边要各占一条车道")
+        let offs = doc.anchorOffsets()
+        XCTAssertNotEqual(offs[doc.endpointKey(e1.id, isFrom: true)] ?? 0,
+                          offs[doc.endpointKey(e2.id, isFrom: true)] ?? 0,
+                          "同一条边上挂两条线，锚点必须错开")
         let path1 = try XCTUnwrap(doc.edgePath(e1))
         let path2 = try XCTUnwrap(doc.edgePath(e2))
         // 两条线必须真正分开：锚点沿边缘错开，互相最近距离要有可见间隔
