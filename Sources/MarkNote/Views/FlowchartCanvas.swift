@@ -549,6 +549,8 @@ enum FCDrawGate {
     }
 
     static let doubleClickWindow: TimeInterval = 0.45
+    /// 从边缘起线的最小位移（屏幕 pt）：仅仅点一下不该起线
+    static let edgeStartThreshold: CGFloat = 4
 
     static func action(drawing: Bool, moved: Bool, onNode: Bool,
                        lastBlankClick: Date, now: Date,
@@ -556,6 +558,11 @@ enum FCDrawGate {
         guard drawing, !moved else { return .idle }
         if onNode { return .finish }
         return now.timeIntervalSince(lastBlankClick) < window ? .cancel : .keep
+    }
+
+    /// 边缘按下后是否已经拖够距离、可以真正起一条线
+    static func shouldStartEdge(from start: CGPoint, to current: CGPoint, zoom: CGFloat) -> Bool {
+        hypot(current.x - start.x, current.y - start.y) * max(zoom, 0.2) >= edgeStartThreshold
     }
 }
 
@@ -570,6 +577,8 @@ struct FlowchartCanvas: View {
         case move(start: CGPoint, origins: [String: CGRect], ids: Set<String>)
         case resize(id: String, handle: FCHandle, original: CGRect)
         case create(id: String, start: CGPoint)
+        /// 在图形边缘按下：还不确定是「点选/拖动」还是「拉线」，等真的拖起来才算
+        case maybeEdge(node: String, anchor: FCAnchor, start: CGPoint)
         case edge(from: String, anchor: FCAnchor)
         /// 拖动连线端点改接（draw.io：选中连线后拖端点换目标）
         case reconnect(id: String, isFrom: Bool)
@@ -1074,6 +1083,18 @@ struct FlowchartCanvas: View {
                                 : rect)
             }
 
+        case .maybeEdge(let node, let anchor, let start):
+            // 拖够距离 → 正式起线（此后和边缘拉线完全一样）
+            guard FCDrawGate.shouldStartEdge(from: start, to: current, zoom: editor.zoom) else { break }
+            drag = .edge(from: node, anchor: anchor)
+            editor.pendingWaypoints = []
+            edgeStartNode = node
+            edgeStartAnchor = anchor
+            editor.pendingEdge = (from: node, anchor: anchor, point: current)
+            let hovered = editor.doc.node(at: current)?.id
+                ?? nearestNode(to: current, within: 26 / max(editor.zoom, 0.2))?.id
+            edgeTargetID = hovered
+
         case .edge(let from, let anchor):
             editor.pendingEdge = (from: from, anchor: anchor, point: current)
             // draw.io 式目标高亮：光标进入/贴近某个图形时整框变亮
@@ -1113,7 +1134,12 @@ struct FlowchartCanvas: View {
             switch FCDrawGate.action(drawing: drawing, moved: false, onNode: hitNode != nil,
                                      lastBlankClick: lastBlankClickAt, now: Date()) {
             case .finish:
-                if let target = hitNode { finishDrawing(at: current, target: target) }
+                // 点自己收尾 = 误操作（想要自环请从边缘拖出去再拖回来）：这里直接取消
+                if let target = hitNode, target.id == edgeStartNode {
+                    cancelDrawing()
+                } else if let target = hitNode {
+                    finishDrawing(at: current, target: target)
+                }
             case .cancel:
                 lastBlankClickAt = .distantPast
                 cancelDrawing()
@@ -1171,7 +1197,7 @@ struct FlowchartCanvas: View {
         let hitID = editor.doc.hit(p, tolerance: 11 / max(editor.zoom, 0.2))
         let clickLike: Bool = {
             switch drag {
-            case .move: return hitID != nil          // 点中元素
+            case .move, .maybeEdge: return hitID != nil   // 点中元素（边缘按下没拖动 = 普通点击）
             case .marquee: return hitID == nil       // 点空白
             default: return false
             }
@@ -1205,6 +1231,13 @@ struct FlowchartCanvas: View {
             // 画完一个图形自动回「选择」工具（Figma 惯例）：否则继续点击画布会不断叠新图形
             if case .create = drag { editor.tool = .select }
             editor.endInteraction()
+        case .maybeEdge(let node, _, _):
+            // 没拖动就松手 = 普通点击：选中这个图形（双击则由上面的自判逻辑进入改文字）
+            if let id = editor.doc.hit(current, tolerance: 11 / max(editor.zoom, 0.2)) {
+                editor.selection = [id]
+            } else if editor.doc.nodes.contains(where: { $0.id == node }) {
+                editor.selection = [node]
+            }
         case .edge(let from, let anchor):
             edgeTargetID = nil
             // 落点吸附：精确命中优先，其次贴近图形 26pt 内也接住（draw.io 手感）
@@ -1304,11 +1337,9 @@ struct FlowchartCanvas: View {
         // 3) 图形边缘 → 拉连线（draw.io 浮动连接：边缘 14pt 带内任意位置，
         //    自动吸附最近边；角已被上一分支占用，互不冲突）
         if let anchorHit = anchorHit(at: start) {
-            drag = .edge(from: anchorHit.node, anchor: anchorHit.anchor)
-            editor.pendingWaypoints = []      // 新的一条线，断点从零开始
-            edgeStartNode = anchorHit.node    // 记住起点，空白松手后可以接着点目标收尾
-            edgeStartAnchor = anchorHit.anchor
-            editor.pendingEdge = (from: anchorHit.node, anchor: anchorHit.anchor, point: start)
+            // 先不急着起线：真正拖动超过阈值才起线，否则这次按下只是「点选 / 拖动图形」
+            // （以前只要按在边缘 14pt 内就起线，点一下也会留一条挂着的线，最后误连成自环）
+            drag = .maybeEdge(node: anchorHit.node, anchor: anchorHit.anchor, start: start)
             return
         }
 

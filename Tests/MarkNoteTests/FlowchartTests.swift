@@ -581,6 +581,19 @@ final class FlowchartTests: XCTestCase {
 
     // MARK: 循环（自环）/ 平行边 / 交叉跳线
 
+    /// 边缘按下不等于起线：位移超过阈值才算拉线（否则点一下就会留一条挂着的线，最后误连成自环）
+    func testEdgeStartRequiresDrag() {
+        let a = CGPoint(x: 100, y: 100)
+        XCTAssertFalse(FCDrawGate.shouldStartEdge(from: a, to: CGPoint(x: 101, y: 101), zoom: 1),
+                       "只挪了 1.4pt，不该起线")
+        XCTAssertTrue(FCDrawGate.shouldStartEdge(from: a, to: CGPoint(x: 105, y: 100), zoom: 1),
+                      "拖了 5pt 应该起线")
+        XCTAssertTrue(FCDrawGate.shouldStartEdge(from: a, to: CGPoint(x: 102, y: 100), zoom: 2),
+                      "放大后 2pt 文档位移 = 4pt 屏幕，应起线")
+        XCTAssertFalse(FCDrawGate.shouldStartEdge(from: a, to: CGPoint(x: 110, y: 100), zoom: 0.2),
+                       "缩小视图下 10pt 文档位移只有 2pt 屏幕，不该起线")
+    }
+
     /// 拉线中的点击判定：双击空白取消、单击空白继续、点图形收尾（选择/连线工具都走这套）
     func testDrawGateActions() {
         let t0 = Date()
