@@ -2,23 +2,6 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-
-/// 【临时诊断】选区/编辑路径日志 —— 修完即删
-enum SelLog {
-    static func log(_ s: String) {
-        let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("MarkNote/sel.log")
-        let line = "\(Date()) | " + s + "\n"
-        if let h = try? FileHandle(forWritingTo: url) {
-            h.seekToEndOfFile()
-            h.write(line.data(using: .utf8)!)
-            try? h.close()
-        } else {
-            try? line.write(to: url, atomically: true, encoding: .utf8)
-        }
-    }
-}
-
 /// Markdown 源码编辑器 —— 纯 AppKit NSTextView 封装：
 /// 行号标尺、等宽字体、原生撤销、智能替换关闭。
 /// 性能优先：不经过 SwiftUI TextEditor，直接控制文本系统。
@@ -131,7 +114,6 @@ struct MarkdownEditorView: NSViewRepresentable {
             context.coordinator.ruler?.refreshThickness()
             context.coordinator.scheduleHighlight(tv)
             // 朴素默认：打开/换文档后光标位于文档顶部
-            SelLog.log("REVISION-SWITCH last=\(context.coordinator.lastRevision) new=\(revision) → set(0,0)")
             tv.setSelectedRange(NSRange(location: 0, length: 0))
         } else if tv.string != text {
             // 视图领先 → 回填 store（防丢字、防跳顶）
@@ -404,6 +386,11 @@ struct MarkdownEditorView: NSViewRepresentable {
 
         /// 语法着色调度（后台解析 + 主线程应用）
         private var highlightWork: DispatchWorkItem?
+        /// 着色版本号：过期结果（text 已变）直接丢弃，避免旧范围着色新文本
+        private var highlightToken = 0
+        /// 真正跑 tokenize 的后台串行队列（主线程只做属性应用）
+        private static let highlightQueue = DispatchQueue(
+            label: "com.gzhysu.marknote.highlight", qos: .userInitiated)
 
         /// 已应用的正文色（避免每次 SwiftUI 更新都重刷整段文本颜色，冲掉语法着色）
         private var lastForeground: NSColor?
@@ -429,26 +416,27 @@ struct MarkdownEditorView: NSViewRepresentable {
             let isMarkdown = MarkdownEditorView.isMarkdownExt(parent.fileExtension)
             if !isMarkdown && !FeatureModules.isEnabled(FeatureModules.editorCodeSmart) { return }
             let isCode = MarkdownEditorView.isCodeExt(parent.fileExtension)
-            // 后台解析 + 预计算颜色 → 主线程只应用（颜色表静态化，跨线程安全）
+            highlightToken &+= 1
+            let token = highlightToken
+            // 解析放后台串行队列：以前这里排在**主队列**上（还 tokenize 两遍），
+            // 长笔记每敲一个字就全量解析一次 → 输入直接卡死（已复现）。
             let item = DispatchWorkItem { [weak self] in
-                let pairs: [(NSRange, NSColor)] = isMarkdown
-                    ? MarkdownHighlighter.tokenize(text).compactMap { tok in
-                        MarkdownEditorView.Coordinator.color(for: tok.kind).map { (tok.range, $0) }
-                    }
-                    : CodeHighlighter.tokenize(text).map { tok in
-                        (tok.range, MarkdownEditorView.Coordinator.codeColor(for: tok.kind))
-                    }
+                let mdTokens = isMarkdown ? MarkdownHighlighter.tokenize(text) : []
+                let codeTokens = isCode && !isMarkdown ? CodeHighlighter.tokenize(text) : []
                 DispatchQueue.main.async {
-                    guard let self, let tv = self.textView else { return }
+                    guard let self, let tv = self.textView,
+                          self.highlightToken == token,      // 已被更新的调度取代 → 丢弃
+                          tv.string == text else { return }  // 文本已变 → 旧范围会错位
                     if isMarkdown {
-                        self.applyHighlight(MarkdownHighlighter.tokenize(text), tv: tv)
+                        self.applyHighlight(mdTokens, tv: tv)
                     } else if isCode {
+                        let pairs = codeTokens.map { ($0.range, Self.codeColor(for: $0.kind)) }
                         self.applyCodeHighlight(pairs, tv: tv)
                     }
                 }
             }
             highlightWork = item
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: item)
+            Self.highlightQueue.asyncAfter(deadline: .now() + 0.35, execute: item)
         }
 
         /// 上一轮应用了装饰属性的范围（高亮重算时先精确复位，不留残痕）
@@ -705,6 +693,8 @@ struct MarkdownEditorView: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let tv = textView else { return }
             ruler?.refreshThickness()
+            // 通知主题氛围层「正在输入」→ 整个氛围动画暂停（避免打字时还在 60fps 重渲染）
+            NotificationCenter.default.post(name: .marknoteEditorTyping, object: nil)
             if !suppress {
                 parent.onChange(tv.string)
             }
@@ -712,10 +702,12 @@ struct MarkdownEditorView: NSViewRepresentable {
             scheduleHighlight(tv)
         }
 
-        func textDidChangeSelection(_ notification: Notification) {
-            let tv = textView
-            SelLog.log("SELCHANGED range=\(String(describing: tv?.selectedRange()))")
-            guard let tv, tv.selectedRange().length == 0 else { return }
+        /// 只移动光标（没改文字）时也要更新行/列、当前行高亮与括号配对。
+        /// 注意方法名必须是 `textViewDidChangeSelection` —— 之前写成 `textDidChangeSelection`
+        /// 只是"看起来像"委托方法，实际从未被调用（状态栏行列就一直是旧的）。
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard let tv = notification.object as? NSTextView ?? textView else { return }
+            guard tv.selectedRange().length == 0 else { return }
             reportLine(tv)
         }
 

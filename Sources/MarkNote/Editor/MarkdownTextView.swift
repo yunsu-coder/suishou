@@ -305,7 +305,6 @@ final class MarkdownTextView: NSTextView {
 
     /// 整块缩进/反缩进（REQ-ED-04）：选区覆盖的行（无选区 = 当前行）；注册标准 shouldChangeText 保持撤销链
     func blockIndent(indent: Bool) {
-        SelLog.log("BLOCKINDENT enter indent=\(indent) sel=\(selectedRange())")
         let text = string as NSString
         let sel = selectedRange()
         guard text.length > 0, sel.location <= text.length else { return }
@@ -344,7 +343,6 @@ final class MarkdownTextView: NSTextView {
         let start = mapOffset(min(selRel, subLen))
         let end = mapOffset(min(selRel + sel.length, subLen))
         setSelectedRange(NSRange(location: full.location + start, length: max(0, end - start)))
-        SelLog.log("BLOCKINDENT done → mapped=\(selectedRange())")
     }
 
     /// 每行 +2 空格 / 卸一个 Tab 或最多 2 个空格（行尾独立变换，行开头的空串不参与缩进）

@@ -191,9 +191,9 @@ var appAppearance: AppAppearance {
     let plugin = PluginManager.shared.enabledTheme()
     var pluginKey = "-"
     if let p = plugin {
-        let mtime = (try? FileManager.default.attributesOfItem(atPath: p.cssFile)[.modificationDate] as? Date)?.timeIntervalSince1970
-            ?? -1
-        pluginKey = "\(p.id)|\(mtime)|\(p.uiFont?.family ?? "-")|\(p.codeFont?.family ?? "-")|\(p.icons.count)"
+        pluginKey = ThemeStatProbe.key(pluginID: p.id, cssPath: p.cssFile,
+                                       uiFont: p.uiFont?.family, codeFont: p.codeFont?.family,
+                                       iconCount: p.icons.count)
     }
     let key = "\(base.rawValue)|\(pluginKey)"
     if key == appearanceCacheKey, let cached = appearanceCacheValue { return cached }
@@ -201,6 +201,44 @@ var appAppearance: AppAppearance {
     appearanceCacheKey = key
     appearanceCacheValue = value
     return value
+}
+
+/// 主题 css mtime 探测（**带节流**）。
+///
+/// 为什么需要：`appAppearance` 是全局计算属性，SwiftUI 每次刷新会读很多次。
+/// 原来每次访问都 `attributesOfItem`（stat + listxattr + getxattr）——
+/// 敲一个键触发整棵视图树刷新时就是数千次文件系统调用，主线程被淹没 → 输入卡死（已实测抓到栈）。
+/// 现在同一个主题 1 秒内只真查一次文件；换主题（id 变化）立即重查，主题文件改动最多延迟 1 秒生效。
+enum ThemeStatProbe {
+    /// 真实 stat 次数（测试用）
+    private(set) static var statCount = 0
+    private static var lastCheck = Date.distantPast
+    private static var lastPluginID = ""
+    private static var lastKey = "-"
+    private static let interval: TimeInterval = 1.0
+
+    static func key(pluginID: String, cssPath: String,
+                    uiFont: String?, codeFont: String?, iconCount: Int,
+                    now: Date = Date()) -> String {
+        let needCheck = pluginID != lastPluginID || now.timeIntervalSince(lastCheck) >= interval
+        if needCheck {
+            statCount += 1
+            lastCheck = now
+            lastPluginID = pluginID
+            let mtime = (try? FileManager.default.attributesOfItem(atPath: cssPath)[.modificationDate]
+                            as? Date)?.timeIntervalSince1970 ?? -1
+            lastKey = "\(pluginID)|\(mtime)|\(uiFont ?? "-")|\(codeFont ?? "-")|\(iconCount)"
+        }
+        return lastKey
+    }
+
+    /// 测试复位
+    static func resetForTesting() {
+        statCount = 0
+        lastCheck = .distantPast
+        lastPluginID = ""
+        lastKey = "-"
+    }
 }
 
 private var appearanceCacheKey = ""
