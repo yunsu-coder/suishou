@@ -67,9 +67,10 @@ final class FlowchartTests: XCTestCase {
         pm.scan(workspaceDir: temp)
         XCTAssertTrue(pm.viewIssues(for: "view-flowchart").isEmpty,
                       "插件包不该有扫描问题：\(pm.viewIssues(for: "view-flowchart"))")
-        let view = try XCTUnwrap(pm.mainAreaView(type: .flowchart), "流程图应注册为主区域视图")
+        let view = try XCTUnwrap(pm.allViews().first { $0.type == .flowchart }, "流程图插件应注册")
         XCTAssertEqual(view.name, "流程图")
         XCTAssertEqual(view.scope, .workspace)
+        XCTAssertEqual(view.placement, .sheet, "流程图是弹窗大窗口形态（sheet）")
     }
 
     @MainActor
