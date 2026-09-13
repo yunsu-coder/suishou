@@ -193,16 +193,13 @@ enum FCRenderer {
         let paths = doc.edges.compactMap { e in doc.edgePath(e).map { (e, $0) } }
         for g in doc.groups { group(g, style: rs, theme: theme, transform: transform, ctx: &ctx) }
         for (i, item) in paths.enumerated() {
-            edge(item.0, path: item.1, style: rs, theme: theme, transform: transform, ctx: &ctx)
             // 交叉跳线（断点再连）：这条线从前面画过的线上面「跳过」
-            if i > 0 {
-                var crossings: [CGPoint] = []
-                for j in 0..<i {
-                    crossings.append(contentsOf: Self.crossings(item.1.polyline, paths[j].1.polyline))
-                }
-                Self.drawJumps(&ctx, crossings: crossings, polyline: item.1.polyline,
-                               color: rs.stroke, erase: jumpErase, transform: transform)
+            var jumpPoints: [CGPoint] = []
+            for j in 0..<i {
+                jumpPoints.append(contentsOf: Self.crossings(item.1.polyline, paths[j].1.polyline))
             }
+            edge(item.0, path: item.1, style: rs, theme: theme, transform: transform,
+                 jumps: jumpPoints, ctx: &ctx)
         }
         for n in doc.nodes { node(n, style: rs, theme: theme, transform: transform, ctx: &ctx) }
         for t in doc.texts { textItem(t, style: rs, theme: theme, transform: transform, ctx: &ctx) }
@@ -230,43 +227,47 @@ enum FCRenderer {
         return out
     }
 
-    /// 在交叉处画「跳线拱」：先用底色断开，再用自身颜色搭一小段半圆
-    static func drawJumps(_ ctx: inout GraphicsContext, crossings: [CGPoint], polyline: [CGPoint],
-                          color: NSColor, erase: NSColor?, transform: FCViewTransform) {
-        guard !crossings.isEmpty else { return }
-        let r: CGFloat = 5
-        for c in crossings {
-            let p = transform.p(c)
-            // 断开：用画布底色盖掉一个小圆（透明背景导出时不填，只保留跳线拱）
-            if let erase {
-                ctx.fill(Path(ellipseIn: CGRect(x: p.x - r - 1, y: p.y - r - 1,
-                                                width: (r + 1) * 2, height: (r + 1) * 2)),
-                         with: .color(Color(nsColor: erase)))
-            }
-            // 拱：沿着这条线的走向搭半圆（竖直走向 → 拱向左；水平走向 → 拱向上）
-            let vertical = Self.isVertical(at: c, in: polyline)
-            var arc = Path()
-            if vertical {
-                arc.move(to: CGPoint(x: p.x, y: p.y - r))
-                arc.addQuadCurve(to: CGPoint(x: p.x, y: p.y + r),
-                                 control: CGPoint(x: p.x - r * 1.6, y: p.y))
-            } else {
-                arc.move(to: CGPoint(x: p.x - r, y: p.y))
-                arc.addQuadCurve(to: CGPoint(x: p.x + r, y: p.y),
-                                 control: CGPoint(x: p.x, y: p.y - r * 1.6))
-            }
-            ctx.stroke(arc, with: .color(Color(nsColor: color)),
-                       style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+    /// 折线 + 圆角 + 跳线：交叉处**在线上留缺口**再搭一段拱（不用底色挖洞，
+    /// 所以分组底色、透明背景导出都不会留白斑）。
+    static func jumpAwarePath(_ pts: [CGPoint], jumps: [CGPoint],
+                              radius: CGFloat, jump: CGFloat) -> Path {
+        var path = Path()
+        guard pts.count >= 2 else { return path }
+        var run: [CGPoint] = [pts[0]]
+        func flush(_ run: inout [CGPoint]) {
+            guard let last = run.last else { return }
+            if run.count >= 2 { roundedPolyline(&path, run, radius: radius) }
+            run = [last]
         }
-    }
-
-    private static func isVertical(at point: CGPoint, in polyline: [CGPoint]) -> Bool {
-        for i in 1..<max(1, polyline.count) {
-            let a = polyline[i - 1], b = polyline[i]
-            if abs(a.x - b.x) < 0.5, abs(a.x - point.x) < 0.5,
-               point.y > min(a.y, b.y), point.y < max(a.y, b.y) { return true }
+        for i in 0..<(pts.count - 1) {
+            let a = pts[i], b = pts[i + 1]
+            let len = hypot(b.x - a.x, b.y - a.y)
+            guard len > 0.5 else { continue }
+            let dir = CGVector(dx: (b.x - a.x) / len, dy: (b.y - a.y) / len)
+            let normal = CGVector(dx: -dir.dy, dy: dir.dx)
+            // 落在这条段上的交叉点（按沿线距离排序，太靠两端就不跳）
+            var hits: [(d: CGFloat, p: CGPoint)] = []
+            for c in jumps {
+                let d = (c.x - a.x) * dir.dx + (c.y - a.y) * dir.dy
+                let perp = abs((c.x - a.x) * normal.dx + (c.y - a.y) * normal.dy)
+                if perp < 0.75, d > jump * 1.7, len - d > jump * 1.7 { hits.append((d, c)) }
+            }
+            hits.sort { $0.d < $1.d }
+            for h in hits {
+                let start = CGPoint(x: h.p.x - dir.dx * jump, y: h.p.y - dir.dy * jump)
+                let end = CGPoint(x: h.p.x + dir.dx * jump, y: h.p.y + dir.dy * jump)
+                run.append(start)
+                flush(&run)
+                let ctrl = CGPoint(x: h.p.x + normal.dx * jump * 1.6,
+                                   y: h.p.y + normal.dy * jump * 1.6)
+                path.move(to: start)
+                path.addQuadCurve(to: end, control: ctrl)
+                run = [end]
+            }
+            run.append(b)
         }
-        return false
+        flush(&run)
+        return path
     }
 
     /// 画一个小胶囊标签（拉线实时距离 / 缩放实时尺寸用）
@@ -300,7 +301,8 @@ enum FCRenderer {
         if let detail = FCShape.detail(kind: n.kind, rect: rect) {
             ctx.stroke(detail, with: .color(Color(nsColor: rs.stroke)), lineWidth: lineWidth)
         }
-        textBlock(n.text, in: rect, style: n.style, global: rs, theme: theme,
+        textBlock(n.text, in: rect, style: n.style, global: rs,
+                  widthScale: textWidthScale(n.kind), theme: theme,
                   transform: transform, ctx: &ctx,
                   verticalInset: n.kind == .cylinder ? transform.len(10) : transform.len(6))
     }
@@ -309,8 +311,8 @@ enum FCRenderer {
                          transform: FCViewTransform,
                          ctx: inout GraphicsContext) {
         let rect = transform.r(t.rect)
-        textBlock(t.text, in: rect, style: t.style, global: rs, theme: theme,
-                  transform: transform, ctx: &ctx)
+        textBlock(t.text, in: rect, style: t.style, global: rs,
+                  widthScale: 1, theme: theme, transform: transform, ctx: &ctx)
     }
 
     static func group(_ g: FCGroup, style rs: FCRenderStyle, theme: FlowchartTheme,
@@ -340,7 +342,7 @@ enum FCRenderer {
     }
 
     static func edge(_ e: FCEdge, path docPath: FCEdgePath, style rs: FCRenderStyle, theme: FlowchartTheme,
-                     transform: FCViewTransform, ctx: inout GraphicsContext) {
+                     transform: FCViewTransform, jumps: [CGPoint] = [], ctx: inout GraphicsContext) {
         let stroke = rs.stroke
         let lineWidth = max(0.5, transform.len(rs.lineWidth))
         let dash: [CGFloat] = rs.dashed ? [max(2, lineWidth * 4), max(2, lineWidth * 3)] : []
@@ -363,7 +365,14 @@ enum FCRenderer {
                 ortho.append(p)
             }
             pts = ortho
-            Self.roundedPolyline(&path, pts.map { transform.p($0) }, radius: 8)
+            let screenPts = pts.map { transform.p($0) }
+            if jumps.isEmpty {
+                Self.roundedPolyline(&path, screenPts, radius: 8)
+            } else {
+                path = Self.jumpAwarePath(screenPts,
+                                          jumps: jumps.map { transform.p($0) },
+                                          radius: 8, jump: 5)
+            }
         } else {
             path.move(to: transform.p(docPath.start))
             for seg in docPath.segments {
@@ -397,8 +406,10 @@ enum FCRenderer {
         let boxW = widest + transform.len(10)
         let boxH = CGFloat(lines.count) * lh + transform.len(4)
         let box = CGRect(x: mid.x - boxW / 2, y: mid.y - boxH / 2, width: boxW, height: boxH)
-        ctx.fill(Path(roundedRect: box, cornerRadius: transform.len(4)),
-                 with: .color(Color(nsColor: theme.surface)))
+        let labelShape = Path(roundedRect: box, cornerRadius: transform.len(4))
+        ctx.fill(labelShape, with: .color(Color(nsColor: theme.surface)))
+        ctx.stroke(labelShape, with: .color(Color(nsColor: stroke).opacity(0.28)),
+                   lineWidth: 0.8)
         for (i, line) in lines.enumerated() {
             ctx.draw(Text(line).font(theme.font(size: max(9, rs.fontSize - 1), bold: e.style.bold))
                         .foregroundStyle(Color(nsColor: rs.text)),
@@ -410,13 +421,15 @@ enum FCRenderer {
 
     /// 图形内文字（自动换行 + 垂直居中 + 对齐）
     static func textBlock(_ text: String, in rect: CGRect, style: FCStyle, global rs: FCRenderStyle,
+                          widthScale: CGFloat = 1,
                           theme: FlowchartTheme,
                           transform: FCViewTransform, ctx: inout GraphicsContext,
                           verticalInset: CGFloat = 6) {
         guard !text.isEmpty else { return }
         let size = max(8, transform.len(rs.fontSize))
         let font = theme.nsFont(size: size, bold: style.bold)
-        let lines = FCTextLayout.lines(text, width: max(10, rect.width - transform.len(16)), font: font)
+        // 按形状收窄排版宽度：菱形/椭圆/胶囊的斜边与弧边会切掉文字（精细绘制）
+        let lines = FCTextLayout.lines(text, width: max(10, rect.width * widthScale - transform.len(16)), font: font)
         let lh = FCTextLayout.lineHeight(font)
         let total = CGFloat(lines.count) * lh
         let top = rect.midY - total / 2
@@ -428,6 +441,19 @@ enum FCRenderer {
                         .foregroundStyle(Color(nsColor: rs.text)),
                      at: CGPoint(x: x, y: top + CGFloat(i) * lh + lh / 2),
                      anchor: anchor)
+        }
+    }
+
+    /// 每种形状的可用文字宽度比例（越「斜」的形状越窄）
+    static func textWidthScale(_ kind: FCShapeKind) -> CGFloat {
+        switch kind {
+        case .rect, .note: return 1.0
+        case .roundedRect: return 0.94
+        case .capsule: return 0.86
+        case .ellipse: return 0.78
+        case .diamond: return 0.58
+        case .parallelogram: return 0.76
+        case .cylinder: return 0.9
         }
     }
 }

@@ -651,6 +651,32 @@ struct FCDocument: Codable, Equatable {
     /// 端点键：连线 id + 是哪一端（f=起点 / t=终点）
     func endpointKey(_ edgeID: String, isFrom: Bool) -> String { "\(edgeID)|\(isFrom ? "f" : "t")" }
 
+    /// 自环走哪两条边：用户显式指定过就照做，否则自动挑「已有连线最少」的一对相邻边
+    /// （默认 上/右）—— 避免自环和别的分支挤在同一条边上。
+    func selfLoopSides(for edge: FCEdge) -> (from: FCAnchor, to: FCAnchor) {
+        if edge.fromAnchor != .auto || edge.toAnchor != .auto {
+            let f = edge.fromAnchor == .auto ? FCAnchor.top : edge.fromAnchor
+            var t = edge.toAnchor == .auto ? FCAnchor.right : edge.toAnchor
+            if t == f { t = f.selfLoopPartner }
+            return (f, t)
+        }
+        let index = nodesByID()
+        var used: [FCAnchor: Int] = [:]
+        for e in edges where e.id != edge.id && e.fromNode != e.toNode {
+            guard let a = index[e.fromNode], let b = index[e.toNode] else { continue }
+            let fs = e.fromAnchor == .auto ? FCEdgePath.autoAnchor(from: a.rect, toward: b.rect) : e.fromAnchor
+            let ts = e.toAnchor == .auto ? FCEdgePath.autoAnchor(from: b.rect, toward: a.rect) : e.toAnchor
+            if a.id == edge.fromNode { used[fs, default: 0] += 1 }
+            if b.id == edge.fromNode { used[ts, default: 0] += 1 }
+        }
+        let pairs: [(FCAnchor, FCAnchor)] = [(.top, .right), (.right, .bottom),
+                                             (.bottom, .left), (.left, .top)]
+        return pairs.min {
+            (used[$0.0, default: 0] + used[$0.1, default: 0])
+                < (used[$1.0, default: 0] + used[$1.1, default: 0])
+        } ?? (.top, .right)
+    }
+
     /// **统一分配锚点**：挂在同一个图形同一条边上的所有线（含自环两端、往返双线）
     /// 沿边均分错开 —— 否则它们全挤在边中点上，线就叠成一条（写循环时最明显）。
     /// 返回值：端点键 → 沿边方向的偏移量。
@@ -667,12 +693,10 @@ struct FCDocument: Codable, Equatable {
             let centerB = CGPoint(x: b.rect.midX, y: b.rect.midY)
             let centerA = CGPoint(x: a.rect.midX, y: a.rect.midY)
             if a.id == b.id {
-                // 自环：默认「上边出、右边回」，两端各占一条边
-                let fs = e.fromAnchor == .auto ? FCAnchor.top : e.fromAnchor
-                var ts = e.toAnchor == .auto ? FCAnchor.right : e.toAnchor
-                if ts == fs { ts = fs.selfLoopPartner }
-                add(e.id, true, a, fs, centerA)
-                add(e.id, false, b, ts, centerB)
+                // 自环：走最空的两条边，两端各占一条
+                let sides = selfLoopSides(for: e)
+                add(e.id, true, a, sides.from, centerA)
+                add(e.id, false, b, sides.to, centerB)
             } else {
                 let fs = e.fromAnchor == .auto ? FCEdgePath.autoAnchor(from: a.rect, toward: b.rect) : e.fromAnchor
                 let ts = e.toAnchor == .auto ? FCEdgePath.autoAnchor(from: b.rect, toward: a.rect) : e.toAnchor
@@ -729,7 +753,8 @@ struct FCDocument: Codable, Equatable {
         let offsets = anchorOffsets()
         return FCEdgePath(edge: edge, nodes: nodesByID(),
                           fromOffset: offsets[endpointKey(edge.id, isFrom: true)] ?? 0,
-                          toOffset: offsets[endpointKey(edge.id, isFrom: false)] ?? 0)
+                          toOffset: offsets[endpointKey(edge.id, isFrom: false)] ?? 0,
+                          selfLoopSides: edge.fromNode == edge.toNode ? selfLoopSides(for: edge) : nil)
     }
 
     // MARK: 命中测试
@@ -1060,13 +1085,16 @@ struct FCEdgePath: Equatable {
     var start: CGPoint
     var segments: [FCSegment]
 
-    init?(edge: FCEdge, nodes: [String: FCNode], fromOffset: CGFloat = 0, toOffset: CGFloat = 0) {
+    init?(edge: FCEdge, nodes: [String: FCNode], fromOffset: CGFloat = 0, toOffset: CGFloat = 0,
+          selfLoopSides: (from: FCAnchor, to: FCAnchor)? = nil) {
         guard let a = nodes[edge.fromNode], let b = nodes[edge.toNode] else { return nil }
         // 自环（A → A）：绕出去再折回来（写循环用），默认走「上边出、右边回」
         if edge.fromNode == edge.toNode {
-            let out: CGFloat = 26
-            let fromAnchor = edge.fromAnchor == .auto ? FCAnchor.top : edge.fromAnchor
-            var toAnchor = edge.toAnchor == .auto ? FCAnchor.right : edge.toAnchor
+            let out: CGFloat = 22
+            let fromAnchor = selfLoopSides?.from
+                ?? (edge.fromAnchor == .auto ? FCAnchor.top : edge.fromAnchor)
+            var toAnchor = selfLoopSides?.to
+                ?? (edge.toAnchor == .auto ? FCAnchor.right : edge.toAnchor)
             if toAnchor == fromAnchor { toAnchor = fromAnchor.selfLoopPartner }
             let pts = FCEdgePath.selfLoop(rect: a.rect, from: fromAnchor, to: toAnchor, out: out,
                                           fromOffset: fromOffset, toOffset: toOffset)

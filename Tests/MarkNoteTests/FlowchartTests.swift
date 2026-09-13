@@ -582,6 +582,33 @@ final class FlowchartTests: XCTestCase {
 
     // MARK: 循环（自环）/ 平行边 / 交叉跳线
 
+    /// 自环自动挑「最空」的两条边：判断框右边已有「否」分支、上边已有入线时，
+    /// 自环应该走左边/下边，而不是继续挤在右边
+    func testSelfLoopAvoidsBusySides() {
+        var doc = FCDocument()
+        var input = FCNode(kind: .rect, origin: CGPoint(x: 100, y: 0), text: "输入")
+        var decide = FCNode(kind: .diamond, origin: CGPoint(x: 100, y: 200), text: "判断")
+        var fail = FCNode(kind: .rect, origin: CGPoint(x: 400, y: 210), text: "失败")
+        input.id = "in"; decide.id = "d"; fail.id = "f"
+        doc.nodes = [input, decide, fail]
+        var e1 = FCEdge(fromNode: "in", toNode: "d")
+        e1.fromAnchor = .bottom; e1.toAnchor = .top        // 上边被入线占用
+        var e2 = FCEdge(fromNode: "d", toNode: "f", label: "否")
+        e2.fromAnchor = .right; e2.toAnchor = .left        // 右边被分支占用
+        let loop = FCEdge(fromNode: "d", toNode: "d")
+        doc.edges = [e1, e2, loop]
+        let sides = doc.selfLoopSides(for: loop)
+        let chosen: Set<FCAnchor> = [sides.from, sides.to]
+        XCTAssertEqual(chosen, [.left, .bottom], "自环该走左边+下边（最空的一对），实际：\(sides)")
+        // 显式指定过就尊重用户
+        var custom = loop
+        custom.fromAnchor = .top
+        custom.toAnchor = .top
+        let customSides = doc.selfLoopSides(for: custom)
+        XCTAssertEqual(customSides.from, .top)
+        XCTAssertNotEqual(customSides.to, .top, "同一条边出又回会叠线，要换相邻边")
+    }
+
     /// 自环（A → A）：要绕出去再折回来，全程正交、不缩成一点，且包住图形外圈
     func testSelfLoopRoutesAroundNode() throws {
         var doc = FCDocument()
@@ -731,7 +758,8 @@ final class FlowchartTests: XCTestCase {
                                        theme: FlowchartTheme.current,
                                        docs: FlowchartStore.list(root: root),
                                        root: root,
-                                       onOpen: { _ in }, onNew: {}, onRename: {}, onDelete: {})
+                                      onOpen: { _ in }, onNew: {},
+                                      onRename: {}, onDelete: {})
             .environment(store)
             .frame(width: 1012, height: 620)
         let renderer = ImageRenderer(content: view)
