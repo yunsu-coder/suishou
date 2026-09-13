@@ -165,6 +165,63 @@ private struct FlowchartEmptyState: View {
 
 // MARK: - 主界面（工具栏 + 画布 + 检查器）
 
+/// 左侧形状库（draw.io 式）：卡片网格排列，点击选中工具、**拖到画布直接放置**。
+private struct FlowchartToolPalette: View {
+    @ObservedObject var editor: FlowchartEditor
+    let theme: FlowchartTheme
+
+    private let tools: [FCTool] = [.select, .rect, .roundedRect, .ellipse, .diamond,
+                                   .parallelogram, .cylinder, .capsule, .note,
+                                   .text, .group, .edge]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(_L("形状", "Shapes"))
+                    .font(theme.font(size: 11, bold: true))
+                    .foregroundStyle(Color(nsColor: theme.secondary))
+                    .padding(.top, 4)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], spacing: 8) {
+                    ForEach(tools, id: \.self) { tool in
+                        card(tool)
+                    }
+                }
+                Text(_L("拖到画布放置；或点选后在画布上拖画。双击空白 = 新矩形，双击图形 = 改文字。",
+                        "Drag onto the canvas, or pick then drag-draw. Double-click blank = new rect; double-click a shape = edit text."))
+                    .font(theme.font(size: 10))
+                    .foregroundStyle(Color(nsColor: theme.secondary))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 6)
+            }
+            .padding(10)
+        }
+        .background(Color(nsColor: theme.surface))
+    }
+
+    private func card(_ tool: FCTool) -> some View {
+        let active = editor.tool == tool
+        return VStack(spacing: 4) {
+            Image(systemName: tool.symbol)
+                .font(.system(size: 15))
+                .frame(height: 20)
+            Text(tool.label)
+                .font(theme.font(size: 9))
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 7)
+        .foregroundStyle(Color(nsColor: active ? theme.background : theme.text))
+        .background(RoundedRectangle(cornerRadius: 7)
+            .fill(active ? Color(nsColor: theme.accent) : Color(nsColor: theme.background)))
+        .overlay(RoundedRectangle(cornerRadius: 7)
+            .stroke(Color(nsColor: active ? theme.accent : theme.border), lineWidth: 1))
+        .contentShape(RoundedRectangle(cornerRadius: 7))
+        .onTapGesture { editor.tool = tool }
+        .draggable(tool.rawValue)   // 拖到画布直接放置（draw.io 习惯）
+        .help(tool.label)
+    }
+}
+
 /// 主界面（工具栏 + 画布 + 检查器）。internal 以便测试直接渲染整屏。
 struct FlowchartEditorHost: View {
     @ObservedObject var editor: FlowchartEditor
@@ -185,16 +242,22 @@ struct FlowchartEditorHost: View {
     @State private var lastSavedName = ""
 
     var body: some View {
-        VStack(spacing: 0) {
-            toolbar
-            Rectangle().fill(Color(nsColor: theme.border)).frame(height: 1)
-            HStack(spacing: 0) {
-                FlowchartCanvas(editor: editor, theme: theme)
-                    .frame(minWidth: 320)
-                if editor.hasSelection {
-                    Rectangle().fill(Color(nsColor: theme.border)).frame(width: 1)
-                    FlowchartInspector(editor: editor, theme: theme)
-                        .frame(width: 232)
+        // draw.io 式三栏：左侧形状库（卡片网格）· 中间画布 · 右侧属性（选中时）
+        HStack(spacing: 0) {
+            FlowchartToolPalette(editor: editor, theme: theme)
+                .frame(width: 152)
+            Rectangle().fill(Color(nsColor: theme.border)).frame(width: 1)
+            VStack(spacing: 0) {
+                toolbar
+                Rectangle().fill(Color(nsColor: theme.border)).frame(height: 1)
+                HStack(spacing: 0) {
+                    FlowchartCanvas(editor: editor, theme: theme)
+                        .frame(minWidth: 320)
+                    if editor.hasSelection {
+                        Rectangle().fill(Color(nsColor: theme.border)).frame(width: 1)
+                        FlowchartInspector(editor: editor, theme: theme)
+                            .frame(width: 232)
+                    }
                 }
             }
         }
@@ -229,8 +292,6 @@ struct FlowchartEditorHost: View {
     private var toolbar: some View {
         HStack(spacing: 8) {
             docMenu
-            divider
-            toolRow
             divider
             iconButton("arrow.uturn.backward", _L("撤销", "Undo"), enabled: editor.canUndo) { editor.undo() }
             iconButton("arrow.uturn.forward", _L("重做", "Redo"), enabled: editor.canRedo) { editor.redo() }
@@ -306,34 +367,6 @@ struct FlowchartEditorHost: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-    }
-
-    private var toolRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 3) {
-                ForEach([FCTool.select, .rect, .roundedRect, .ellipse, .diamond, .parallelogram,
-                         .cylinder, .capsule, .note, .text, .group, .edge], id: \.self) { tool in
-                    toolButton(tool)
-                }
-            }
-        }
-        .frame(maxWidth: 520)
-    }
-
-    private func toolButton(_ tool: FCTool) -> some View {
-        let active = editor.tool == tool
-        return Button {
-            editor.tool = tool
-        } label: {
-            Image(systemName: tool.symbol)
-                .font(.system(size: 12))
-                .frame(width: 26, height: 22)
-                .foregroundStyle(active ? Color(nsColor: theme.background) : Color(nsColor: theme.text))
-                .background(RoundedRectangle(cornerRadius: 5)
-                    .fill(active ? Color(nsColor: theme.accent) : Color.clear))
-        }
-        .buttonStyle(.plain)
-        .help(tool.label)
     }
 
     private func iconButton(_ symbol: String, _ title: String, enabled: Bool,

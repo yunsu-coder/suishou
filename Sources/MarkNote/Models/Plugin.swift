@@ -276,6 +276,8 @@ enum PluginViewScope: String, Codable {
 /// 放置位置：main = 占主区域（可切换）；panel = 侧边面板
 enum PluginViewPlacement: String, Codable {
     case main, panel
+    /// 弹窗大窗口（像插件市场那样从主界面弹出；关闭后不留常驻入口）
+    case sheet
 }
 
 /// 视图选项（受控字段；未知键会被忽略，避免插件塞私有配置）

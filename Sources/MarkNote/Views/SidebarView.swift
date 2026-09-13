@@ -43,6 +43,10 @@ struct SidebarView: View {
     @State private var panel: SidePanel = .workspace
 
     @State private var showMarket = false
+    /// 视图插件快照：功能栏图标的数据源（扫描完成/启停时刷新，保证渲染依赖明确）
+    @State private var viewsSnapshot: [PluginView] = []
+    @State private var showFlowchart = false
+    @State private var flowSpec: PluginView?
     /// 主题彩蛋点击计数（按主题声明次数触发）
     @State private var easterEggClicks = 0
 
@@ -54,8 +58,7 @@ struct SidebarView: View {
                     sidebarPanel = "explorer"
                 }
                 // 视图插件提供素材网格时，功能栏出现第三个图标（面板内切换，不占编辑宽度）
-                if PluginManager.shared.mainAreaView(type: .assetGrid) != nil
-                    || PluginManager.shared.allViews().contains(where: { $0.type == .assetGrid }) {
+                if viewsSnapshot.contains(where: { $0.type == .assetGrid }) {
                     activityIcon("photo.on.rectangle", _L("素材", "Assets"), active: sidebarPanel == "assets") {
                         sidebarPanel = "assets"
                     }
@@ -63,6 +66,15 @@ struct SidebarView: View {
                 activityIcon("puzzlepiece.extension", _L("插件市场", "Plugin Market"), active: false) {
                     PluginManager.shared.scan(workspaceDir: store.notesDir)
                     showMarket = true
+                }
+                // 流程图（sheet 形态的视图插件）：像插件市场一样弹出大窗口。
+                // 不限定 placement：插件声明变更（main → sheet）时旧包也能正常出图标，
+                // 呈现形态由 app 固定为弹窗，不由声明决定。
+                if let flow = viewsSnapshot.first(where: { $0.type == .flowchart }) {
+                    activityIcon("flowchart", _L("流程图", "Flowchart"), active: showFlowchart) {
+                        flowSpec = flow
+                        showFlowchart = true
+                    }
                 }
                 Spacer()
                 if let egg = appAppearance.easterEgg {
@@ -120,6 +132,14 @@ struct SidebarView: View {
             PluginMarketView()
                 .environment(store)
         }
+        // 流程图：弹窗大窗口（像插件市场），关闭即回主界面
+        .sheet(isPresented: $showFlowchart) {
+            if let flowSpec {
+                FlowchartView(spec: flowSpec)
+                    .environment(store)
+                    .frame(width: 1180, height: 780)
+            }
+        }
         .onAppear {
             if let data = UserDefaults.standard.data(forKey: Self.collapsKey),
                let saved = try? JSONDecoder().decode([String].self, from: data) {
@@ -130,6 +150,14 @@ struct SidebarView: View {
                 collapsedGroups = ["source"]
             }
             persistFoldState()
+            // 确保插件已扫描（功能栏图标依赖视图快照）
+            PluginManager.shared.scan(workspaceDir: store.notesDir)
+            viewsSnapshot = PluginManager.shared.allViews()
+        }
+        // 插件启停/扫描完成 → 刷新快照（此前只有 ContentView 监听，
+        // 侧栏在扫描晚于首帧时不会刷新，新插件图标会一直不出现）
+        .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
+            viewsSnapshot = PluginManager.shared.allViews()
         }
         .onChange(of: collapsedGroups) { _, _ in
             persistFoldState()
@@ -341,12 +369,12 @@ struct SidebarView: View {
                 .frame(width: 22, height: 18)
                 .help(_L("更多操作", "More Options"))
             }
-            // 视图切换独立一行：三档全宽分段，侧栏再窄也不会把标题挤到竖排
-            if hasCardsView || hasFlowView {
+            // 视图切换独立一行：侧栏再窄也不会把标题挤到竖排
+            // （流程图已改为弹窗形态，不再是主区域档位）
+            if hasCardsView {
                 Picker("", selection: $mainViewKind) {
                     Text(_L("树", "Tree")).tag("editor")
                     if hasCardsView { Text(_L("卡片", "Cards")).tag("cards") }
-                    if hasFlowView { Text(_L("流程图", "Flow")).tag("flowchart") }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()

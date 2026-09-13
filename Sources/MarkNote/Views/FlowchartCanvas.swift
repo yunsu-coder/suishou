@@ -392,8 +392,16 @@ struct FlowchartCanvas: View {
             }
             .contentShape(Rectangle())
             .gesture(dragGesture)
-            .onTapGesture(count: 2) { location in
-                beginTextEditing(at: transform.doc(location))
+            // 从左侧形状库拖入 → 直接在落点放置（draw.io 习惯）
+            .dropDestination(for: String.self) { items, location in
+                guard let raw = items.first, let tool = FCTool(rawValue: raw), let shape = tool.shape else {
+                    return false
+                }
+                let p = transform.doc(location)
+                let node = FCNode(kind: shape, origin: p)
+                editor.commit { $0.nodes.append(node) }
+                editor.selection = [node.id]
+                return true
             }
             .onContinuousHover { phase in
                 switch phase {
@@ -578,21 +586,35 @@ struct FlowchartCanvas: View {
         // SwiftUI 的 .onTapGesture(count: 2) 永远收不到事件 —— 这里自判「无位移的两次点击」。
         let screenMoved = hypot(value.location.x - value.startLocation.x,
                                 value.location.y - value.startLocation.y)
-        if screenMoved < 3, case .move = drag {
-            let p = transform.doc(value.location)
-            if editor.doc.hit(p, tolerance: 7 / max(editor.zoom, 0.2)) != nil {
-                let now = Date()
-                if now.timeIntervalSince(lastClickAt) < 0.45 {
-                    lastClickAt = .distantPast
-                    editor.endInteraction()
-                    drag = .none
-                    guideX = nil
-                    guideY = nil
-                    beginTextEditing(at: p)
-                    return
-                }
-                lastClickAt = now
+        let p = transform.doc(value.location)
+        let hitID = editor.doc.hit(p, tolerance: 7 / max(editor.zoom, 0.2))
+        let clickLike: Bool = {
+            switch drag {
+            case .move: return hitID != nil          // 点中元素
+            case .marquee: return hitID == nil       // 点空白
+            default: return false
             }
+        }()
+        if screenMoved < 3, clickLike {
+            let now = Date()
+            if now.timeIntervalSince(lastClickAt) < 0.45 {
+                lastClickAt = .distantPast
+                if case .move = drag { editor.endInteraction() }
+                drag = .none
+                marquee = nil
+                guideX = nil
+                guideY = nil
+                if hitID != nil {
+                    beginTextEditing(at: p)          // 双击图形 → 改文字
+                } else {
+                    // 双击空白 → 新建矩形（draw.io 习惯）
+                    let node = FCNode(kind: .rect, origin: p)
+                    editor.commit { $0.nodes.append(node) }
+                    editor.selection = [node.id]
+                }
+                return
+            }
+            lastClickAt = now
         }
 
         switch drag {

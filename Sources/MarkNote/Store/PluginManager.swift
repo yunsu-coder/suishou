@@ -177,7 +177,7 @@ final class PluginManager {
                     continue
                 }
                 guard let placement = PluginViewPlacement(rawValue: v.placement) else {
-                    d.viewIssues[pkg.id, default: []].append("\(v.name)：placement 必须是 main 或 panel")
+                    d.viewIssues[pkg.id, default: []].append("\(v.name)：placement 必须是 main、panel 或 sheet")
                     continue
                 }
                 // 隔离硬门槛：读笔记内容的视图必须是 workspace 作用域
@@ -191,9 +191,10 @@ final class PluginManager {
                     d.viewIssues[pkg.id, default: []].append("\(v.name)：\(why)，作用域必须是 workspace")
                     continue
                 }
-                // 流程图是「主区域画布」，面板形态没有意义（避免装出看不见的插件）
-                if type == .flowchart, placement != .main {
-                    d.viewIssues[pkg.id, default: []].append("\(v.name)：流程图必须 placement = main")
+                // 流程图是「大画布」：sheet（弹窗大窗口）或 main（旧主区域声明）都行；
+                // 面板形态没有意义（窄侧栏画不了图，避免装出看不见的插件）
+                if type == .flowchart, placement == .panel {
+                    d.viewIssues[pkg.id, default: []].append("\(v.name)：流程图必须 placement = sheet（或旧声明 main）")
                     continue
                 }
                 d.views.append(PluginView(id: "view-\(pkg.id)-\(v.id)", name: v.name,
