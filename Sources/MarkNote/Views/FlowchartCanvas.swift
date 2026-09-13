@@ -370,6 +370,10 @@ struct FlowchartCanvas: View {
     @State private var hoverPoint: CGPoint?
     /// 鼠标悬停的连线（加粗高亮，提示可点选）
     @State private var hoverEdgeID: String?
+    /// 连线工具的起点（draw.io 同款：点源图形 → 点目标图形，不用按住拖）
+    @State private var edgeStartNode: String?
+    /// 连线工具本次按下的起始图形（决定「拖拽连线」还是「点击-点击连线」）
+    @State private var edgePressNode: String?
     @State private var guideX: CGFloat?
     @State private var guideY: CGFloat?
     /// 画布在窗口中的位置：由 NSView 自己记录，供滚轮命中判断读取。
@@ -423,6 +427,14 @@ struct FlowchartCanvas: View {
             }
             .onDisappear { removeScrollMonitors() }
             .onChange(of: geo.size) { _, size in updateCanvasSize(size) }
+            .onChange(of: editor.tool) { _, _ in
+                // 切换工具时清掉「点击-点击连线」的半途状态
+                if edgeStartNode != nil {
+                    edgeStartNode = nil
+                    editor.pendingEdge = nil
+                    edgeTargetID = nil
+                }
+            }
         }
         .background(Color(nsColor: theme.background))
     }
@@ -569,7 +581,15 @@ struct FlowchartCanvas: View {
         let current = transform.doc(value.location)
         switch drag {
         case .none:
-            beginDrag(at: start, current: current)
+            if editor.tool == .edge {
+                // 连线工具：按下先记住起点图形；移动 = 拖拽连线预览，原地松开 = 点击-点击流程
+                if edgePressNode == nil { edgePressNode = editor.doc.node(at: start)?.id }
+                if let from = edgePressNode {
+                    editor.pendingEdge = (from: from, anchor: .auto, point: current)
+                }
+            } else {
+                beginDrag(at: start, current: current)
+            }
 
         case .pan(let startOffset, let startPoint):
             editor.offset = CGSize(width: startOffset.width + (value.location.x - startPoint.x),
@@ -642,6 +662,43 @@ struct FlowchartCanvas: View {
 
     private func dragEnded(_ value: DragGesture.Value) {
         let current = transform.doc(value.location)
+
+        // 连线工具（drag == .none 分支接管）：
+        // · 移动超过阈值 = 拖拽连线（起点图形 → 落点图形）
+        // · 原地松开 = 点击-点击连线（第一次点 = 起点；第二次点目标 = 连线；点空白 = 取消）
+        if editor.tool == .edge, case .none = drag {
+            let moved = hypot(value.location.x - value.startLocation.x,
+                              value.location.y - value.startLocation.y) >= 3
+            let hitNode = editor.doc.node(at: current)
+            if moved {
+                if let from = edgePressNode, let target = hitNode, target.id != from {
+                    let edge = FCEdge(fromNode: from, toNode: target.id,
+                                      fromAnchor: .auto, toAnchor: .auto)
+                    editor.commit { $0.edges.append(edge) }
+                    editor.selection = [edge.id]
+                }
+                edgeStartNode = nil
+                editor.pendingEdge = nil
+            } else if let sid = edgeStartNode {
+                if let target = hitNode, target.id != sid {
+                    let edge = FCEdge(fromNode: sid, toNode: target.id,
+                                      fromAnchor: .auto, toAnchor: .auto)
+                    editor.commit { $0.edges.append(edge) }
+                    editor.selection = [edge.id]
+                    edgeStartNode = nil
+                    editor.pendingEdge = nil
+                } else {
+                    edgeStartNode = nil      // 点到空白/同一图形 = 取消
+                    editor.pendingEdge = nil
+                }
+            } else if let node = hitNode {
+                edgeStartNode = node.id
+                editor.pendingEdge = (from: node.id, anchor: .auto, point: current)
+            }
+            edgePressNode = nil
+            lastClickAt = .distantPast
+            return
+        }
 
         // 双击节点 → 进入文字编辑。
         // 画布的 DragGesture(minimumDistance: 0) 会在第一次 mousedown 就参与手势竞争，
@@ -807,17 +864,6 @@ struct FlowchartCanvas: View {
             drag = .create(id: group.id, start: start)
             return
         }
-        if editor.tool == .edge {
-            if let node = editor.doc.node(at: start) {
-                let anchor = nearestAnchor(to: start, node: node)
-                drag = .edge(from: node.id, anchor: anchor)
-                editor.pendingEdge = (from: node.id, anchor: anchor, point: start)
-            } else {
-                drag = .marquee(start: start)
-            }
-            return
-        }
-
         // 4) 选择工具：点中元素 → 选择 / 移动（群组连带子元素）
         if let id = editor.doc.hit(start, tolerance: 11 / max(editor.zoom, 0.2)) {
             let shift = mods.contains(.shift)
@@ -951,6 +997,13 @@ struct FlowchartCanvas: View {
     }
 
     private func updateHover(_ p: CGPoint) {
+        // 连线工具已选起点：预览线跟随鼠标 + 目标图形高亮（点击-点击连线的中间态）
+        if let sid = edgeStartNode {
+            editor.pendingEdge = (from: sid, anchor: .auto, point: p)
+            edgeTargetID = editor.doc.node(at: p).map { $0.id } == sid
+                ? nil : editor.doc.node(at: p)?.id
+            return
+        }
         if let hit = anchorHit(at: p) {
             hoverAnchor = hit
             hoverPoint = p

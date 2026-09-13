@@ -200,23 +200,27 @@ private struct FlowchartToolPalette: View {
 
     private func card(_ tool: FCTool) -> some View {
         let active = editor.tool == tool
-        return VStack(spacing: 4) {
-            Image(systemName: tool.symbol)
-                .font(.system(size: 15))
-                .frame(height: 20)
-            Text(tool.label)
-                .font(theme.font(size: 9))
-                .lineLimit(1)
+        return Button {
+            editor.tool = tool
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: tool.symbol)
+                    .font(.system(size: 15))
+                    .frame(height: 20)
+                Text(tool.label)
+                    .font(theme.font(size: 9))
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 7)
+            .foregroundStyle(Color(nsColor: active ? theme.background : theme.text))
+            .background(RoundedRectangle(cornerRadius: 7)
+                .fill(active ? Color(nsColor: theme.accent) : Color(nsColor: theme.background)))
+            .overlay(RoundedRectangle(cornerRadius: 7)
+                .stroke(Color(nsColor: active ? theme.accent : theme.border), lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: 7))
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 7)
-        .foregroundStyle(Color(nsColor: active ? theme.background : theme.text))
-        .background(RoundedRectangle(cornerRadius: 7)
-            .fill(active ? Color(nsColor: theme.accent) : Color(nsColor: theme.background)))
-        .overlay(RoundedRectangle(cornerRadius: 7)
-            .stroke(Color(nsColor: active ? theme.accent : theme.border), lineWidth: 1))
-        .contentShape(RoundedRectangle(cornerRadius: 7))
-        .onTapGesture { editor.tool = tool }
+        .buttonStyle(.plain)
         .draggable(tool.rawValue)   // 拖到画布直接放置（draw.io 习惯）
         .help(tool.label)
     }
