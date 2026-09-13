@@ -576,9 +576,6 @@ struct SidebarView: View {
         }
         if let row = store.index.first(where: { $0.id == rowID }) {
             menu.addItem(item(_L("打开", "Open"), { store.openNote(rowID) }))
-            menu.addItem(item(_L("AI 改标题…", "AI Retitle…"), {
-                store.autoTitle(for: rowID)
-            }))
             menu.addItem(.separator())
             menu.addItem(item(_L("重命名…", "Rename…"), {
                 renameTarget = row

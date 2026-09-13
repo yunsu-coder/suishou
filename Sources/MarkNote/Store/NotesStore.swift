@@ -1096,11 +1096,6 @@ final class NotesStore {
         ioQueue.sync { writeNote(note) }
         reloadIndex()
         openNote(note.id)
-        // A：新建「无标题」草稿 → AI 自动命名（若已配置；延迟等用户可能先手输）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
-            guard let self, self.index.first(where: { $0.id == note.id })?.title == _L("无标题", "Untitled") else { return }
-            self.autoTitle(for: note.id)
-        }
     }
 
     /// 指定标题与目录新建（文件夹内新建）；同目录同名文件存在 → 拒绝（返回 false）
@@ -1948,83 +1943,6 @@ final class NotesStore {
         } else if id.hasPrefix("builtin:"),
                   let theme = Theme(rawValue: String(id.dropFirst("builtin:".count))) {
             setTheme(theme)
-        }
-    }
-
-    // MARK: - AI 自动命名（云端 API；仅当前文件、仅显式触发）
-
-    /// 为「无标题/草稿」文件自动生成标题（新建后/手动触发）；
-    /// 空内容（纯空白）静默跳过；模板词结果自动重试一次，仍不合规则静默
-    func autoTitle(for id: String) {
-        // 轻量开关：AI 自动命名可关闭（省 API 配额）；设置页「通用」默认开
-        guard UserDefaults.standard.object(forKey: "aiAutoTitle") as? Bool ?? true else { return }
-
-        guard LLM.configured else { return }
-        let ext = (id as NSString).pathExtension.lowercased()
-        // 图片 → 视觉模型命名（文字不能概括画面）
-        let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "tiff", "svg"]
-        if imageExts.contains(ext) {
-            Task { [weak self] in
-                guard let self else { return }
-                guard let name = await Self.visionNameImage(at: self.noteURL(id)) else {
-                    self.showHint(_L("图片命名失败（带图重试 / 检查模型）", "Failed to name image (retry with the image included / check the model)"))
-                    return
-                }
-                await MainActor.run {
-                    self.applyAITitle(id, name: name)
-                }
-            }
-            return
-        }
-        let content = (try? String(contentsOf: noteURL(id), encoding: .utf8)) ?? ""
-        if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return // 空内容不命名（静默）
-        }
-        let baseTitle = Workspace.title(for: noteURL(id))
-        Task { [weak self] in
-            // 一次正规 + 黑名单命中时的二次直白重试
-            var title = try? await LLM.suggestTitle(content: content)
-            if let t = title, !LLM.isValidTitle(t) {
-                title = try? await LLM.suggestTitleStrict(content: content)
-            }
-            guard let finalTitle = title, LLM.isValidTitle(finalTitle) else {
-                return // 静默：不合规不打扰
-            }
-            await MainActor.run {
-                guard let self, self.index.contains(where: { $0.id == id }) else { return }
-                let current = self.index.first { $0.id == id }?.title ?? baseTitle
-                guard current == "无标题" || current == baseTitle else { return }
-                self.applyAITitle(id, name: finalTitle)
-            }
-        }
-    }
-
-    /// 图片 → 视觉模型（压缩 ≤1280px JPEG base64）→ 名称
-    @MainActor
-    private static func visionNameImage(at url: URL) async -> String? {
-        guard let img = NSImage(contentsOf: url),
-              let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
-        let scale = min(1, 1280.0 / CGFloat(max(cg.width, cg.height)))
-        let ctx = CGContext(data: nil, width: Int(CGFloat(cg.width) * scale), height: Int(CGFloat(cg.height) * scale),
-                            bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
-                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-        ctx.interpolationQuality = .medium
-        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: ctx.width, height: ctx.height))
-        guard let out = ctx.makeImage() else { return nil }
-        let rep = NSBitmapImageRep(cgImage: out)
-        guard let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.7]) else { return nil }
-        return try? await LLM.suggestImageName(data: jpeg, mime: "image/jpeg")
-    }
-
-    /// 落名（冲突警示；成功后提示）
-    @MainActor
-    private func applyAITitle(_ id: String, name: String) {
-        guard self.index.contains(where: { $0.id == id }) else { return }
-        let pretty = LLM.sanitizeFileNameTitle(name)
-        if self.renameNote(id, to: pretty) {
-            self.showHint(_L("已命名为：「\(pretty)」", "Named as: \"\(pretty)\""))
-        } else {
-            self.showHint(_L("命名发生同名冲突，请手动调整", "A name conflict occurred; please adjust it manually"))
         }
     }
 

@@ -70,23 +70,13 @@ private struct GeneralSettingsTab: View {
                         .font(.caption2).foregroundStyle(.tertiary)
                 }
             }
-            Section(_L("AI 自动化", "AI Automation")) {
-                Toggle(_L("AI 自动命名（新建文件后生成标题）", "Auto-name new files (generate a title after creation)"), isOn: Binding(
-                    get: { UserDefaults.standard.object(forKey: "aiAutoTitle") as? Bool ?? true },
-                    set: { UserDefaults.standard.set($0, forKey: "aiAutoTitle") }
-                ))
-                .toggleStyle(.switch)
-            }
-            Section(_L("大模型（Auto 命名）", "Model (Auto naming)")) {
+            Section(_L("大模型", "Model")) {
                 Picker(_L("模型", "Model"), selection: $llmModel) {
                     ForEach(LLM.availableModels, id: \.self) { m in
                         Text(m).tag(m)
                     }
                 }
                 .pickerStyle(.menu)
-                Text(_L("自动命名：新建「无标题」草稿后自动生成标题；右键文件 →「AI 改标题」可手动触发。仅上送当前文档前 1500 字，不上送整个库。", "Auto-naming: after an untitled draft is created, a title is generated automatically; right-click a file → 'AI Rename Title' to trigger it manually. Only the first 1500 characters of the current document are sent, never the whole library."))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
             }
             Section(_L("模型服务（API Key）", "Model service (API key)")) {
                 HStack(spacing: 8) {
@@ -124,8 +114,8 @@ private struct GeneralSettingsTab: View {
                         Text(keyStatus).font(.caption).foregroundStyle(.secondary)
                     }
                 }
-                Text(_L("密钥只保存在本机（UserDefaults），不写入仓库、不上传；请到模型服务商后台自行申请。没填 key 时 AI 面板与自动命名会明确提示「API Key 无效」。",
-                        "The key is stored only on this machine (UserDefaults) — never committed or uploaded. Get one from your model provider. Without a key, the AI panel and auto-naming say so explicitly."))
+                Text(_L("密钥只保存在本机（UserDefaults），不写入仓库、不上传；请到模型服务商后台自行申请。没填 key 时 AI 面板会明确提示「API Key 无效」。",
+                        "The key is stored only on this machine (UserDefaults) — never committed or uploaded. Get one from your model provider. Without a key, the AI panel says so explicitly."))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
