@@ -78,6 +78,16 @@ enum FCAnchor: String, Codable, CaseIterable, Hashable {
         case .auto: return CGVector(dx: 0, dy: 0)
         }
     }
+
+    /// 自环默认配对边：上↔右、下↔左（避免同一条边出又回，线会叠在一起）
+    var selfLoopPartner: FCAnchor {
+        switch self {
+        case .top, .auto: return .right
+        case .right: return .bottom
+        case .bottom: return .left
+        case .left: return .top
+        }
+    }
 }
 
 enum FCRoute: String, Codable, CaseIterable, Hashable {
@@ -616,9 +626,8 @@ struct FCDocument: Codable, Equatable {
         for g in groups { box = box.map { $0.union(g.rect) } ?? g.rect }
         // 连线的绕行路径可能超出图形包围盒（BFS 避障会绕远）——
         // 不把它们计入，导出 PNG / 适应窗口会把绕行线段裁掉。
-        let index = nodesByID()
         for e in edges {
-            guard let path = FCEdgePath(edge: e, nodes: index) else { continue }
+            guard let path = edgePath(e) else { continue }
             for p in path.polyline {
                 let dot = CGRect(x: p.x, y: p.y, width: 0, height: 0)
                 box = box.map { $0.union(dot) } ?? dot
@@ -637,6 +646,36 @@ struct FCDocument: Codable, Equatable {
         Dictionary(nodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
+    // MARK: 连线路由（带平行边错开）
+
+    /// 同一对节点之间的连线（含自环；反向也算同一组）
+    func parallelEdges(of edge: FCEdge) -> [FCEdge] {
+        guard edge.fromNode != edge.toNode else {
+            return edges.filter { $0.fromNode == edge.fromNode && $0.toNode == edge.toNode }
+        }
+        let pair: Set<String> = [edge.fromNode, edge.toNode]
+        return edges.filter { Set([$0.fromNode, $0.toNode]) == pair }
+    }
+
+    /// 该连线在平行边里的「车道」偏移：两条互斥方向各偏一侧，更多条均分。
+    /// 写循环（A→B 再 B→A）时就靠它把两条线分开，而不是重叠成一条最短路径。
+    func lane(of edge: FCEdge) -> CGFloat {
+        let group = parallelEdges(of: edge).sorted { $0.id < $1.id }
+        guard group.count > 1, let idx = group.firstIndex(where: { $0.id == edge.id }) else { return 0 }
+        // 第一条走原始最短路径（不偏移），其余按「右一、左一、右二、左二…」绕开：
+        // 这样两条线在中间明显分开，且不会互相交叉。
+        let spread: CGFloat = 24
+        if idx == 0 { return 0 }
+        let k = CGFloat((idx + 1) / 2)         // 1,1,2,2…
+        let sign: CGFloat = (idx % 2 == 1) ? 1 : -1
+        return sign * k * spread
+    }
+
+    /// 计算连线的实际路径（渲染 / 命中 / 导出统一走这里，避免各处车道不一致）
+    func edgePath(_ edge: FCEdge) -> FCEdgePath? {
+        FCEdgePath(edge: edge, nodes: nodesByID(), lane: lane(of: edge))
+    }
+
     // MARK: 命中测试
 
     func node(at p: CGPoint) -> FCNode? {
@@ -652,9 +691,8 @@ struct FCDocument: Codable, Equatable {
     }
 
     func edge(at p: CGPoint, tolerance: CGFloat) -> FCEdge? {
-        let index = nodesByID()
         for e in edges.reversed() {
-            guard let path = FCEdgePath(edge: e, nodes: index) else { continue }
+            guard let path = edgePath(e) else { continue }
             if path.distance(to: p) <= tolerance { return e }
         }
         return nil
@@ -674,8 +712,7 @@ struct FCDocument: Codable, Equatable {
         if let t = texts.first(where: { $0.id == id }) { return t.rect }
         if let g = groups.first(where: { $0.id == id }) { return g.rect }
         if let e = edges.first(where: { $0.id == id }) {
-            let index = nodesByID()
-            guard let path = FCEdgePath(edge: e, nodes: index) else { return nil }
+            guard let path = edgePath(e) else { return nil }
             return path.boundingBox
         }
         return nil
@@ -967,12 +1004,24 @@ struct FCEdgePath: Equatable {
     var start: CGPoint
     var segments: [FCSegment]
 
-    init?(edge: FCEdge, nodes: [String: FCNode]) {
+    init?(edge: FCEdge, nodes: [String: FCNode], lane: CGFloat = 0) {
         guard let a = nodes[edge.fromNode], let b = nodes[edge.toNode] else { return nil }
+        // 自环（A → A）：绕出去再折回来（写循环用），默认走「上边出、右边回」
+        if edge.fromNode == edge.toNode {
+            let out = 26 + abs(lane)
+            let fromAnchor = edge.fromAnchor == .auto ? FCAnchor.top : edge.fromAnchor
+            var toAnchor = edge.toAnchor == .auto ? FCAnchor.right : edge.toAnchor
+            if toAnchor == fromAnchor { toAnchor = fromAnchor.selfLoopPartner }
+            let pts = FCEdgePath.selfLoop(rect: a.rect, from: fromAnchor, to: toAnchor, out: out)
+            start = pts[0]
+            segments = zip(pts, pts.dropFirst()).map { .line($1) }
+            return
+        }
         let fromAnchor = edge.fromAnchor == .auto ? FCEdgePath.autoAnchor(from: a.rect, toward: b.rect) : edge.fromAnchor
         let toAnchor = edge.toAnchor == .auto ? FCEdgePath.autoAnchor(from: b.rect, toward: a.rect) : edge.toAnchor
-        let p0 = FCEdgePath.point(fromAnchor, in: a.rect)
-        let p1 = FCEdgePath.point(toAnchor, in: b.rect)
+        // 平行边（A→B 与 B→A 等）：锚点沿着图形边缘错开，两条线才会真正分开走
+        let p0 = FCEdgePath.point(fromAnchor, in: a.rect, along: lane)
+        let p1 = FCEdgePath.point(toAnchor, in: b.rect, along: lane)
         let n0 = fromAnchor.vector
         let n1 = toAnchor.vector
         start = p0
@@ -1000,6 +1049,30 @@ struct FCEdgePath: Equatable {
         }
     }
 
+    /// 自环路径：从 `from` 边探出去，绕到 `to` 边回来（全程正交，拐角由渲染层做圆角）
+    static func selfLoop(rect: CGRect, from: FCAnchor, to: FCAnchor, out: CGFloat) -> [CGPoint] {
+        let p0 = point(from, in: rect)
+        let p1 = point(to, in: rect)
+        let n0 = from.vector
+        let n1 = to.vector
+        let s0 = CGPoint(x: p0.x + n0.dx * out, y: p0.y + n0.dy * out)
+        let s1 = CGPoint(x: p1.x + n1.dx * out, y: p1.y + n1.dy * out)
+        let vertical0 = abs(n0.dy) > 0.5, vertical1 = abs(n1.dy) > 0.5
+        var mid: [CGPoint] = []
+        if vertical0 != vertical1 {
+            // 相邻两边 → 一个拐角绕过去
+            mid = [CGPoint(x: vertical0 ? s1.x : s0.x, y: vertical0 ? s0.y : s1.y)]
+        } else if vertical0 {
+            // 同在上/下两边 → 走右侧走廊（或左侧，取更近的一侧）
+            let corridorX = rect.maxX + out
+            mid = [CGPoint(x: corridorX, y: s0.y), CGPoint(x: corridorX, y: s1.y)]
+        } else {
+            let corridorY = rect.maxY + out
+            mid = [CGPoint(x: s0.x, y: corridorY), CGPoint(x: s1.x, y: corridorY)]
+        }
+        return FCRouter.mergeCollinear([p0, s0] + mid + [s1, p1])
+    }
+
     static func dedupe(_ pts: [CGPoint]) -> [CGPoint] {
         var out: [CGPoint] = []
         for p in pts {
@@ -1021,12 +1094,18 @@ struct FCEdgePath: Equatable {
         return dy >= 0 ? .bottom : .top
     }
 
-    static func point(_ anchor: FCAnchor, in rect: CGRect) -> CGPoint {
+    /// 锚点坐标；`along` = 沿该边方向偏移（平行边错开用，自动夹在边缘内）
+    static func point(_ anchor: FCAnchor, in rect: CGRect, along: CGFloat = 0) -> CGPoint {
+        let margin: CGFloat = 8
         switch anchor {
-        case .top: return CGPoint(x: rect.midX, y: rect.minY)
-        case .bottom: return CGPoint(x: rect.midX, y: rect.maxY)
-        case .left: return CGPoint(x: rect.minX, y: rect.midY)
-        case .right: return CGPoint(x: rect.maxX, y: rect.midY)
+        case .top, .bottom:
+            let limit = max(0, rect.width / 2 - margin)
+            let x = rect.midX + min(max(along, -limit), limit)
+            return CGPoint(x: x, y: anchor == .top ? rect.minY : rect.maxY)
+        case .left, .right:
+            let limit = max(0, rect.height / 2 - margin)
+            let y = rect.midY + min(max(along, -limit), limit)
+            return CGPoint(x: anchor == .left ? rect.minX : rect.maxX, y: y)
         case .auto: return CGPoint(x: rect.midX, y: rect.midY)
         }
     }

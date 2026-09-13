@@ -580,6 +580,63 @@ final class FlowchartTests: XCTestCase {
 
     // MARK: 右键菜单
 
+    // MARK: 循环（自环）/ 平行边 / 交叉跳线
+
+    /// 自环（A → A）：要绕出去再折回来，全程正交、不缩成一点，且包住图形外圈
+    func testSelfLoopRoutesAroundNode() throws {
+        var doc = FCDocument()
+        var n = FCNode(kind: .rect, origin: CGPoint(x: 100, y: 100))
+        n.w = 120; n.h = 60
+        n.id = "n"
+        doc.nodes = [n]
+        doc.edges = [FCEdge(fromNode: "n", toNode: "n")]
+        let path = try XCTUnwrap(doc.edgePath(doc.edges[0]), "自环也要能算出路径")
+        let pts = path.polyline
+        XCTAssertGreaterThanOrEqual(pts.count, 4, "自环至少要有出/绕/回几段")
+        XCTAssertGreaterThan(path.polylineLength, 120, "自环不能缩成一个点")
+        for i in 1..<pts.count {
+            let dx = abs(pts[i].x - pts[i - 1].x), dy = abs(pts[i].y - pts[i - 1].y)
+            XCTAssertTrue(dx < 0.6 || dy < 0.6, "自环必须正交：\(pts)")
+        }
+        // 起点在图形边缘、终点也在边缘，且拐弯探出图形之外
+        XCTAssertTrue(n.rect.insetBy(dx: -0.6, dy: -0.6).contains(pts[0]))
+        XCTAssertTrue(n.rect.insetBy(dx: -0.6, dy: -0.6).contains(pts[pts.count - 1]))
+        let outside = pts.contains { !n.rect.insetBy(dx: -4, dy: -4).contains($0) }
+        XCTAssertTrue(outside, "自环要绕到图形外面：\(pts)")
+    }
+
+    /// A→B 与 B→A 是两条线，不能重叠成一条最短路径：车道错开，中段不重合
+    func testParallelEdgesGetSeparateLanes() throws {
+        var doc = FCDocument()
+        var a = FCNode(kind: .capsule, origin: CGPoint(x: 0, y: 0)); a.w = 100; a.h = 50
+        var b = FCNode(kind: .rect, origin: CGPoint(x: 400, y: 0)); b.w = 100; b.h = 50
+        a.id = "a"; b.id = "b"
+        doc.nodes = [a, b]
+        let e1 = FCEdge(fromNode: "a", toNode: "b")
+        let e2 = FCEdge(fromNode: "b", toNode: "a")
+        doc.edges = [e1, e2]
+        XCTAssertNotEqual(doc.lane(of: e1), doc.lane(of: e2), "两条平行边要各占一条车道")
+        let path1 = try XCTUnwrap(doc.edgePath(e1))
+        let path2 = try XCTUnwrap(doc.edgePath(e2))
+        // 两条线必须真正分开：锚点沿边缘错开，互相最近距离要有可见间隔
+        let gap = (path1.polyline.map { path2.distance(to: $0) }
+                   + path2.polyline.map { path1.distance(to: $0) }).min() ?? 0
+        XCTAssertGreaterThan(gap, 8, "两条反向连线叠在一起了（最小间距 \(gap)）")
+    }
+
+    /// 交叉检测：横线穿竖线要给「跳线」位置
+    func testCrossingsDetectPerpendicularIntersection() {
+        let horizontal = [CGPoint(x: 0, y: 50), CGPoint(x: 200, y: 50)]
+        let vertical = [CGPoint(x: 100, y: 0), CGPoint(x: 100, y: 100)]
+        let c = FCRenderer.crossings(horizontal, vertical)
+        XCTAssertEqual(c.count, 1)
+        XCTAssertEqual(c.first?.x ?? 0, 100, accuracy: 0.01)
+        XCTAssertEqual(c.first?.y ?? 0, 50, accuracy: 0.01)
+        // 端点相交不算交叉（避免线头出现跳线）
+        let touchAtEnd = [CGPoint(x: 100, y: 0), CGPoint(x: 100, y: 50)]
+        XCTAssertTrue(FCRenderer.crossings(horizontal, touchAtEnd).isEmpty)
+    }
+
     private func itemTitles(_ entries: [FCMenuEntry]) -> [String] {
         entries.compactMap { entry in
             switch entry {

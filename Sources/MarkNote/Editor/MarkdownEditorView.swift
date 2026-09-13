@@ -107,6 +107,8 @@ struct MarkdownEditorView: NSViewRepresentable {
         if context.coordinator.lastRevision != revision {
             context.coordinator.lastRevision = revision
             context.coordinator.clearFind(tv)
+            // 输入法正在组合（marked text）时绝不能替换文本：会把组合串取消后重新提交 → 重复文字
+            guard !tv.hasMarkedText() else { return }
             context.coordinator.suppress = true
             tv.string = text
             tv.undoManager?.removeAllActions()
@@ -427,6 +429,11 @@ struct MarkdownEditorView: NSViewRepresentable {
                     guard let self, let tv = self.textView,
                           self.highlightToken == token,      // 已被更新的调度取代 → 丢弃
                           tv.string == text else { return }  // 文本已变 → 旧范围会错位
+                    // 输入法组合中不要改属性（TextKit 属性写入会打断组合 → 候选串重复上屏）
+                    if tv.hasMarkedText() {
+                        self.scheduleHighlight(tv)         // 组合结束后再着色
+                        return
+                    }
                     if isMarkdown {
                         self.applyHighlight(mdTokens, tv: tv)
                     } else if isCode {
@@ -698,6 +705,8 @@ struct MarkdownEditorView: NSViewRepresentable {
             if !suppress {
                 parent.onChange(tv.string)
             }
+            // 输入法组合中不做属性写入（当前行底色 / 括号配对都会打断组合 → 重复上屏）
+            guard !tv.hasMarkedText() else { return }
             reportLine(tv)
             scheduleHighlight(tv)
         }
@@ -707,6 +716,7 @@ struct MarkdownEditorView: NSViewRepresentable {
         /// 只是"看起来像"委托方法，实际从未被调用（状态栏行列就一直是旧的）。
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let tv = notification.object as? NSTextView ?? textView else { return }
+            guard !tv.hasMarkedText() else { return }   // 组合中不动属性
             guard tv.selectedRange().length == 0 else { return }
             reportLine(tv)
         }

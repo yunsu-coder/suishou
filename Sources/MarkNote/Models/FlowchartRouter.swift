@@ -23,7 +23,7 @@ enum FCRouter {
     /// - Parameter avoid: 源 / 目标图形本体（不外扩）。线可以贴着自己的锚点出发，
     ///   但**不允许钻进图形内部**——否则贴着边框走、甚至横穿自己的图形。
     static func route(p0: CGPoint, n0: CGVector, p1: CGPoint, n1: CGVector,
-                      obstacles: [CGRect], avoid: [CGRect] = []) -> [CGPoint] {
+                      obstacles: [CGRect], avoid: [CGRect] = [], lane: CGFloat = 0) -> [CGPoint] {
         let s0 = CGPoint(x: p0.x + n0.dx * stub, y: p0.y + n0.dy * stub)
         let s1 = CGPoint(x: p1.x + n1.dx * stub, y: p1.y + n1.dy * stub)
         let padded = obstacles.map { $0.insetBy(dx: -padding, dy: -padding) }
@@ -32,12 +32,16 @@ enum FCRouter {
         // 候选：L 形 ×2 + Z 形 ×2（端点探头保留，让线从锚点方向"探出去"再走）
         let midX = (s0.x + s1.x) / 2
         let midY = (s0.y + s1.y) / 2
-        let candidates: [[CGPoint]] = [
+        // lane ≠ 0 = 平行边错开（A→B 与 B→A 不重叠成一条线）：中段整体偏移一条「车道」
+        var candidates: [[CGPoint]] = [
             [p0, s0, CGPoint(x: s1.x, y: s0.y), s1, p1],   // L：先横后竖
             [p0, s0, CGPoint(x: s0.x, y: s1.y), s1, p1],   // L：先竖后横
-            [p0, s0, CGPoint(x: midX, y: s0.y), CGPoint(x: midX, y: s1.y), s1, p1],  // Z（横-横）
-            [p0, s0, CGPoint(x: s0.x, y: midY), CGPoint(x: s1.x, y: midY), s1, p1],  // Z（竖-竖）
-        ].map { mergeCollinear($0) }
+            [p0, s0, CGPoint(x: midX + lane, y: s0.y), CGPoint(x: midX + lane, y: s1.y), s1, p1],  // Z（横-横）
+            [p0, s0, CGPoint(x: s0.x, y: midY + lane), CGPoint(x: s1.x, y: midY + lane), s1, p1],  // Z（竖-竖）
+        ]
+        // 需要错开时不用单弯 L（会和另一条边重叠），只用带车道的 Z
+        if lane != 0 { candidates.removeFirst(2) }
+        candidates = candidates.map { mergeCollinear($0) }
 
         let clean = candidates.filter { !collides($0, rects) }
         if let best = clean.min(by: { length($0) < length($1) }) {

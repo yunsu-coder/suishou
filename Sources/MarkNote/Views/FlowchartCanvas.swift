@@ -189,12 +189,82 @@ enum FCRenderer {
     /// 图形 / 连线 / 文本（不含选中框与手柄）
     static func content(_ doc: FCDocument, theme: FlowchartTheme, transform: FCViewTransform,
                         ctx: inout GraphicsContext) {
-        let index = doc.nodesByID()
         let rs = doc.style.resolved(theme: theme)
+        let paths = doc.edges.compactMap { e in doc.edgePath(e).map { (e, $0) } }
         for g in doc.groups { group(g, style: rs, theme: theme, transform: transform, ctx: &ctx) }
-        for e in doc.edges { edge(e, nodes: index, style: rs, theme: theme, transform: transform, ctx: &ctx) }
+        for (i, item) in paths.enumerated() {
+            edge(item.0, path: item.1, style: rs, theme: theme, transform: transform, ctx: &ctx)
+            // 交叉跳线（断点再连）：这条线从前面画过的线上面「跳过」
+            if i > 0 {
+                var crossings: [CGPoint] = []
+                for j in 0..<i {
+                    crossings.append(contentsOf: Self.crossings(item.1.polyline, paths[j].1.polyline))
+                }
+                Self.drawJumps(&ctx, crossings: crossings, polyline: item.1.polyline,
+                               color: rs.stroke, theme: theme, transform: transform)
+            }
+        }
         for n in doc.nodes { node(n, style: rs, theme: theme, transform: transform, ctx: &ctx) }
         for t in doc.texts { textItem(t, style: rs, theme: theme, transform: transform, ctx: &ctx) }
+    }
+
+    /// 两条折线的正交交叉点（只取垂直相交、且都在线段内部）
+    static func crossings(_ a: [CGPoint], _ b: [CGPoint]) -> [CGPoint] {
+        var out: [CGPoint] = []
+        for i in 1..<max(1, a.count) {
+            let a0 = a[i - 1], a1 = a[i]
+            for j in 1..<max(1, b.count) {
+                let b0 = b[j - 1], b1 = b[j]
+                let aHor = abs(a0.y - a1.y) < 0.5, bHor = abs(b0.y - b1.y) < 0.5
+                guard aHor != bHor else { continue }
+                let h0 = aHor ? a0 : b0, h1 = aHor ? a1 : b1     // 水平段
+                let v0 = aHor ? b0 : a0, v1 = aHor ? b1 : a1     // 垂直段
+                let x = v0.x, y = h0.y
+                let hx0 = min(h0.x, h1.x), hx1 = max(h0.x, h1.x)
+                let vy0 = min(v0.y, v1.y), vy1 = max(v0.y, v1.y)
+                if x > hx0 + 3, x < hx1 - 3, y > vy0 + 3, y < vy1 - 3 {
+                    out.append(CGPoint(x: x, y: y))
+                }
+            }
+        }
+        return out
+    }
+
+    /// 在交叉处画「跳线拱」：先用底色断开，再用自身颜色搭一小段半圆
+    static func drawJumps(_ ctx: inout GraphicsContext, crossings: [CGPoint], polyline: [CGPoint],
+                          color: NSColor, theme: FlowchartTheme, transform: FCViewTransform) {
+        guard !crossings.isEmpty else { return }
+        let r: CGFloat = 5
+        for c in crossings {
+            let p = transform.p(c)
+            // 断开：用画布底色盖掉一个小圆
+            ctx.fill(Path(ellipseIn: CGRect(x: p.x - r - 1, y: p.y - r - 1,
+                                            width: (r + 1) * 2, height: (r + 1) * 2)),
+                     with: .color(Color(nsColor: theme.background)))
+            // 拱：沿着这条线的走向搭半圆（竖直走向 → 拱向左；水平走向 → 拱向上）
+            let vertical = Self.isVertical(at: c, in: polyline)
+            var arc = Path()
+            if vertical {
+                arc.move(to: CGPoint(x: p.x, y: p.y - r))
+                arc.addQuadCurve(to: CGPoint(x: p.x, y: p.y + r),
+                                 control: CGPoint(x: p.x - r * 1.6, y: p.y))
+            } else {
+                arc.move(to: CGPoint(x: p.x - r, y: p.y))
+                arc.addQuadCurve(to: CGPoint(x: p.x + r, y: p.y),
+                                 control: CGPoint(x: p.x, y: p.y - r * 1.6))
+            }
+            ctx.stroke(arc, with: .color(Color(nsColor: color)),
+                       style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+        }
+    }
+
+    private static func isVertical(at point: CGPoint, in polyline: [CGPoint]) -> Bool {
+        for i in 1..<max(1, polyline.count) {
+            let a = polyline[i - 1], b = polyline[i]
+            if abs(a.x - b.x) < 0.5, abs(a.x - point.x) < 0.5,
+               point.y > min(a.y, b.y), point.y < max(a.y, b.y) { return true }
+        }
+        return false
     }
 
     /// 画一个小胶囊标签（拉线实时距离 / 缩放实时尺寸用）
@@ -267,9 +337,8 @@ enum FCRenderer {
         }
     }
 
-    static func edge(_ e: FCEdge, nodes: [String: FCNode], style rs: FCRenderStyle, theme: FlowchartTheme,
+    static func edge(_ e: FCEdge, path docPath: FCEdgePath, style rs: FCRenderStyle, theme: FlowchartTheme,
                      transform: FCViewTransform, ctx: inout GraphicsContext) {
-        guard let docPath = FCEdgePath(edge: e, nodes: nodes) else { return }
         let stroke = rs.stroke
         let lineWidth = max(0.5, transform.len(rs.lineWidth))
         let dash: [CGFloat] = rs.dashed ? [max(2, lineWidth * 4), max(2, lineWidth * 3)] : []
@@ -560,8 +629,14 @@ struct FlowchartCanvas: View {
         var p1 = pending.point
         var n1 = CGVector(dx: 0, dy: 0)
         var targetRect: CGRect?
-        if let tid = edgeTargetID, tid != pending.from,
+        if let tid = edgeTargetID,
            let target = editor.doc.nodes.first(where: { $0.id == tid }) {
+            if tid == pending.from {
+                // 自环预览（写循环）：上边出、侧边回
+                let fromAnchor = pending.anchor == .auto ? FCAnchor.top : pending.anchor
+                return FCEdgePath.selfLoop(rect: source.rect, from: fromAnchor,
+                                           to: fromAnchor.selfLoopPartner, out: 26)
+            }
             let toAnchor = FCEdgePath.autoAnchor(from: target.rect, toward: source.rect)
             p1 = FCEdgePath.point(toAnchor, in: target.rect)
             n1 = toAnchor.vector
@@ -646,7 +721,7 @@ struct FlowchartCanvas: View {
         }
         // 悬停连线：整条线加粗高亮（可点提示）
         if let hid = hoverEdgeID, let e = editor.doc.edges.first(where: { $0.id == hid }),
-           let path = FCEdgePath(edge: e, nodes: editor.doc.nodesByID()) {
+           let path = editor.doc.edgePath(e) {
             var p = Path()
             p.move(to: transform.p(path.start))
             for seg in path.segments {
@@ -663,7 +738,7 @@ struct FlowchartCanvas: View {
         // 选中连线 → 两端端点手柄（可拖动改接）
         if editor.selection.count == 1, let id = editor.selection.first,
            let edge = editor.doc.edges.first(where: { $0.id == id }),
-           let path = FCEdgePath(edge: edge, nodes: editor.doc.nodesByID()),
+           let path = editor.doc.edgePath(edge),
            let s = path.polyline.first, let e = path.polyline.last {
             for pt in [s, e] {
                 let q = transform.p(pt)
@@ -881,7 +956,7 @@ struct FlowchartCanvas: View {
             // draw.io 式目标高亮：光标进入/贴近某个图形时整框变亮
             let hovered = editor.doc.node(at: current)?.id
                 ?? nearestNode(to: current, within: 26 / max(editor.zoom, 0.2))?.id
-            if hovered != from { edgeTargetID = hovered } else { edgeTargetID = nil }
+            edgeTargetID = hovered      // 悬停到自己 = 自环（写循环）
 
         case .reconnect(let id, let isFrom):
             // 预览：固定端 → 光标（复用 pendingEdge 的虚线 + 箭头绘制）
@@ -910,7 +985,7 @@ struct FlowchartCanvas: View {
                               value.location.y - value.startLocation.y) >= 3
             let hitNode = editor.doc.node(at: current)
             if moved {
-                if let from = edgePressNode, let target = hitNode, target.id != from {
+                if let from = edgePressNode, let target = hitNode {
                     let edge = FCEdge(fromNode: from, toNode: target.id,
                                       fromAnchor: .auto, toAnchor: .auto)
                     editor.commit { $0.edges.append(edge) }
@@ -919,7 +994,7 @@ struct FlowchartCanvas: View {
                 edgeStartNode = nil
                 editor.pendingEdge = nil
             } else if let sid = edgeStartNode {
-                if let target = hitNode, target.id != sid {
+                if let target = hitNode {
                     let edge = FCEdge(fromNode: sid, toNode: target.id,
                                       fromAnchor: .auto, toAnchor: .auto)
                     editor.commit { $0.edges.append(edge) }
@@ -990,12 +1065,10 @@ struct FlowchartCanvas: View {
             if let target = editor.doc.node(at: current)
                 ?? nearestNode(to: current, within: tol)
                 ?? editor.doc.node(at: transform.doc(value.startLocation)) {
-                if target.id != from {
-                    let edge = FCEdge(fromNode: from, toNode: target.id,
-                                      fromAnchor: anchor, toAnchor: .auto)
-                    editor.commit { $0.edges.append(edge) }
-                    editor.selection = [edge.id]
-                }
+                let edge = FCEdge(fromNode: from, toNode: target.id,
+                                  fromAnchor: anchor, toAnchor: .auto)
+                editor.commit { $0.edges.append(edge) }
+                editor.selection = [edge.id]
             }
         case .reconnect(let id, let isFrom):
             defer { editor.pendingEdge = nil }
@@ -1003,9 +1076,7 @@ struct FlowchartCanvas: View {
             let tol = 26 / max(editor.zoom, 0.2)
             if let target = editor.doc.node(at: current) ?? nearestNode(to: current, within: tol),
                let idx = editor.doc.edges.firstIndex(where: { $0.id == id }),
-               // 不能接成「自己连自己」：自环两端点重合 → 路径退化成单点 →
-               // 连线在画布上整个消失（还会留在数据里），这里直接忽略这次改接
-               target.id != (isFrom ? editor.doc.edges[idx].toNode : editor.doc.edges[idx].fromNode) {
+               editor.doc.nodes.contains(where: { $0.id == target.id }) {
                 editor.commit { doc in
                     if isFrom {
                         doc.edges[idx].fromNode = target.id
@@ -1057,7 +1128,7 @@ struct FlowchartCanvas: View {
         //    必须先于浮动锚点：端点手柄天然落在图形边缘的锚点带内，锚点优先会把它永远抢走。
         if editor.selection.count == 1, let id = editor.selection.first,
            let edge = editor.doc.edges.first(where: { $0.id == id }),
-           let path = FCEdgePath(edge: edge, nodes: editor.doc.nodesByID()),
+           let path = editor.doc.edgePath(edge),
            let s = path.polyline.first, let e = path.polyline.last {
             let tol = 13 / max(editor.zoom, 0.2)
             if hypot(s.x - start.x, s.y - start.y) <= tol {
@@ -1095,6 +1166,7 @@ struct FlowchartCanvas: View {
             editor.selection = [item.id]
             editor.editingID = item.id
             editor.beginInteraction()
+            editor.tool = .select      // 即用即销：放一个就回选择工具，避免连点连建
             drag = .none
             return
         }
@@ -1242,8 +1314,7 @@ struct FlowchartCanvas: View {
         // 连线工具已选起点：预览线跟随鼠标 + 目标图形高亮（点击-点击连线的中间态）
         if let sid = edgeStartNode {
             editor.pendingEdge = (from: sid, anchor: .auto, point: p)
-            edgeTargetID = editor.doc.node(at: p).map { $0.id } == sid
-                ? nil : editor.doc.node(at: p)?.id
+            edgeTargetID = editor.doc.node(at: p)?.id   // 点回自己 = 自环
             return
         }
         if let hit = anchorHit(at: p) {
@@ -1394,7 +1465,9 @@ private struct FCTextEditor: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.parent = self
         guard let tv = scroll.documentView as? NSTextView else { return }
-        if tv.string != text, !context.coordinator.editing { tv.string = text }
+        // 只在「没有正在编辑、也没有输入法组合」时才回填文本：
+        // 组合中替换字符串会让中文输入重复上屏（候选串被取消后重新提交）
+        if tv.string != text, !context.coordinator.editing, !tv.hasMarkedText() { tv.string = text }
         tv.font = theme.nsFont(size: 13, bold: bold)
         tv.textColor = theme.text
         tv.alignment = align.nsAlignment
