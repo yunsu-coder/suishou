@@ -1,0 +1,11 @@
+[
+  {
+    "id": "flowchart",
+    "name": "流程图",
+    "nameEn": "Flowchart",
+    "type": "flowchart",
+    "scope": "workspace",
+    "placement": "main",
+    "options": {}
+  }
+]

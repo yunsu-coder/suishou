@@ -43,7 +43,7 @@ Plugins are declarative (manifest + data files, no arbitrary user code executed)
 | Category | Contents |
 | --- | --- |
 | Theme packs | See the Themes section above (four, human-reviewed) |
-| View plugins | **Card Wall**: notes as day-grouped cards with all/starred/todo filters and todo-progress badges; **Asset Grid**: thumbnail grid, search, unused filter, drag-to-insert, cross-workspace import |
+| View plugins | **Card Wall**: notes as day-grouped cards with all/starred/todo filters and todo-progress badges; **Asset Grid**: thumbnail grid, search, unused filter, drag-to-insert, cross-workspace import; **Flowchart**: shapes, drag-to-connect, text/groups, auto numbering, styling, PNG export |
 
 Render enhancements (callouts, tabs, timeline, keycaps, badges, image cards, code copy, …) are built in now and no longer need plugins. Plugin locations: workspace `.plugins/<id>/` or `~/Library/Application Support/MarkNote/plugins/<id>/`. See `docs/05-内置插件库.md` for details.
 
@@ -120,7 +120,7 @@ note/
 │   ├── Views/                    # Sidebar/editor/preview/AI panel/market/settings
 │   └── Resources/                # preview pipeline + vendor (offline)
 ├── Tests/MarkNoteTests/          # tests
-├── plugins-market/               # plugin library (4 theme packs + 2 view plugins)
+├── plugins-market/               # plugin library (4 theme packs + view plugins)
 ├── scripts/build-app.sh          # package .app
 └── docs/                         # plugin/theme rules, launch posts
 ```

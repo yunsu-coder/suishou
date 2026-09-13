@@ -1,0 +1,29 @@
+{
+  "id": "view-flowchart",
+  "name": "流程图",
+  "nameEn": "Flowchart",
+  "version": "1.0.0",
+  "kind": "views",
+  "desc": "在主线里画流程图：基础图形 + 拖拽连线 + 文字与分组 + 自动编号 + 样式美化，导出高清 PNG",
+  "descEn": "Draw flowcharts in the main area: shapes, drag-to-connect, text and groups, auto numbering, styling, and PNG export",
+  "features": [
+    "占主区域的大画布：网格、缩放、平移、对齐吸附与参考线",
+    "8 种基础图形（矩形 / 圆角 / 椭圆 / 菱形 / 平行四边形 / 圆柱 / 胶囊 / 便签）+ 文本框 + 分组容器",
+    "拖图形边缘圆点直接拉连线：直线 / 折线 / 曲线，单向 / 双向 / 无箭头，连线上可写「是 / 否」标签",
+    "双击写文字；一键自动编号按连线拓扑序（步骤 1 → 2 → 3）",
+    "样式：填充 / 边框 / 粗细 / 虚线 / 圆角 / 阴影 / 字号 / 加粗 / 对齐，另有对齐与均匀分布",
+    "撤销重做、复制、方向键微调；图存在当前工作台 source/flowchart/*.json，导出 1x/2x/3x PNG（可选透明背景）"
+  ],
+  "featuresEn": [
+    "Large main-area canvas with grid, zoom, pan, snapping and guides",
+    "8 basic shapes + text boxes + group containers",
+    "Drag from a node's edge dot to connect: straight/elbow/curve, single/double/no arrow, labels on edges",
+    "Double-click to edit text; one-click auto numbering in topological order",
+    "Styling: fill, stroke, width, dashed, corner, shadow, font size, bold, align, plus align/distribute",
+    "Undo/redo, duplicate, arrow-key nudge; charts live in source/flowchart/*.json, export 1x/2x/3x PNG (transparent optional)"
+  ],
+  "author": "随手社区",
+  "main": "views.json",
+  "minAppVersion": "2.0.0",
+  "icon": "flowchart"
+}

@@ -302,43 +302,56 @@ struct SidebarView: View {
         PluginManager.shared.allViews().first { $0.type == .assetGrid }
     }
 
+    /// 主区域视图插件是否就位（决定标题行出现哪几档）
+    private var hasCardsView: Bool {
+        PluginManager.shared.mainAreaView(type: .noteCards) != nil
+    }
+
+    private var hasFlowView: Bool {
+        PluginManager.shared.mainAreaView(type: .flowchart) != nil
+    }
+
     private var viewTitleRow: some View {
-        HStack(spacing: 6) {
-            Text(_LL("资源管理器", "Explorer"))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.tertiary)
-            Spacer()
-            // 视图插件提供卡片墙时，给一个「树 / 卡片」切换（插件未启用则不出现）
-            if PluginManager.shared.mainAreaView(type: .noteCards) != nil {
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                Text(_LL("资源管理器", "Explorer"))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                Spacer()
+                Menu {
+                    Button(_L("新建文件", "New Note")) { beginCreating("=root") }
+                    Button(_L("新建文件夹", "New Folder")) { beginCreating("=category") }
+                    Divider()
+                    Button(_L("展开全部", "Expand All")) { collapsedGroups.removeAll() }
+                    Button(_L("折叠全部", "Collapse All")) { collapsedGroups = Set(store.categories.map(\.id)) }
+                    Divider()
+                    Button(_L("导入文件…", "Import Files…")) { pickImportFiles(directories: false) }
+                    Button(_L("导入到指定文件夹…", "Import to a Specified Folder…")) { pickImportFiles(directories: false, needsTarget: true) }
+                    Button(_L("导入文件夹…", "Import Folder…")) { pickImportFiles(directories: true) }
+                    Divider()
+                    Button(_L("移除空文件夹", "Remove Empty Folders")) { store.removeEmptyCategories() }
+                    Button(_L("在 Finder 中显示目录", "Show in Finder")) { NSWorkspace.shared.open(store.notesDir) }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .menuStyle(.borderlessButton)
+                .frame(width: 22, height: 18)
+                .help(_L("更多操作", "More Options"))
+            }
+            // 视图切换独立一行：三档全宽分段，侧栏再窄也不会把标题挤到竖排
+            if hasCardsView || hasFlowView {
                 Picker("", selection: $mainViewKind) {
                     Text(_L("树", "Tree")).tag("editor")
-                    Text(_L("卡片", "Cards")).tag("cards")
+                    if hasCardsView { Text(_L("卡片", "Cards")).tag("cards") }
+                    if hasFlowView { Text(_L("流程图", "Flow")).tag("flowchart") }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 96)
+                .frame(maxWidth: .infinity)
             }
-            Menu {
-                Button(_L("新建文件", "New Note")) { beginCreating("=root") }
-                Button(_L("新建文件夹", "New Folder")) { beginCreating("=category") }
-                Divider()
-                Button(_L("展开全部", "Expand All")) { collapsedGroups.removeAll() }
-                Button(_L("折叠全部", "Collapse All")) { collapsedGroups = Set(store.categories.map(\.id)) }
-                Divider()
-                Button(_L("导入文件…", "Import Files…")) { pickImportFiles(directories: false) }
-                Button(_L("导入到指定文件夹…", "Import to a Specified Folder…")) { pickImportFiles(directories: false, needsTarget: true) }
-                Button(_L("导入文件夹…", "Import Folder…")) { pickImportFiles(directories: true) }
-                Divider()
-                Button(_L("移除空文件夹", "Remove Empty Folders")) { store.removeEmptyCategories() }
-                Button(_L("在 Finder 中显示目录", "Show in Finder")) { NSWorkspace.shared.open(store.notesDir) }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-            .menuStyle(.borderlessButton)
-            .frame(width: 22, height: 18)
-            .help(_L("更多操作", "More Options"))
         }
         .padding(.horizontal, 10)
         .padding(.top, 8)

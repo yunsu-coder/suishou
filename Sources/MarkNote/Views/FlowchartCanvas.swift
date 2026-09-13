@@ -1,0 +1,947 @@
+import AppKit
+import SwiftUI
+
+// MARK: - 画布坐标变换（doc 坐标 ⇄ 视图坐标）
+
+struct FCViewTransform {
+    var zoom: CGFloat = 1
+    var offset: CGSize = .zero
+
+    func p(_ p: CGPoint) -> CGPoint {
+        CGPoint(x: p.x * zoom + offset.width, y: p.y * zoom + offset.height)
+    }
+
+    func r(_ r: CGRect) -> CGRect {
+        CGRect(x: r.minX * zoom + offset.width, y: r.minY * zoom + offset.height,
+               width: r.width * zoom, height: r.height * zoom)
+    }
+
+    func len(_ v: CGFloat) -> CGFloat { v * zoom }
+
+    func doc(_ p: CGPoint) -> CGPoint {
+        CGPoint(x: (p.x - offset.width) / zoom, y: (p.y - offset.height) / zoom)
+    }
+
+    func docRect(_ r: CGRect) -> CGRect {
+        CGRect(x: (r.minX - offset.width) / zoom, y: (r.minY - offset.height) / zoom,
+               width: r.width / zoom, height: r.height / zoom)
+    }
+}
+
+// MARK: - 文字排版（画布 / 导出 / 测量共用一套换行规则）
+
+enum FCTextLayout {
+    static func lineHeight(_ font: NSFont) -> CGFloat {
+        ceil(font.ascender - font.descender + font.leading)
+    }
+
+    /// 贪心换行：CJK 逐字断，拉丁文优先在空格处断
+    static func lines(_ text: String, width: CGFloat, font: NSFont) -> [String] {
+        guard width > 4 else { return text.isEmpty ? [] : [text] }
+        var out: [String] = []
+        for raw in text.components(separatedBy: "\n") {
+            if raw.isEmpty { out.append(""); continue }
+            var current = ""
+            var lastBreak = -1
+            for ch in raw {
+                let candidate = current + String(ch)
+                if measure(candidate, font: font) <= width {
+                    current = candidate
+                    if ch == " " || ch == "-" { lastBreak = current.count }
+                } else {
+                    if lastBreak > 0, lastBreak < current.count {
+                        let head = String(current.prefix(lastBreak))
+                        out.append(head.trimmingCharacters(in: .whitespaces))
+                        current = String(current.dropFirst(lastBreak)) + String(ch)
+                    } else {
+                        out.append(current)
+                        current = String(ch)
+                    }
+                    lastBreak = -1
+                }
+            }
+            out.append(current)
+        }
+        return out
+    }
+
+    static func measure(_ s: String, font: NSFont) -> CGFloat {
+        (s as NSString).size(withAttributes: [.font: font]).width
+    }
+
+    static func blockHeight(_ lines: [String], font: NSFont) -> CGFloat {
+        CGFloat(lines.count) * lineHeight(font)
+    }
+}
+
+// MARK: - 渲染器（画布与 PNG 导出共用）
+
+enum FCRenderer {
+
+    static func grid(_ ctx: inout GraphicsContext, size: CGSize, transform: FCViewTransform,
+                     theme: FlowchartTheme, step: CGFloat = 20) {
+        let minor = theme.border.withAlphaComponent(0.35)
+        let major = theme.border.withAlphaComponent(0.7)
+        let scaled = max(6, transform.len(step))
+        guard scaled > 3 else { return }
+        let ox = transform.offset.width.truncatingRemainder(dividingBy: scaled * 5)
+        let oy = transform.offset.height.truncatingRemainder(dividingBy: scaled * 5)
+        var minorPath = Path()
+        var majorPath = Path()
+        var x = ox - scaled * 5
+        var i = 0
+        while x <= size.width + scaled {
+            let isMajor = (i % 5) == 0
+            let px = x.rounded()
+            if isMajor {
+                majorPath.move(to: CGPoint(x: px, y: 0))
+                majorPath.addLine(to: CGPoint(x: px, y: size.height))
+            } else {
+                minorPath.move(to: CGPoint(x: px, y: 0))
+                minorPath.addLine(to: CGPoint(x: px, y: size.height))
+            }
+            x += scaled
+            i += 1
+        }
+        var y = oy - scaled * 5
+        i = 0
+        while y <= size.height + scaled {
+            let isMajor = (i % 5) == 0
+            let py = y.rounded()
+            if isMajor {
+                majorPath.move(to: CGPoint(x: 0, y: py))
+                majorPath.addLine(to: CGPoint(x: size.width, y: py))
+            } else {
+                minorPath.move(to: CGPoint(x: 0, y: py))
+                minorPath.addLine(to: CGPoint(x: size.width, y: py))
+            }
+            y += scaled
+            i += 1
+        }
+        ctx.stroke(minorPath, with: .color(Color(nsColor: minor)), lineWidth: 0.5)
+        ctx.stroke(majorPath, with: .color(Color(nsColor: major)), lineWidth: 1)
+    }
+
+    /// 图形 / 连线 / 文本（不含选中框与手柄）
+    static func content(_ doc: FCDocument, theme: FlowchartTheme, transform: FCViewTransform,
+                        ctx: inout GraphicsContext) {
+        let index = doc.nodesByID()
+        for g in doc.groups { group(g, theme: theme, transform: transform, ctx: &ctx) }
+        for e in doc.edges { edge(e, nodes: index, theme: theme, transform: transform, ctx: &ctx) }
+        for n in doc.nodes { node(n, theme: theme, transform: transform, ctx: &ctx) }
+        for t in doc.texts { textItem(t, theme: theme, transform: transform, ctx: &ctx) }
+    }
+
+    static func node(_ n: FCNode, theme: FlowchartTheme, transform: FCViewTransform,
+                     ctx: inout GraphicsContext) {
+        let rect = transform.r(n.rect)
+        let path = FCShape.path(kind: n.kind, rect: rect, corner: transform.len(n.style.corner))
+        let fill = NSColor.fcHex(n.style.fill) ?? theme.defaultFill()
+        let stroke = NSColor.fcHex(n.style.stroke) ?? theme.defaultStroke()
+        let lineWidth = max(0.5, transform.len(n.style.strokeWidth))
+        let dash: [CGFloat] = n.style.dashed ? [max(2, lineWidth * 4), max(2, lineWidth * 3)] : []
+
+        if n.style.shadow {
+            ctx.drawLayer { layer in
+                layer.addFilter(.shadow(color: Color.black.opacity(0.18), radius: transform.len(5),
+                                        x: 0, y: transform.len(2)))
+                layer.fill(path, with: .color(Color(nsColor: fill)))
+            }
+        } else {
+            ctx.fill(path, with: .color(Color(nsColor: fill)))
+        }
+        ctx.stroke(path, with: .color(Color(nsColor: stroke)),
+                   style: StrokeStyle(lineWidth: lineWidth, dash: dash))
+        if let detail = FCShape.detail(kind: n.kind, rect: rect) {
+            ctx.stroke(detail, with: .color(Color(nsColor: stroke)), lineWidth: lineWidth)
+        }
+        textBlock(n.text, in: rect, style: n.style, theme: theme,
+                  transform: transform, ctx: &ctx,
+                  verticalInset: n.kind == .cylinder ? transform.len(10) : transform.len(6))
+    }
+
+    static func textItem(_ t: FCTextItem, theme: FlowchartTheme, transform: FCViewTransform,
+                         ctx: inout GraphicsContext) {
+        let rect = transform.r(t.rect)
+        textBlock(t.text, in: rect, style: t.style, theme: theme, transform: transform, ctx: &ctx)
+    }
+
+    static func group(_ g: FCGroup, theme: FlowchartTheme, transform: FCViewTransform,
+                      ctx: inout GraphicsContext) {
+        let rect = transform.r(g.rect)
+        let path = Path(roundedRect: rect, cornerRadius: transform.len(max(4, g.style.corner)))
+        let stroke = NSColor.fcHex(g.style.stroke) ?? theme.secondary
+        let fill = NSColor.fcHex(g.style.fill)
+        if let fill {
+            ctx.fill(path, with: .color(Color(nsColor: fill)))
+        }
+        let lineWidth = max(0.5, transform.len(g.style.strokeWidth))
+        let dash: [CGFloat] = g.style.dashed ? [max(3, lineWidth * 4), max(3, lineWidth * 3)] : []
+        ctx.stroke(path, with: .color(Color(nsColor: stroke)),
+                   style: StrokeStyle(lineWidth: lineWidth, dash: dash))
+        guard !g.title.isEmpty else { return }
+        let font = theme.nsFont(size: g.style.fontSize, bold: g.style.bold || true, display: true)
+        let lines = FCTextLayout.lines(g.title, width: max(20, rect.width - transform.len(16)), font: font)
+        let lh = FCTextLayout.lineHeight(font)
+        let color = NSColor.fcHex(g.style.text) ?? theme.text
+        for (i, line) in lines.enumerated() {
+            ctx.draw(Text(line).font(theme.font(size: g.style.fontSize, bold: true, display: true))
+                        .foregroundStyle(Color(nsColor: color)),
+                     at: CGPoint(x: rect.minX + transform.len(8),
+                                 y: rect.minY + transform.len(6) + CGFloat(i) * lh + lh / 2),
+                     anchor: .leading)
+        }
+    }
+
+    static func edge(_ e: FCEdge, nodes: [String: FCNode], theme: FlowchartTheme,
+                     transform: FCViewTransform, ctx: inout GraphicsContext) {
+        guard let docPath = FCEdgePath(edge: e, nodes: nodes) else { return }
+        let stroke = NSColor.fcHex(e.style.stroke) ?? theme.secondary
+        let lineWidth = max(0.5, transform.len(e.style.strokeWidth))
+        let dash: [CGFloat] = e.style.dashed ? [max(2, lineWidth * 4), max(2, lineWidth * 3)] : []
+        var path = Path()
+        path.move(to: transform.p(docPath.start))
+        for seg in docPath.segments {
+            switch seg {
+            case .line(let p): path.addLine(to: transform.p(p))
+            case .cubic(let c0, let c1, let p):
+                path.addCurve(to: transform.p(p), control1: transform.p(c0), control2: transform.p(c1))
+            }
+        }
+        ctx.stroke(path, with: .color(Color(nsColor: stroke)),
+                   style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, dash: dash))
+
+        let arrowSize = max(7, lineWidth * 4.2)
+        if e.arrow == .end || e.arrow == .both {
+            let tip = transform.p(docPath.polyline.last ?? docPath.start)
+            ctx.fill(FCShape.arrow(tip: tip, direction: docPath.endDirection, size: arrowSize),
+                     with: .color(Color(nsColor: stroke)))
+        }
+        if e.arrow == .both {
+            let tip = transform.p(docPath.start)
+            ctx.fill(FCShape.arrow(tip: tip, direction: docPath.startDirection, size: arrowSize),
+                     with: .color(Color(nsColor: stroke)))
+        }
+        guard !e.label.isEmpty else { return }
+        let font = theme.nsFont(size: max(9, e.style.fontSize - 1), bold: e.style.bold)
+        let lines = FCTextLayout.lines(e.label, width: transform.len(160), font: font)
+        let lh = FCTextLayout.lineHeight(font)
+        let widest = lines.map { FCTextLayout.measure($0, font: font) }.max() ?? 10
+        let mid = transform.p(docPath.midpoint)
+        let boxW = widest + transform.len(10)
+        let boxH = CGFloat(lines.count) * lh + transform.len(4)
+        let box = CGRect(x: mid.x - boxW / 2, y: mid.y - boxH / 2, width: boxW, height: boxH)
+        ctx.fill(Path(roundedRect: box, cornerRadius: transform.len(4)),
+                 with: .color(Color(nsColor: theme.surface)))
+        let color = NSColor.fcHex(e.style.text) ?? theme.text
+        for (i, line) in lines.enumerated() {
+            ctx.draw(Text(line).font(theme.font(size: max(9, e.style.fontSize - 1), bold: e.style.bold))
+                        .foregroundStyle(Color(nsColor: color)),
+                     at: CGPoint(x: box.midX,
+                                 y: box.minY + transform.len(2) + CGFloat(i) * lh + lh / 2),
+                     anchor: .center)
+        }
+    }
+
+    /// 图形内文字（自动换行 + 垂直居中 + 对齐）
+    static func textBlock(_ text: String, in rect: CGRect, style: FCStyle, theme: FlowchartTheme,
+                          transform: FCViewTransform, ctx: inout GraphicsContext,
+                          verticalInset: CGFloat = 6) {
+        guard !text.isEmpty else { return }
+        let size = max(8, transform.len(style.fontSize))
+        let font = theme.nsFont(size: size, bold: style.bold)
+        let lines = FCTextLayout.lines(text, width: max(10, rect.width - transform.len(16)), font: font)
+        let lh = FCTextLayout.lineHeight(font)
+        let total = CGFloat(lines.count) * lh
+        let top = rect.midY - total / 2
+        let color = NSColor.fcHex(style.text) ?? theme.text
+        let anchor: UnitPoint = style.align == .leading ? .leading : (style.align == .trailing ? .trailing : .center)
+        let x: CGFloat = style.align == .leading ? rect.minX + transform.len(8)
+            : (style.align == .trailing ? rect.maxX - transform.len(8) : rect.midX)
+        for (i, line) in lines.enumerated() {
+            ctx.draw(Text(line).font(theme.font(size: size, bold: style.bold))
+                        .foregroundStyle(Color(nsColor: color)),
+                     at: CGPoint(x: x, y: top + CGFloat(i) * lh + lh / 2),
+                     anchor: anchor)
+        }
+    }
+}
+
+// MARK: - 导出用的静态画布（无网格 / 无选中 / 可选背景）
+
+struct FlowchartExportCanvas: View {
+    let doc: FCDocument
+    let theme: FlowchartTheme
+    let background: NSColor?
+    let padding: CGFloat
+
+    var body: some View {
+        let bounds = doc.contentBounds.insetBy(dx: -padding, dy: -padding)
+        let transform = FCViewTransform(zoom: 1,
+                                        offset: CGSize(width: -bounds.minX, height: -bounds.minY))
+        ZStack(alignment: .topLeading) {
+            if let background {
+                Color(nsColor: background)
+            }
+            Canvas { ctx, _ in
+                FCRenderer.content(doc, theme: theme, transform: transform, ctx: &ctx)
+            }
+            .frame(width: bounds.width, height: bounds.height)
+        }
+        .frame(width: max(1, bounds.width), height: max(1, bounds.height), alignment: .topLeading)
+    }
+}
+
+// MARK: - 手柄
+
+enum FCHandle: String, CaseIterable {
+    case tl, t, tr, r, br, b, bl, l
+
+    func point(in rect: CGRect) -> CGPoint {
+        switch self {
+        case .tl: return CGPoint(x: rect.minX, y: rect.minY)
+        case .t: return CGPoint(x: rect.midX, y: rect.minY)
+        case .tr: return CGPoint(x: rect.maxX, y: rect.minY)
+        case .r: return CGPoint(x: rect.maxX, y: rect.midY)
+        case .br: return CGPoint(x: rect.maxX, y: rect.maxY)
+        case .b: return CGPoint(x: rect.midX, y: rect.maxY)
+        case .bl: return CGPoint(x: rect.minX, y: rect.maxY)
+        case .l: return CGPoint(x: rect.minX, y: rect.midY)
+        }
+    }
+
+    /// 拖动后新的矩形（保持最小尺寸 24）
+    func apply(_ rect: CGRect, dx: CGFloat, dy: CGFloat) -> CGRect {
+        var minX = rect.minX, maxX = rect.maxX, minY = rect.minY, maxY = rect.maxY
+        switch self {
+        case .tl, .l, .bl: minX += dx
+        case .tr, .r, .br: maxX += dx
+        default: break
+        }
+        switch self {
+        case .tl, .t, .tr: minY += dy
+        case .bl, .b, .br: maxY += dy
+        default: break
+        }
+        let minSize: CGFloat = 24
+        if maxX - minX < minSize {
+            switch self {
+            case .tl, .l, .bl: minX = maxX - minSize
+            default: maxX = minX + minSize
+            }
+        }
+        if maxY - minY < minSize {
+            switch self {
+            case .tl, .t, .tr: minY = maxY - minSize
+            default: maxY = minY + minSize
+            }
+        }
+        return CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
+}
+
+// MARK: - 画布（交互）
+
+struct FlowchartCanvas: View {
+    @ObservedObject var editor: FlowchartEditor
+    let theme: FlowchartTheme
+    var onRequestFit: () -> Void = {}
+
+    private enum Drag {
+        case none
+        case pan(startOffset: CGSize, start: CGPoint)
+        case move(start: CGPoint, origins: [String: CGRect], ids: Set<String>)
+        case resize(id: String, handle: FCHandle, original: CGRect)
+        case create(id: String, start: CGPoint)
+        case edge(from: String, anchor: FCAnchor)
+        case marquee(start: CGPoint)
+    }
+
+    @State private var drag: Drag = .none
+    @State private var marquee: CGRect?
+    @State private var hoverAnchor: (node: String, anchor: FCAnchor)?
+    @State private var guideX: CGFloat?
+    @State private var guideY: CGFloat?
+    /// 画布在窗口中的位置：由 NSView 自己记录，供滚轮命中判断读取。
+    /// 注意：不能在 NSView.layout() 里回写 SwiftUI 状态 —— AppKit 会在布局期抛异常（实测崩溃）。
+    @State private var scrollTarget = FCScrollTargetBox()
+    @State private var scrollMonitor: Any?
+    @State private var magnifyMonitor: Any?
+    @FocusState private var textFieldFocused: Bool
+    /// 自判双击用（DragGesture(0) 吞掉了 SwiftUI 的双击手势）
+    @State private var lastClickAt: Date = .distantPast
+
+    private var transform: FCViewTransform {
+        FCViewTransform(zoom: editor.zoom, offset: editor.offset)
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .topLeading) {
+                Canvas { ctx, size in
+                    if editor.doc.showGrid { FCRenderer.grid(&ctx, size: size, transform: transform, theme: theme) }
+                    FCRenderer.content(editor.doc, theme: theme, transform: transform, ctx: &ctx)
+                    drawOverlays(&ctx)
+                }
+                .background(FCScrollTargetReporter(box: scrollTarget))
+                editingOverlay
+            }
+            .contentShape(Rectangle())
+            .gesture(dragGesture)
+            .onTapGesture(count: 2) { location in
+                beginTextEditing(at: transform.doc(location))
+            }
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let p): updateHover(transform.doc(p))
+                case .ended: hoverAnchor = nil
+                }
+            }
+            .onAppear {
+                updateCanvasSize(geo.size)
+                installScrollMonitors()
+            }
+            .onDisappear { removeScrollMonitors() }
+            .onChange(of: geo.size) { _, size in updateCanvasSize(size) }
+        }
+        .background(Color(nsColor: theme.background))
+    }
+
+    /// 画布尺寸回填（异步 + 去重：布局期直接写状态会触发 AppKit 异常）
+    private func updateCanvasSize(_ size: CGSize) {
+        guard size.width > 1, size.height > 1, editor.canvasSize != size else { return }
+        DispatchQueue.main.async {
+            guard editor.canvasSize != size else { return }
+            editor.canvasSize = size
+        }
+    }
+
+    // MARK: 叠加层（选中框 / 手柄 / 框选 / 连线预览 / 对齐线）
+
+    private func drawOverlays(_ ctx: inout GraphicsContext) {
+        let accent = Color(nsColor: theme.accent)
+        for id in editor.selection {
+            guard let rect = editor.doc.rect(of: id) else { continue }
+            let r = transform.r(rect).insetBy(dx: -2, dy: -2)
+            var p = Path()
+            p.addRect(r)
+            ctx.stroke(p, with: .color(accent), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+        }
+        if editor.selection.count == 1, let id = editor.selection.first,
+           let rect = editor.doc.rect(of: id), !editor.doc.edges.contains(where: { $0.id == id }) {
+            let r = transform.r(rect)
+            for h in FCHandle.allCases {
+                let c = h.point(in: r)
+                let box = CGRect(x: c.x - 4, y: c.y - 4, width: 8, height: 8)
+                ctx.fill(Path(roundedRect: box, cornerRadius: 1.5),
+                         with: .color(Color(nsColor: theme.background)))
+                ctx.stroke(Path(roundedRect: box, cornerRadius: 1.5), with: .color(accent), lineWidth: 1.5)
+            }
+        }
+        if let hover = hoverAnchor, let node = editor.doc.nodes.first(where: { $0.id == hover.node }) {
+            let p = transform.p(FCEdgePath.point(hover.anchor, in: node.rect))
+            ctx.fill(Path(ellipseIn: CGRect(x: p.x - 4, y: p.y - 4, width: 8, height: 8)),
+                     with: .color(accent))
+        }
+        if let pending = editor.pendingEdge,
+           let node = editor.doc.nodes.first(where: { $0.id == pending.from }) {
+            let a = transform.p(FCEdgePath.point(pending.anchor, in: node.rect))
+            let b = transform.p(pending.point)
+            var p = Path()
+            p.move(to: a)
+            p.addLine(to: b)
+            ctx.stroke(p, with: .color(accent), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+            ctx.fill(FCShape.arrow(tip: b, direction: CGVector(dx: b.x - a.x, dy: b.y - a.y),
+                                   size: 9),
+                     with: .color(accent))
+        }
+        if let m = marquee {
+            let r = transform.r(m)
+            ctx.fill(Path(r), with: .color(Color(nsColor: theme.accent).opacity(0.12)))
+            ctx.stroke(Path(r), with: .color(accent), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+        }
+        if let x = guideX {
+            var p = Path()
+            p.move(to: CGPoint(x: transform.p(CGPoint(x: x, y: 0)).x, y: 0))
+            p.addLine(to: CGPoint(x: transform.p(CGPoint(x: x, y: 0)).x, y: 100000))
+            ctx.stroke(p, with: .color(Color(nsColor: NSColor.systemRed).opacity(0.6)), lineWidth: 0.8)
+        }
+        if let y = guideY {
+            var p = Path()
+            p.move(to: CGPoint(x: 0, y: transform.p(CGPoint(x: 0, y: y)).y))
+            p.addLine(to: CGPoint(x: 100000, y: transform.p(CGPoint(x: 0, y: y)).y))
+            ctx.stroke(p, with: .color(Color(nsColor: NSColor.systemRed).opacity(0.6)), lineWidth: 0.8)
+        }
+    }
+
+    @ViewBuilder
+    private var editingOverlay: some View {
+        if let id = editor.editingID, let rect = editor.doc.rect(of: id) {
+            let r = transform.r(rect)
+            FCTextEditor(text: Binding(
+                get: { editor.doc.text(of: id) },
+                set: { value in editor.preview { $0.setText(id, value) } }
+            ), theme: theme, align: editor.doc.style(of: id)?.align ?? .center, focused: $textFieldFocused)
+            .frame(width: max(90, r.width), height: max(30, r.height))
+            .position(x: r.midX, y: r.midY)
+            .onAppear {
+                // 延后一拍再聚焦：overlay 尚未挂进窗口层级时设置 FocusState 会被系统丢弃
+                // （表现为编辑框出现但不接收键盘输入，得再点一下才能打字）
+                DispatchQueue.main.async { textFieldFocused = true }
+            }
+            .onExitCommand { finishTextEditing() }
+            .onChange(of: textFieldFocused) { _, focused in
+                if !focused { finishTextEditing() }
+            }
+        }
+    }
+
+    // MARK: 手势
+
+    private var dragGesture: some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+            .onChanged { value in dragChanged(value) }
+            .onEnded { value in dragEnded(value) }
+    }
+
+    private func dragChanged(_ value: DragGesture.Value) {
+        let start = transform.doc(value.startLocation)
+        let current = transform.doc(value.location)
+        switch drag {
+        case .none:
+            beginDrag(at: start, current: current)
+
+        case .pan(let startOffset, let startPoint):
+            editor.offset = CGSize(width: startOffset.width + (value.location.x - startPoint.x),
+                                   height: startOffset.height + (value.location.y - startPoint.y))
+
+        case .move(let s, let origins, let ids):
+            var dx = current.x - s.x
+            var dy = current.y - s.y
+            if editor.doc.snap {
+                let snapped = snapTranslation(ids: ids, origins: origins, dx: dx, dy: dy)
+                dx = snapped.dx
+                dy = snapped.dy
+            }
+            editor.preview { doc in
+                for (id, origin) in origins {
+                    if let i = doc.nodes.firstIndex(where: { $0.id == id }) {
+                        doc.nodes[i].x = origin.minX + dx
+                        doc.nodes[i].y = origin.minY + dy
+                    } else if let i = doc.texts.firstIndex(where: { $0.id == id }) {
+                        doc.texts[i].x = origin.minX + dx
+                        doc.texts[i].y = origin.minY + dy
+                    } else if let i = doc.groups.firstIndex(where: { $0.id == id }) {
+                        doc.groups[i].x = origin.minX + dx
+                        doc.groups[i].y = origin.minY + dy
+                    }
+                }
+            }
+
+        case .resize(let id, let handle, let original):
+            var dx = current.x - start.x
+            var dy = current.y - start.y
+            if editor.doc.snap {
+                dx = (dx / 5).rounded() * 5
+                dy = (dy / 5).rounded() * 5
+            }
+            let rect = handle.apply(original, dx: dx, dy: dy)
+            editor.preview { doc in doc.setRect(id, rect) }
+
+        case .create(let id, let start):
+            let rect = CGRect(x: min(start.x, current.x), y: min(start.y, current.y),
+                              width: abs(current.x - start.x), height: abs(current.y - start.y))
+            editor.preview { doc in
+                doc.setRect(id, rect.width < 20 || rect.height < 20
+                                ? CGRect(origin: start, size: doc.rect(of: id)?.size ?? CGSize(width: 140, height: 64))
+                                : rect)
+            }
+
+        case .edge(let from, let anchor):
+            editor.pendingEdge = (from: from, anchor: anchor, point: current)
+
+        case .marquee(let start):
+            marquee = CGRect(x: min(start.x, current.x), y: min(start.y, current.y),
+                             width: abs(current.x - start.x), height: abs(current.y - start.y))
+        }
+    }
+
+    private func dragEnded(_ value: DragGesture.Value) {
+        let current = transform.doc(value.location)
+
+        // 双击节点 → 进入文字编辑。
+        // 画布的 DragGesture(minimumDistance: 0) 会在第一次 mousedown 就参与手势竞争，
+        // SwiftUI 的 .onTapGesture(count: 2) 永远收不到事件 —— 这里自判「无位移的两次点击」。
+        let screenMoved = hypot(value.location.x - value.startLocation.x,
+                                value.location.y - value.startLocation.y)
+        if screenMoved < 3, case .move = drag {
+            let p = transform.doc(value.location)
+            if editor.doc.hit(p, tolerance: 7 / max(editor.zoom, 0.2)) != nil {
+                let now = Date()
+                if now.timeIntervalSince(lastClickAt) < 0.45 {
+                    lastClickAt = .distantPast
+                    editor.endInteraction()
+                    drag = .none
+                    guideX = nil
+                    guideY = nil
+                    beginTextEditing(at: p)
+                    return
+                }
+                lastClickAt = now
+            }
+        }
+
+        switch drag {
+        case .none, .pan:
+            break
+        case .move, .resize, .create:
+            // 画完一个图形自动回「选择」工具（Figma 惯例）：否则继续点击画布会不断叠新图形
+            if case .create = drag { editor.tool = .select }
+            editor.endInteraction()
+        case .edge(let from, let anchor):
+            defer { editor.pendingEdge = nil }
+            if let target = editor.doc.node(at: current) ?? editor.doc.node(at: transform.doc(value.startLocation)) {
+                if target.id != from {
+                    let edge = FCEdge(fromNode: from, toNode: target.id,
+                                      fromAnchor: anchor, toAnchor: .auto)
+                    editor.commit { $0.edges.append(edge) }
+                    editor.selection = [edge.id]
+                }
+            }
+        case .marquee(let start):
+            if let m = marquee {
+                editor.selection = editor.doc.ids(in: m)
+            }
+            marquee = nil
+            if abs(current.x - start.x) < 3, abs(current.y - start.y) < 3 {
+                editor.selection = []
+            }
+        }
+        drag = .none
+        guideX = nil
+        guideY = nil
+        _ = value
+    }
+
+    private func beginDrag(at start: CGPoint, current: CGPoint) {
+        let mods = NSEvent.modifierFlags
+        let panRequested = mods.contains(.option)
+
+        if panRequested {
+            drag = .pan(startOffset: editor.offset, start: start)
+            return
+        }
+
+        // 1) 已选中单个元素 → 手柄缩放
+        if editor.selection.count == 1, let id = editor.selection.first,
+           let rect = editor.doc.rect(of: id), !editor.doc.edges.contains(where: { $0.id == id }) {
+            for h in FCHandle.allCases {
+                let c = h.point(in: rect)
+                if hypot(c.x - start.x, c.y - start.y) <= 7 / max(editor.zoom, 0.2) {
+                    editor.beginInteraction()
+                    drag = .resize(id: id, handle: h, original: rect)
+                    return
+                }
+            }
+        }
+
+        // 2) 图形锚点 → 拉连线
+        if let anchorHit = anchorHit(at: start) {
+            drag = .edge(from: anchorHit.node, anchor: anchorHit.anchor)
+            editor.pendingEdge = (from: anchorHit.node, anchor: anchorHit.anchor, point: start)
+            return
+        }
+
+        // 3) 工具：新建元素
+        if let kind = editor.tool.shape {
+            let node = FCNode(kind: kind, origin: start)
+            editor.beginInteraction()
+            editor.preview { $0.nodes.append(node) }
+            editor.selection = [node.id]
+            drag = .create(id: node.id, start: start)
+            return
+        }
+        if editor.tool == .text {
+            let item = FCTextItem(origin: start)
+            editor.commit { $0.texts.append(item) }
+            editor.selection = [item.id]
+            editor.editingID = item.id
+            editor.beginInteraction()
+            drag = .none
+            return
+        }
+        if editor.tool == .group {
+            let group = FCGroup(origin: start)
+            editor.beginInteraction()
+            editor.preview { $0.groups.insert(group, at: 0) }
+            editor.selection = [group.id]
+            drag = .create(id: group.id, start: start)
+            return
+        }
+        if editor.tool == .edge {
+            if let node = editor.doc.node(at: start) {
+                let anchor = nearestAnchor(to: start, node: node)
+                drag = .edge(from: node.id, anchor: anchor)
+                editor.pendingEdge = (from: node.id, anchor: anchor, point: start)
+            } else {
+                drag = .marquee(start: start)
+            }
+            return
+        }
+
+        // 4) 选择工具：点中元素 → 选择 / 移动（群组连带子元素）
+        if let id = editor.doc.hit(start, tolerance: 7 / max(editor.zoom, 0.2)) {
+            let shift = mods.contains(.shift)
+            if shift {
+                if editor.selection.contains(id) { editor.selection.remove(id) } else { editor.selection.insert(id) }
+            } else if !editor.selection.contains(id) {
+                editor.selection = [id]
+            }
+            let ids = expandGroups(editor.selection)
+            var origins: [String: CGRect] = [:]
+            for i in ids {
+                if let r = editor.doc.rect(of: i), !editor.doc.edges.contains(where: { $0.id == i }) {
+                    origins[i] = r
+                }
+            }
+            if !origins.isEmpty {
+                editor.beginInteraction()
+                drag = .move(start: start, origins: origins, ids: Set(origins.keys))
+            }
+            return
+        }
+
+        // 5) 空白 → 框选
+        drag = .marquee(start: start)
+    }
+
+    /// 分组被选中时，框内的图形 / 文本一起移动
+    private func expandGroups(_ ids: Set<String>) -> Set<String> {
+        var out = ids
+        for g in editor.doc.groups where ids.contains(g.id) {
+            let box = g.rect
+            for n in editor.doc.nodes where box.contains(n.center) { out.insert(n.id) }
+            for t in editor.doc.texts where box.contains(CGPoint(x: t.rect.midX, y: t.rect.midY)) {
+                out.insert(t.id)
+            }
+        }
+        return out
+    }
+
+    /// 对齐吸附（同时给出红色参考线）
+    private func snapTranslation(ids: Set<String>, origins: [String: CGRect],
+                                 dx: CGFloat, dy: CGFloat) -> (dx: CGFloat, dy: CGFloat) {
+        let threshold: CGFloat = 6
+        var box: CGRect?
+        for (_, r) in origins { box = box.map { $0.union(r) } ?? r }
+        guard let moving = box else { return (dx, dy) }
+        let moved = moving.offsetBy(dx: dx, dy: dy)
+        var bestX: (delta: CGFloat, guide: CGFloat)?
+        var bestY: (delta: CGFloat, guide: CGFloat)?
+        let others = editor.doc.nodes.filter { !ids.contains($0.id) }.map(\.rect)
+            + editor.doc.texts.filter { !ids.contains($0.id) }.map(\.rect)
+            + editor.doc.groups.filter { !ids.contains($0.id) }.map(\.rect)
+        for r in others {
+            for (a, b) in [(moved.minX, r.minX), (moved.midX, r.midX), (moved.maxX, r.maxX)] {
+                let d = b - a
+                if abs(d) <= threshold, bestX == nil || abs(d) < abs(bestX!.delta) {
+                    bestX = (d, b)
+                }
+            }
+            for (a, b) in [(moved.minY, r.minY), (moved.midY, r.midY), (moved.maxY, r.maxY)] {
+                let d = b - a
+                if abs(d) <= threshold, bestY == nil || abs(d) < abs(bestY!.delta) {
+                    bestY = (d, b)
+                }
+            }
+        }
+        guideX = bestX?.guide
+        guideY = bestY?.guide
+        var outX = dx + (bestX?.delta ?? 0)
+        var outY = dy + (bestY?.delta ?? 0)
+        // 没有对齐参考时退化为 5pt 网格吸附
+        if bestX == nil { outX = (outX / 5).rounded() * 5 }
+        if bestY == nil { outY = (outY / 5).rounded() * 5 }
+        return (outX, outY)
+    }
+
+    private func nearestAnchor(to p: CGPoint, node: FCNode) -> FCAnchor {
+        let candidates: [FCAnchor] = [.top, .right, .bottom, .left]
+        var best = FCAnchor.auto
+        var bestDist = CGFloat.greatestFiniteMagnitude
+        for a in candidates {
+            let q = FCEdgePath.point(a, in: node.rect)
+            let d = hypot(q.x - p.x, q.y - p.y)
+            if d < bestDist { bestDist = d; best = a }
+        }
+        return best
+    }
+
+    /// 光标是否贴近某个图形的锚点（用于显示锚点 + 直接拉线）
+    private func anchorHit(at p: CGPoint) -> (node: String, anchor: FCAnchor)? {
+        let tolerance = 12 / max(editor.zoom, 0.2)
+        for node in editor.doc.nodes.reversed() {
+            for a in [FCAnchor.top, .right, .bottom, .left] {
+                let q = FCEdgePath.point(a, in: node.rect)
+                if hypot(q.x - p.x, q.y - p.y) <= tolerance {
+                    return (node.id, a)
+                }
+            }
+        }
+        return nil
+    }
+
+    private func updateHover(_ p: CGPoint) {
+        if let hit = anchorHit(at: p) {
+            hoverAnchor = hit
+        } else if let node = editor.doc.node(at: p) {
+            hoverAnchor = (node.id, .auto)
+        } else {
+            hoverAnchor = nil
+        }
+    }
+
+    private func beginTextEditing(at p: CGPoint) {
+        guard let id = editor.doc.hit(p, tolerance: 7 / max(editor.zoom, 0.2)) else { return }
+        if editor.doc.edges.contains(where: { $0.id == id }) {
+            guard let edge = editor.doc.edges.first(where: { $0.id == id }), edge.label.isEmpty else {
+                editor.selection = [id]
+                editor.editingID = id
+                editor.beginInteraction()
+                return
+            }
+        }
+        editor.selection = [id]
+        if editor.doc.nodes.contains(where: { $0.id == id }) {
+            editor.editingID = id
+            editor.beginInteraction()
+            return
+        }
+        editor.editingID = id
+        editor.beginInteraction()
+    }
+
+    private func finishTextEditing() {
+        editor.editingID = nil
+        editor.endInteraction()
+    }
+
+    // MARK: 滚轮 / 触控板（⌘+滚轮缩放 · 双指滚动平移 · 捏合缩放）
+
+    private func installScrollMonitors() {
+        guard scrollMonitor == nil else { return }
+        let target = scrollTarget
+        scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel]) { event in
+            guard let win = event.window, win.isKeyWindow,
+                  let frame = target.view?.frameInWindow, frame.width > 1,
+                  frame.contains(event.locationInWindow) else {
+                return event
+            }
+            let local = CGPoint(x: event.locationInWindow.x - frame.minX,
+                                y: frame.maxY - event.locationInWindow.y)
+            if event.modifierFlags.contains(.command) {
+                let factor = 1 + event.scrollingDeltaY * 0.006
+                zoom(around: local, factor: factor)
+            } else {
+                editor.offset.width += event.scrollingDeltaX
+                editor.offset.height += event.scrollingDeltaY
+            }
+            return nil
+        }
+        magnifyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.magnify]) { event in
+            guard let win = event.window, win.isKeyWindow,
+                  let frame = target.view?.frameInWindow, frame.width > 1,
+                  frame.contains(event.locationInWindow) else {
+                return event
+            }
+            let local = CGPoint(x: event.locationInWindow.x - frame.minX,
+                                y: frame.maxY - event.locationInWindow.y)
+            zoom(around: local, factor: 1 + event.magnification)
+            return nil
+        }
+    }
+
+    private func removeScrollMonitors() {
+        if let m = scrollMonitor { NSEvent.removeMonitor(m) }
+        if let m = magnifyMonitor { NSEvent.removeMonitor(m) }
+        scrollMonitor = nil
+        magnifyMonitor = nil
+    }
+
+    private func zoom(around local: CGPoint, factor: CGFloat) {
+        let old = editor.zoom
+        let next = min(max(old * factor, 0.2), 4)
+        guard abs(next - old) > 0.0001 else { return }
+        let docPoint = CGPoint(x: (local.x - editor.offset.width) / old,
+                               y: (local.y - editor.offset.height) / old)
+        editor.zoom = next
+        editor.offset = CGSize(width: local.x - docPoint.x * next,
+                               height: local.y - docPoint.y * next)
+    }
+}
+
+// MARK: - 内联文字编辑
+
+private struct FCTextEditor: View {
+    @Binding var text: String
+    let theme: FlowchartTheme
+    let align: FCTextAlign
+    var focused: FocusState<Bool>.Binding
+
+    var body: some View {
+        TextEditor(text: $text)
+            .font(theme.font(size: 13))
+            .multilineTextAlignment(align.alignment)
+            .scrollContentBackground(.hidden)
+            .background(Color(nsColor: theme.surface))
+            .overlay(RoundedRectangle(cornerRadius: 6)
+                .stroke(Color(nsColor: theme.accent), lineWidth: 1.5))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .focused(focused)
+            .shadow(color: Color.black.opacity(0.18), radius: 6, y: 2)
+    }
+}
+
+// MARK: - 画布在窗口中的位置（滚轮命中判断用）
+//
+// 这一层只负责「记住自己在窗口里的位置」，**不回写任何 SwiftUI 状态**：
+// 在 NSView.layout() 里改 @State/@Published 会让 AppKit 在布局过程中
+// 收到约束更新请求，然后抛异常直接崩（`_postWindowNeedsUpdateConstraints`）。
+
+final class FCScrollTargetBox {
+    weak var view: FCScrollTargetView?
+}
+
+final class FCScrollTargetView: NSView {
+    private(set) var frameInWindow: CGRect = .zero
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        refresh()
+    }
+
+    override func layout() {
+        super.layout()
+        refresh()
+    }
+
+    func refresh() {
+        guard window != nil else { return }
+        frameInWindow = convert(bounds, to: nil)
+    }
+}
+
+private struct FCScrollTargetReporter: NSViewRepresentable {
+    let box: FCScrollTargetBox
+
+    func makeNSView(context: Context) -> FCScrollTargetView {
+        let view = FCScrollTargetView()
+        box.view = view
+        return view
+    }
+
+    func updateNSView(_ nsView: FCScrollTargetView, context: Context) {
+        box.view = nsView
+        nsView.refresh()
+    }
+}

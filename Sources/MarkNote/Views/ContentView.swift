@@ -40,6 +40,7 @@ struct ContentView: View {
     /// 主区域视图（视图插件启用后可选「卡片墙」）
     @AppStorage("mainViewKind") private var mainViewKind = "editor"
     @State private var cardsView: PluginView?
+    @State private var flowchartView: PluginView?
     @State private var easterEggSymbols: [String] = []
     @State private var easterEggMessage: String?
     @State private var easterEggDismiss: DispatchWorkItem?
@@ -155,6 +156,11 @@ struct ContentView: View {
                     }
                     .environment(store)
                     .frame(minWidth: 560)
+                } else if mainViewKind == "flowchart", let flow = flowchartView {
+                    // 流程图视图插件（`flowchart`）：占主区域的大画布；关掉即回编辑器
+                    FlowchartView(spec: flow)
+                        .environment(store)
+                        .frame(minWidth: 560)
                 } else {
                     EditorView(showVersions: $showVersions, readerFocus: readerFocus)
                         .frame(minWidth: 560)
@@ -210,7 +216,10 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
             syncPluginState()
         }
-        .onAppear { cardsView = PluginManager.shared.mainAreaView(type: .noteCards) }
+        .onAppear {
+            cardsView = PluginManager.shared.mainAreaView(type: .noteCards)
+            flowchartView = PluginManager.shared.mainAreaView(type: .flowchart)
+        }
     }
 
     /// 三段拆分之「事件监听 / 浮层 / 生命周期」
@@ -348,6 +357,9 @@ struct ContentView: View {
         cardsView = PluginManager.shared.mainAreaView(type: .noteCards)
         // 只有「原本有卡片墙、现在没了」才回编辑器；启动瞬间插件尚未扫完时不动用户选择
         if cardsView == nil, hadCards { mainViewKind = "editor" }
+        let hadFlow = flowchartView != nil
+        flowchartView = PluginManager.shared.mainAreaView(type: .flowchart)
+        if flowchartView == nil, hadFlow, mainViewKind == "flowchart" { mainViewKind = "editor" }
     }
 
     /// AI 面板数据源接线（独立函数化：内联在 onAppear 闭包里类型检查超时）
