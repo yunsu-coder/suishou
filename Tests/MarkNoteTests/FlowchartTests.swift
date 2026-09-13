@@ -538,20 +538,19 @@ final class FlowchartTests: XCTestCase {
         XCTAssertNil(old.style.accent)
     }
 
-    /// 四个框的语义：开始 / 执行 / 判断 / 结束（开始是胶囊、结束是椭圆，形状必须不一样；
-    /// 新建的框不带默认文字）
+    /// 形状库三个框：开始（大众认同的胶囊）/ 执行 / 判断；新建的框不带默认文字。
+    /// 「结束」不再单独给形状（用开始框写「结束」即可）。
     func testBoxToolsSemantics() {
         XCTAssertEqual(FCTool.start.shape, .capsule)
-        XCTAssertEqual(FCTool.end.shape, .ellipse)
         XCTAssertEqual(FCTool.rect.shape, .rect)
         XCTAssertEqual(FCTool.diamond.shape, .diamond)
         XCTAssertEqual(FCTool.rect.label, "执行")
         XCTAssertEqual(FCTool.diamond.label, "判断")
         XCTAssertEqual(FCTool.start.label, "开始")
-        XCTAssertEqual(FCTool.end.label, "结束")
-        XCTAssertNotEqual(FCTool.start.shape, FCTool.end.shape, "开始和结束不能是同一个形状")
         // 新建图形不带默认文字
         XCTAssertEqual(FCNode(kind: FCTool.start.shape ?? .capsule, origin: .zero).text, "")
+        // 形状库不再有「结束」工具（保留的语义化工具只有 开始）
+        XCTAssertFalse(FCTool.allCases.contains { $0.label == "结束" })
     }
 
     /// 剪切板片段：跨图粘贴要换新 id、重映射连线两端、不粘出悬空边

@@ -175,7 +175,7 @@ private struct FlowchartToolPalette: View {
     let theme: FlowchartTheme
 
     /// 四件套：开始 → 执行 → 判断 → 结束
-    private let boxTools: [FCTool] = [.start, .rect, .diamond, .end]
+    private let boxTools: [FCTool] = [.start, .rect, .diamond]
     /// 常用工具
     private let tools: [FCTool] = [.select, .edge, .text]
     /// 其余形状（折叠，不干扰）

@@ -1598,8 +1598,8 @@ enum FlowchartStore {
 enum FCTool: String, CaseIterable, Identifiable {
     case select
     case rect, roundedRect, ellipse, diamond, parallelogram, cylinder, capsule, note
-    /// 语义化起点 / 终点（都是圆角胶囊，只是默认文字与图标不同）
-    case start, end
+    /// 语义化起点（大众认同的胶囊框）；结束不再单独给形状，用开始框写「结束」即可
+    case start
     case text, group, edge
 
     var id: String { rawValue }
@@ -1608,7 +1608,6 @@ enum FCTool: String, CaseIterable, Identifiable {
         switch self {
         case .select: return _L("选择", "Select")
         case .start: return _L("开始", "Start")
-        case .end: return _L("结束", "End")
         // 流程图语境下这两个就是「执行框」「判断框」（通用矩形在「更多形状」里）
         case .rect: return _L("执行", "Process")
         case .diamond: return _L("判断", "Decision")
@@ -1623,7 +1622,6 @@ enum FCTool: String, CaseIterable, Identifiable {
         switch self {
         case .select: return "cursorarrow"
         case .start: return "play.circle"
-        case .end: return "stop.circle"
         case .text: return "textformat"
         case .group: return "rectangle.dashed"
         case .edge: return "arrow.triangle.branch"
@@ -1633,8 +1631,7 @@ enum FCTool: String, CaseIterable, Identifiable {
 
     var shape: FCShapeKind? {
         switch self {
-        case .start: return .capsule     // 开始：圆角胶囊
-        case .end: return .ellipse       // 结束：椭圆（和开始明显区分）
+        case .start: return .capsule     // 开始：大众认同的圆角胶囊
         default: return FCShapeKind(rawValue: rawValue)
         }
     }

@@ -608,6 +608,7 @@ struct FlowchartCanvas: View {
                 let node = FCNode(kind: shape, origin: p)   // 形状不带默认文字
                 editor.commit { $0.nodes.append(node) }
                 editor.selection = [node.id]
+                editor.tool = .select   // 即用即销：放下就回选择工具，之后单击是选中而不是又建一个
                 return true
             }
             .onContinuousHover { phase in
