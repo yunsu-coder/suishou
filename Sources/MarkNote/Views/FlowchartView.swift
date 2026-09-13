@@ -11,6 +11,7 @@ struct FlowchartView: View {
     let spec: PluginView
 
     @Environment(NotesStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
     @State private var editor: FlowchartEditor?
     @State private var docs: [FCDocRef] = []
     @State private var alertMessage: String?
@@ -27,6 +28,7 @@ struct FlowchartView: View {
                                     root: root,
                                     onOpen: open(_:),
                                     onNew: createNew,
+                                    onClose: { dismiss() },
                                     onRename: renameCurrent,
                                     onDelete: deleteCurrent)
                     .id(editor.url.path)
@@ -187,20 +189,19 @@ private struct FlowchartToolPalette: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                sectionTitle(_L("框", "Boxes"))
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 8),
                                     GridItem(.flexible(), spacing: 8)], spacing: 8) {
                     ForEach(boxTools, id: \.self) { tool in
                         boxCard(tool)
                     }
                 }
-                sectionTitle(_L("工具", "Tools"))
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 8),
                                     GridItem(.flexible(), spacing: 8)], spacing: 8) {
                     ForEach(tools, id: \.self) { tool in
                         card(tool)
                     }
                 }
+                .padding(.top, 2)
                 Button {
                     withAnimation(.easeInOut(duration: 0.16)) { showMore.toggle() }
                 } label: {
@@ -233,12 +234,6 @@ private struct FlowchartToolPalette: View {
             .padding(10)
         }
         .background(Color(nsColor: theme.surface))
-    }
-
-    private func sectionTitle(_ text: String) -> some View {
-        Text(text)
-            .font(theme.font(size: 11, bold: true))
-            .foregroundStyle(Color(nsColor: theme.secondary))
     }
 
     /// 四个主框：卡片画的是**真实形状预览**，不是图标字
@@ -331,6 +326,8 @@ struct FlowchartEditorHost: View {
     let root: URL
     let onOpen: (FCDocRef) -> Void
     let onNew: () -> Void
+    /// 关闭弹窗（右上角 ✕ 按钮 / Esc）
+    let onClose: () -> Void
     let onRename: () -> Void
     let onDelete: () -> Void
 
@@ -426,6 +423,16 @@ struct FlowchartEditorHost: View {
             .buttonStyle(.borderedProminent)
             .tint(Color(nsColor: theme.accent))
             .popover(isPresented: $showExport, arrowEdge: .bottom) { exportPopover }
+            // 明确的关闭入口（以前只能按 Esc，很多人找不到出口）
+            Button {
+                onClose()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 18, height: 18)
+            }
+            .buttonStyle(.bordered)
+            .help(_L("关闭流程图（Esc）", "Close flowchart (Esc)"))
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
@@ -1090,6 +1097,7 @@ private struct FlowchartInspector: View {
                 hint(_L("拉线中：右键落断点 · 双击空白取消", "While drawing: right-click = bend point · double-click blank = cancel"))
                 hint(_L("双击图形 → 写文字", "Double-click a shape to edit text"))
                 hint(_L("⌥ 拖拽 / 双指滚动 → 平移，⌘ 滚轮 → 缩放", "⌥-drag or scroll to pan, ⌘-scroll to zoom"))
+                hint(_L("Esc 或右上角 ✕ 关闭", "Esc or ✕ (top right) closes"))
                 hint(_L("⌘Z 撤销 · ⌘D 复制 · ⌘E 自动编号 · 方向键微调",
                         "⌘Z undo · ⌘D duplicate · ⌘E number · arrows nudge"))
             }

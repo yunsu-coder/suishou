@@ -847,8 +847,8 @@ final class FlowchartTests: XCTestCase {
                                        theme: FlowchartTheme.current,
                                        docs: FlowchartStore.list(root: root),
                                        root: root,
-                                      onOpen: { _ in }, onNew: {},
-                                      onRename: {}, onDelete: {})
+                                       onOpen: { _ in }, onNew: {}, onClose: {},
+                                       onRename: {}, onDelete: {})
             .environment(store)
             .frame(width: 1012, height: 620)
         let renderer = ImageRenderer(content: view)
