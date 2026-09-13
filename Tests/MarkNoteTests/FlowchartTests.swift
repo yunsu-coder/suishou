@@ -361,6 +361,23 @@ final class FlowchartTests: XCTestCase {
         XCTAssertEqual(doc.nodes.last?.id, "b")
     }
 
+    /// 层级操作对文本框 / 分组同样生效（以前只动 nodes，选中文本点「置顶」没反应）
+    func testLayerOrderCoversTextsAndGroups() {
+        var doc = FCDocument()
+        var t1 = FCTextItem(origin: .zero); t1.id = "t1"
+        var t2 = FCTextItem(origin: .zero); t2.id = "t2"
+        var g1 = FCGroup(origin: .zero); g1.id = "g1"
+        var g2 = FCGroup(origin: .zero); g2.id = "g2"
+        doc.texts = [t1, t2]
+        doc.groups = [g1, g2]
+        doc.bringToFront(["t1", "g1"])
+        XCTAssertEqual(doc.texts.map(\.id), ["t2", "t1"])
+        XCTAssertEqual(doc.groups.map(\.id), ["g2", "g1"])
+        doc.sendToBack(["t1", "g1"])
+        XCTAssertEqual(doc.texts.map(\.id), ["t1", "t2"])
+        XCTAssertEqual(doc.groups.map(\.id), ["g1", "g2"])
+    }
+
     // MARK: 文字与颜色
 
     func testTextWrappingKeepsContent() {
@@ -459,6 +476,80 @@ final class FlowchartTests: XCTestCase {
         XCTAssertEqual(onScreen.midY, size.height / 2, accuracy: 1, "内容应垂直居中")
         XCTAssertLessThanOrEqual(onScreen.width, size.width + 0.5, "内容应放进窗口")
         XCTAssertLessThanOrEqual(onScreen.height, size.height + 0.5, "内容应放进窗口")
+    }
+
+    // MARK: 全局样式（一套样式管全图，不再逐元素选填充）
+
+    private func plainTheme(accent: NSColor = .systemTeal) -> FlowchartTheme {
+        FlowchartTheme(background: .white, surface: .white, text: .black, secondary: .gray,
+                       border: .lightGray, accent: accent, palette: [accent],
+                       uiFont: nil, displayFont: nil, motionMs: 0)
+    }
+
+    func testGlobalStylePresetsResolve() {
+        let theme = plainTheme()
+        let soft = FCGlobalStyle().resolved(theme: theme)
+        XCTAssertNotNil(soft.fill, "柔和预设要有淡底")
+        XCTAssertEqual(soft.stroke, theme.accent)
+
+        var outline = FCGlobalStyle(); outline.preset = .outline
+        XCTAssertEqual(outline.resolved(theme: theme).fill, theme.surface, "线框是纸底")
+
+        var flat = FCGlobalStyle(); flat.preset = .flat
+        let flatResolved = flat.resolved(theme: theme)
+        XCTAssertEqual(flatResolved.fill, theme.accent, "实心 = 强调色填充")
+        XCTAssertEqual(flatResolved.text, theme.background, "实心上的文字要反白")
+
+        var plain = FCGlobalStyle(); plain.preset = .plain
+        XCTAssertNil(plain.resolved(theme: theme).fill, "极简不填充")
+    }
+
+    func testGlobalStyleOverridesApplyEverywhere() {
+        let theme = plainTheme()
+        var style = FCGlobalStyle()
+        style.accent = "#123456"
+        style.lineWidth = 3.4
+        style.corner = 18
+        style.fontSize = 17
+        style.dashed = true
+        let rs = style.resolved(theme: theme)
+        XCTAssertEqual(rs.stroke.hexString, "#123456", "自定义强调色应覆盖主题")
+        XCTAssertEqual(rs.lineWidth, 3.4, accuracy: 0.001)
+        XCTAssertEqual(rs.corner, 18, accuracy: 0.001)
+        XCTAssertEqual(rs.fontSize, 17, accuracy: 0.001)
+        XCTAssertTrue(rs.dashed)
+    }
+
+    /// 全局样式写进 JSON 能读回来（老文档没有 style 字段时回落默认值）
+    func testGlobalStyleRoundTripAndLegacyDefault() throws {
+        var doc = FCDocument()
+        doc.style.preset = .flat
+        doc.style.accent = "#ABCDEF"
+        doc.style.dashed = true
+        let enc = JSONEncoder(); enc.dateEncodingStrategy = .iso8601
+        let data = try enc.encode(doc)
+        let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601
+        XCTAssertEqual(try dec.decode(FCDocument.self, from: data).style, doc.style)
+
+        // 老存档：没有 style 字段
+        let legacy = #"{"version":1,"name":"旧图","nodes":[],"edges":[],"texts":[],"groups":[]}"#
+        let old = try dec.decode(FCDocument.self, from: Data(legacy.utf8))
+        XCTAssertEqual(old.style.preset, .soft, "老文档回落柔和预设")
+        XCTAssertNil(old.style.accent)
+    }
+
+    /// 四个框的语义：开始 / 执行 / 判断 / 结束
+    func testBoxToolsSemantics() {
+        XCTAssertEqual(FCTool.start.shape, .capsule)
+        XCTAssertEqual(FCTool.end.shape, .capsule)
+        XCTAssertEqual(FCTool.rect.shape, .rect)
+        XCTAssertEqual(FCTool.diamond.shape, .diamond)
+        XCTAssertEqual(FCTool.start.defaultText, "开始")
+        XCTAssertEqual(FCTool.rect.defaultText, "执行")
+        XCTAssertEqual(FCTool.diamond.defaultText, "判断")
+        XCTAssertEqual(FCTool.end.defaultText, "结束")
+        XCTAssertEqual(FCTool.rect.label, "执行")
+        XCTAssertEqual(FCTool.diamond.label, "判断")
     }
 
     /// 整屏（工具栏 + 画布 + 检查器）渲染：用来肉眼检查界面，也防止布局整体崩掉

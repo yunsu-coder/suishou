@@ -207,6 +207,70 @@ struct FCStyle: Codable, Equatable, Hashable {
     }
 }
 
+// MARK: - 全局样式（整套图一个样式）
+
+/// 全局样式预设：不做「逐个元素选填充色」，整张图统一一种画风。
+enum FCGlobalPreset: String, Codable, CaseIterable, Hashable {
+    /// 柔和填充（默认）：强调色淡底 + 描边
+    case soft
+    /// 线框：纸底 + 强调色描边
+    case outline
+    /// 实心：强调色填充 + 反白文字
+    case flat
+    /// 极简：只描边不填充
+    case plain
+
+    var label: String {
+        switch self {
+        case .soft: return _L("柔和", "Soft")
+        case .outline: return _L("线框", "Outline")
+        case .flat: return _L("实心", "Solid")
+        case .plain: return _L("极简", "Plain")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .soft: return "square.fill"
+        case .outline: return "square"
+        case .flat: return "square.inset.filled"
+        case .plain: return "square.dashed"
+        }
+    }
+}
+
+/// 全局样式：整张图共用（图形、连线、文字一起变），改一处全图统一。
+struct FCGlobalStyle: Codable, Equatable, Hashable {
+    var preset: FCGlobalPreset = .soft
+    /// 强调色（nil = 跟随主题强调色）
+    var accent: String?
+    /// 描边粗细（图形与连线共用）
+    var lineWidth: Double = 1.8
+    /// 图形圆角
+    var corner: Double = 10
+    /// 字号
+    var fontSize: Double = 13
+    /// 填充浓度（柔和 / 实心预设用）
+    var fillOpacity: Double = 0.16
+    /// 连线虚线
+    var dashed: Bool = false
+
+    static let `default` = FCGlobalStyle()
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        preset = c.v(FCGlobalPreset.self, .preset, .soft)
+        accent = c.vOpt(String.self, .accent)
+        lineWidth = c.v(Double.self, .lineWidth, 1.8)
+        corner = c.v(Double.self, .corner, 10)
+        fontSize = c.v(Double.self, .fontSize, 13)
+        fillOpacity = c.v(Double.self, .fillOpacity, 0.16)
+        dashed = c.v(Bool.self, .dashed, false)
+    }
+}
+
 /// 图形节点
 struct FCNode: Identifiable, Codable, Equatable, Hashable {
     var id: String = UUID().uuidString
@@ -367,6 +431,8 @@ struct FCDocument: Codable, Equatable {
     var edges: [FCEdge] = []
     var texts: [FCTextItem] = []
     var groups: [FCGroup] = []
+    /// 全局样式：整张图共用（不逐个元素调填充/描边）
+    var style: FCGlobalStyle = .default
     var showGrid: Bool = true
     var snap: Bool = true
     var updatedAt: Date = Date()
@@ -383,6 +449,7 @@ struct FCDocument: Codable, Equatable {
         edges = c.v([FCEdge].self, .edges, [])
         texts = c.v([FCTextItem].self, .texts, [])
         groups = c.v([FCGroup].self, .groups, [])
+        style = c.v(FCGlobalStyle.self, .style, .default)
         showGrid = c.v(Bool.self, .showGrid, true)
         snap = c.v(Bool.self, .snap, true)
         updatedAt = c.v(Date.self, .updatedAt, Date())
@@ -604,19 +671,25 @@ struct FCDocument: Codable, Equatable {
         }
     }
 
-    /// 置顶 / 置底（数组顺序即层级）
-    mutating func bringToFront(_ ids: Set<String>) {
-        let picked = nodes.filter { ids.contains($0.id) }
-        guard !picked.isEmpty else { return }
-        nodes.removeAll { ids.contains($0.id) }
-        nodes.append(contentsOf: picked)
-    }
+    /// 置顶 / 置底（数组顺序即层级；图形 / 文本 / 分组各自成栈）
+    mutating func bringToFront(_ ids: Set<String>) { reorder(ids, toFront: true) }
 
-    mutating func sendToBack(_ ids: Set<String>) {
-        let picked = nodes.filter { ids.contains($0.id) }
-        guard !picked.isEmpty else { return }
-        nodes.removeAll { ids.contains($0.id) }
-        nodes.insert(contentsOf: picked, at: 0)
+    mutating func sendToBack(_ ids: Set<String>) { reorder(ids, toFront: false) }
+
+    private mutating func reorder(_ ids: Set<String>, toFront: Bool) {
+        func move<T>(_ list: inout [T], key: (T) -> String) {
+            let picked = list.filter { ids.contains(key($0)) }
+            guard !picked.isEmpty else { return }
+            list.removeAll { ids.contains(key($0)) }
+            if toFront {
+                list.append(contentsOf: picked)
+            } else {
+                list.insert(contentsOf: picked, at: 0)
+            }
+        }
+        move(&nodes, key: \.id)
+        move(&texts, key: \.id)
+        move(&groups, key: \.id)
     }
 
     /// 复制选中元素（含内部连线），返回新 id 集合
@@ -1161,6 +1234,8 @@ enum FlowchartStore {
 enum FCTool: String, CaseIterable, Identifiable {
     case select
     case rect, roundedRect, ellipse, diamond, parallelogram, cylinder, capsule, note
+    /// 语义化起点 / 终点（都是圆角胶囊，只是默认文字与图标不同）
+    case start, end
     case text, group, edge
 
     var id: String { rawValue }
@@ -1168,6 +1243,11 @@ enum FCTool: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .select: return _L("选择", "Select")
+        case .start: return _L("开始", "Start")
+        case .end: return _L("结束", "End")
+        // 流程图语境下这两个就是「执行框」「判断框」（通用矩形在「更多形状」里）
+        case .rect: return _L("执行", "Process")
+        case .diamond: return _L("判断", "Decision")
         case .text: return _L("文本框", "Text")
         case .group: return _L("分组", "Group")
         case .edge: return _L("连线", "Connect")
@@ -1178,6 +1258,8 @@ enum FCTool: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .select: return "cursorarrow"
+        case .start: return "play.circle"
+        case .end: return "stop.circle"
         case .text: return "textformat"
         case .group: return "rectangle.dashed"
         case .edge: return "arrow.triangle.branch"
@@ -1185,7 +1267,23 @@ enum FCTool: String, CaseIterable, Identifiable {
         }
     }
 
-    var shape: FCShapeKind? { FCShapeKind(rawValue: rawValue) }
+    var shape: FCShapeKind? {
+        switch self {
+        case .start, .end: return .capsule
+        default: return FCShapeKind(rawValue: rawValue)
+        }
+    }
+
+    /// 新建图形的默认文字（开始框直接写「开始」，省得每次双击改字）
+    var defaultText: String {
+        switch self {
+        case .start: return _L("开始", "Start")
+        case .end: return _L("结束", "End")
+        case .rect, .roundedRect: return _L("执行", "Step")
+        case .diamond: return _L("判断", "Decide")
+        default: return FCShapeKind(rawValue: rawValue)?.label ?? _L("图形", "Shape")
+        }
+    }
 }
 
 @MainActor

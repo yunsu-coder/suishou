@@ -173,37 +173,108 @@ private struct FlowchartEmptyState: View {
 
 // MARK: - 主界面（工具栏 + 画布 + 检查器）
 
-/// 左侧形状库（draw.io 式）：卡片网格排列，点击选中工具、**拖到画布直接放置**。
+/// 左侧形状库：只把**画流程图真正要用的四个框**摆在最显眼处
+/// （开始 / 执行 / 判断 / 结束），其余形状与工具收进「更多」。
+/// 点击选中工具、拖到画布直接放置。
 private struct FlowchartToolPalette: View {
     @ObservedObject var editor: FlowchartEditor
     let theme: FlowchartTheme
 
-    private let tools: [FCTool] = [.select, .rect, .roundedRect, .ellipse, .diamond,
-                                   .parallelogram, .cylinder, .capsule, .note,
-                                   .text, .group, .edge]
+    /// 四件套：开始 → 执行 → 判断 → 结束
+    private let boxTools: [FCTool] = [.start, .rect, .diamond, .end]
+    /// 常用工具
+    private let tools: [FCTool] = [.select, .edge, .text]
+    /// 其余形状（折叠，不干扰）
+    private let moreShapes: [FCTool] = [.roundedRect, .ellipse, .parallelogram,
+                                        .cylinder, .note, .group]
+
+    @State private var showMore = false
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(_L("形状", "Shapes"))
-                    .font(theme.font(size: 11, bold: true))
-                    .foregroundStyle(Color(nsColor: theme.secondary))
-                    .padding(.top, 4)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
+                sectionTitle(_L("框", "Boxes"))
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8),
+                                    GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                    ForEach(boxTools, id: \.self) { tool in
+                        boxCard(tool)
+                    }
+                }
+                sectionTitle(_L("工具", "Tools"))
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8),
+                                    GridItem(.flexible(), spacing: 8)], spacing: 8) {
                     ForEach(tools, id: \.self) { tool in
                         card(tool)
                     }
                 }
-                Text(_L("拖到画布放置；或点选后在画布上拖画。双击空白 = 新矩形，双击图形 = 改文字。",
-                        "Drag onto the canvas, or pick then drag-draw. Double-click blank = new rect; double-click a shape = edit text."))
+                Button {
+                    withAnimation(.easeInOut(duration: 0.16)) { showMore.toggle() }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: showMore ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                        Text(_L("更多形状", "More shapes"))
+                            .font(theme.font(size: 11))
+                        Spacer()
+                    }
+                    .foregroundStyle(Color(nsColor: theme.secondary))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                if showMore {
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 8),
+                                        GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                        ForEach(moreShapes, id: \.self) { tool in
+                            card(tool)
+                        }
+                    }
+                }
+                Text(_L("拖到画布放置，或点选后拖画。连第一个框时点「连线」：点起点 → 点终点。",
+                        "Drag onto the canvas, or pick then drag-draw. To connect: pick Connect and click start → end."))
                     .font(theme.font(size: 10))
                     .foregroundStyle(Color(nsColor: theme.secondary))
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 6)
+                    .padding(.top, 4)
             }
             .padding(10)
         }
         .background(Color(nsColor: theme.surface))
+    }
+
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text)
+            .font(theme.font(size: 11, bold: true))
+            .foregroundStyle(Color(nsColor: theme.secondary))
+    }
+
+    /// 四个主框：卡片画的是**真实形状预览**，不是图标字
+    private func boxCard(_ tool: FCTool) -> some View {
+        let active = editor.tool == tool
+        return Button {
+            editor.tool = tool
+        } label: {
+            VStack(spacing: 5) {
+                FCShapePreview(kind: tool.shape ?? .rect,
+                               fill: theme.defaultFill(), stroke: theme.accent)
+                    .frame(height: 30)
+                Text(tool.label)
+                    .font(theme.font(size: 11))
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .foregroundStyle(Color(nsColor: theme.text))
+            .background(RoundedRectangle(cornerRadius: 8)
+                .fill(active ? Color(nsColor: theme.accent).opacity(0.14)
+                             : Color(nsColor: theme.background)))
+            .overlay(RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(nsColor: active ? theme.accent : theme.border),
+                        lineWidth: active ? 1.6 : 1))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .draggable(tool.rawValue)
+        .help(tool.label)
     }
 
     private func card(_ tool: FCTool) -> some View {
@@ -213,6 +284,7 @@ private struct FlowchartToolPalette: View {
         } label: {
             VStack(spacing: 4) {
                 Image(systemName: tool.symbol)
+                    .font(theme.font(size: 11, bold: true))
                     .font(.system(size: 15))
                     .frame(height: 20)
                 Text(tool.label)
@@ -234,6 +306,29 @@ private struct FlowchartToolPalette: View {
     }
 }
 
+/// 形状预览（形状库卡片 / 全局样式预览共用）
+struct FCShapePreview: View {
+    let kind: FCShapeKind
+    var fill: NSColor?
+    var stroke: NSColor
+    var corner: Double = 8
+    var lineWidth: Double = 1.6
+
+    var body: some View {
+        GeometryReader { geo in
+            let inset: CGFloat = 2
+            let rect = CGRect(x: inset, y: inset,
+                              width: max(4, geo.size.width - inset * 2),
+                              height: max(4, geo.size.height - inset * 2))
+            let path = FCShape.path(kind: kind, rect: rect, corner: corner)
+            if let fill {
+                path.fill(Color(nsColor: fill))
+            }
+            path.stroke(Color(nsColor: stroke), lineWidth: lineWidth)
+        }
+    }
+}
+
 /// 主界面（工具栏 + 画布 + 检查器）。internal 以便测试直接渲染整屏。
 struct FlowchartEditorHost: View {
     @ObservedObject var editor: FlowchartEditor
@@ -247,6 +342,7 @@ struct FlowchartEditorHost: View {
 
     @Environment(NotesStore.self) private var store
     @State private var showExport = false
+    @State private var showStyle = false
     @State private var exportBackground = 0
     @State private var exportScale = 2.0
     @State private var keyMonitor: Any?
@@ -322,6 +418,12 @@ struct FlowchartEditorHost: View {
             }
             zoomLabel
             Spacer(minLength: 4)
+            Button {
+                showStyle = true
+            } label: {
+                Label(_L("样式", "Style"), systemImage: "paintbrush")
+            }
+            .popover(isPresented: $showStyle, arrowEdge: .bottom) { stylePopover }
             Button {
                 showExport = true
             } label: {
@@ -476,6 +578,171 @@ struct FlowchartEditorHost: View {
 
     // MARK: 自动保存
 
+    // MARK: 全局样式（整张图一处调，不再逐个元素选填充）
+
+    private var stylePopover: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(_L("全局样式", "Global style"))
+                .font(theme.font(size: 12, bold: true))
+                .foregroundStyle(Color(nsColor: theme.text))
+            Text(_L("整张图共用一种画风：换预设、改一处，所有框和线一起变。",
+                    "One look for the whole chart — shapes and lines change together."))
+                .font(theme.font(size: 10))
+                .foregroundStyle(Color(nsColor: theme.secondary))
+                .fixedSize(horizontal: false, vertical: true)
+
+            // 预设
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8),
+                                GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                ForEach(FCGlobalPreset.allCases, id: \.self) { preset in
+                    Button {
+                        editor.commit { $0.style.preset = preset }
+                    } label: {
+                        let rs = resolved(editor.doc.style, preset: preset)
+                        HStack(spacing: 7) {
+                            FCShapePreview(kind: .rect, fill: rs.fill, stroke: rs.stroke,
+                                           corner: rs.corner, lineWidth: rs.lineWidth)
+                                .frame(width: 26, height: 18)
+                            Text(preset.label)
+                                .font(theme.font(size: 11))
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 7)
+                        .foregroundStyle(Color(nsColor: theme.text))
+                        .background(RoundedRectangle(cornerRadius: 7)
+                            .fill(editor.doc.style.preset == preset
+                                  ? Color(nsColor: theme.accent).opacity(0.14)
+                                  : Color(nsColor: theme.background)))
+                        .overlay(RoundedRectangle(cornerRadius: 7)
+                            .stroke(Color(nsColor: editor.doc.style.preset == preset
+                                          ? theme.accent : theme.border),
+                                    lineWidth: editor.doc.style.preset == preset ? 1.6 : 1))
+                        .contentShape(RoundedRectangle(cornerRadius: 7))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            // 实时预览：两个框 + 一条连线
+            stylePreview
+
+            // 强调色
+            HStack(spacing: 8) {
+                ColorPicker("", selection: Binding(
+                    get: {
+                        if let hex = editor.doc.style.accent, let ns = NSColor.fcHex(hex) {
+                            return Color(nsColor: ns)
+                        }
+                        return Color(nsColor: theme.accent)
+                    },
+                    set: { newColor in
+                        let hex = NSColor(newColor).hexString
+                        editor.commit { $0.style.accent = hex }
+                    }
+                ), supportsOpacity: false)
+                .labelsHidden()
+                .frame(width: 32)
+                Text(_L("强调色", "Accent"))
+                    .font(theme.font(size: 11))
+                    .foregroundStyle(Color(nsColor: theme.text))
+                Spacer()
+                Button(_L("跟随主题", "From theme")) {
+                    editor.commit { $0.style.accent = nil }
+                }
+                .buttonStyle(.plain)
+                .font(theme.font(size: 11))
+                .foregroundStyle(Color(nsColor: theme.accent))
+                .disabled(editor.doc.style.accent == nil)
+            }
+
+            globalSlider(_L("线条粗细", "Line width"), value: editor.doc.style.lineWidth,
+                         range: 0.5...4) { v in
+                editor.preview { $0.style.lineWidth = v }
+            }
+            globalSlider(_L("圆角", "Corner"), value: editor.doc.style.corner, range: 0...30) { v in
+                editor.preview { $0.style.corner = v }
+            }
+            globalSlider(_L("字号", "Font size"), value: editor.doc.style.fontSize, range: 10...20) { v in
+                editor.preview { $0.style.fontSize = v }
+            }
+            if editor.doc.style.preset == .soft {
+                globalSlider(_L("填充浓度", "Fill"), value: editor.doc.style.fillOpacity,
+                             range: 0...0.5) { v in
+                    editor.preview { $0.style.fillOpacity = v }
+                }
+            }
+            Toggle(_L("连线虚线", "Dashed lines"), isOn: Binding(
+                get: { editor.doc.style.dashed },
+                set: { on in editor.commit { $0.style.dashed = on } }
+            ))
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .font(theme.font(size: 11))
+        }
+        .padding(14)
+        .frame(width: 312)
+        .background(Color(nsColor: theme.surface))
+    }
+
+    /// 全局样式预览大图（按当前样式真实渲染两个框 + 一条折线）
+    private var stylePreview: some View {
+        let rs = editor.doc.style.resolved(theme: theme)
+        return Canvas { ctx, size in
+            let rect1 = CGRect(x: 12, y: size.height / 2 - 16, width: 74, height: 32)
+            let rect2 = CGRect(x: size.width - 86, y: size.height / 2 - 16, width: 74, height: 32)
+            let p1 = FCShape.path(kind: .capsule, rect: rect1, corner: rs.corner)
+            let p2 = FCShape.path(kind: .diamond, rect: rect2, corner: rs.corner)
+            if let fill = rs.fill {
+                ctx.fill(p1, with: .color(Color(nsColor: fill)))
+                ctx.fill(p2, with: .color(Color(nsColor: fill)))
+            }
+            ctx.stroke(p1, with: .color(Color(nsColor: rs.stroke)), lineWidth: rs.lineWidth)
+            ctx.stroke(p2, with: .color(Color(nsColor: rs.stroke)), lineWidth: rs.lineWidth)
+            var line = Path()
+            let a = CGPoint(x: rect1.maxX, y: rect1.midY)
+            let b = CGPoint(x: rect2.minX, y: rect2.midY)
+            FCRenderer.roundedPolyline(&line, [a, CGPoint(x: (a.x + b.x) / 2, y: a.y),
+                                               CGPoint(x: (a.x + b.x) / 2, y: b.y), b], radius: 5)
+            ctx.stroke(line, with: .color(Color(nsColor: rs.stroke)),
+                       style: StrokeStyle(lineWidth: rs.lineWidth,
+                                          dash: rs.dashed ? [5, 4] : []))
+            ctx.fill(FCShape.arrow(tip: b, direction: CGVector(dx: 0, dy: b.y - a.y), size: 8),
+                     with: .color(Color(nsColor: rs.stroke)))
+        }
+        .frame(height: 62)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: theme.background)))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(nsColor: theme.border), lineWidth: 1))
+    }
+
+    /// 预设 + 当前参数（用于预设小方块预览，不写入文档）
+    private func resolved(_ style: FCGlobalStyle, preset: FCGlobalPreset) -> FCRenderStyle {
+        var copy = style
+        copy.preset = preset
+        return copy.resolved(theme: theme)
+    }
+
+    private func globalSlider(_ title: String, value: Double, range: ClosedRange<Double>,
+                              apply: @escaping (Double) -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(title)
+                    .font(theme.font(size: 11))
+                    .foregroundStyle(Color(nsColor: theme.text))
+                Spacer()
+                Text(String(format: "%.1f", value))
+                    .font(theme.font(size: 10))
+                    .foregroundStyle(Color(nsColor: theme.secondary))
+            }
+            Slider(value: Binding(get: { min(max(value, range.lowerBound), range.upperBound) },
+                                  set: { apply($0) }), in: range) { editing in
+                if editing { editor.beginInteraction() } else { editor.endInteraction() }
+            }
+            .controlSize(.small)
+        }
+    }
+
+
     private func scheduleAutoSave() {
         saveTask?.cancel()
         guard editor.dirty else { return }
@@ -567,9 +834,7 @@ private struct FlowchartInspector: View {
             VStack(alignment: .leading, spacing: 16) {
                 header
                 if let style = editor.primaryStyle {
-                    if editor.hasShapeSelection { colorSection(style) }
-                    if editor.hasShapeSelection { strokeSection(style) }
-                    textSection(style)
+                    if editor.hasShapeSelection { textSection(style) }
                     if editor.hasEdgeSelection { edgeSection }
                     arrangeSection
                     layerSection
@@ -610,81 +875,11 @@ private struct FlowchartInspector: View {
         return _L("元素", "Element")
     }
 
-    // MARK: 颜色
-
-    private func colorSection(_ style: FCStyle) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionTitle(_L("填充", "Fill"))
-            colorRow(style.fill) { value in editor.applyStyle { $0.fill = value } }
-            sectionTitle(_L("边框", "Stroke"))
-            colorRow(style.stroke) { value in editor.applyStyle { $0.stroke = value } }
-        }
-    }
-
-    private func colorRow(_ current: String?, apply: @escaping (String?) -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                ColorPicker("", selection: Binding(
-                    get: {
-                        if let hex = current, let ns = NSColor.fcHex(hex) { return Color(nsColor: ns) }
-                        return Color(nsColor: theme.accent)
-                    },
-                    set: { apply(NSColor($0).hexString) }
-                ), supportsOpacity: false)
-                .labelsHidden()
-                .frame(width: 36)
-                Text(current ?? _L("跟随主题", "From theme"))
-                    .font(theme.font(size: 11))
-                    .foregroundStyle(Color(nsColor: theme.secondary))
-                Spacer()
-                Button(_L("主题", "Theme")) { apply(nil) }
-                    .buttonStyle(.plain)
-                    .font(theme.font(size: 11))
-                    .foregroundStyle(Color(nsColor: theme.accent))
-            }
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(18), spacing: 4), count: 8), spacing: 4) {
-                ForEach(Array(theme.palette.enumerated()), id: \.offset) { _, color in
-                    Button {
-                        apply(color.hexString)
-                    } label: {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color(nsColor: color))
-                            .frame(width: 18, height: 18)
-                            .overlay(RoundedRectangle(cornerRadius: 4)
-                                .stroke(Color(nsColor: theme.border), lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    // MARK: 线 / 面
-
-    private func strokeSection(_ style: FCStyle) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            sectionTitle(_L("线条", "Line"))
-            sliderRow(_L("粗细", "Width"), value: style.strokeWidth, range: 0.5...6) { value in
-                editor.previewStyle { $0.strokeWidth = value }
-            }
-            toggleRow(_L("虚线", "Dashed"), isOn: style.dashed) { on in
-                editor.applyStyle { $0.dashed = on }
-            }
-            toggleRow(_L("阴影", "Shadow"), isOn: style.shadow) { on in
-                editor.applyStyle { $0.shadow = on }
-            }
-            sliderRow(_L("圆角", "Corner"), value: style.corner, range: 0...40) { value in
-                editor.previewStyle { $0.corner = value }
-            }
-        }
-    }
+    // MARK: 文字（逐元素只有「内容风格」；颜色/字号/线宽跟着全局样式走）
 
     private func textSection(_ style: FCStyle) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionTitle(_L("文字", "Text"))
-            sliderRow(_L("字号", "Size"), value: style.fontSize, range: 9...28) { value in
-                editor.previewStyle { $0.fontSize = value }
-            }
             HStack(spacing: 6) {
                 toggleRow(_L("加粗", "Bold"), isOn: style.bold) { on in
                     editor.applyStyle { $0.bold = on }
@@ -703,8 +898,6 @@ private struct FlowchartInspector: View {
                     .buttonStyle(.plain)
                 }
             }
-            sectionTitle(_L("文字颜色", "Text color"))
-            colorRow(style.text) { value in editor.applyStyle { $0.text = value } }
             if editor.selection.count == 1, let id = editor.selection.first {
                 Button {
                     editor.beginInteraction()
@@ -871,26 +1064,6 @@ private struct FlowchartInspector: View {
         }
         .toggleStyle(.switch)
         .controlSize(.mini)
-    }
-
-    private func sliderRow(_ title: String, value: Double, range: ClosedRange<Double>,
-                           apply: @escaping (Double) -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(title).font(theme.font(size: 11))
-                    .foregroundStyle(Color(nsColor: theme.text))
-                Spacer()
-                Text(String(format: "%.1f", value))
-                    .font(theme.font(size: 10))
-                    .foregroundStyle(Color(nsColor: theme.secondary))
-            }
-            Slider(value: Binding(get: { min(max(value, range.lowerBound), range.upperBound) },
-                                  set: { apply($0) }),
-                   in: range) { editing in
-                if editing { editor.beginInteraction() } else { editor.endInteraction() }
-            }
-            .controlSize(.small)
-        }
     }
 
     private func pickChip(_ symbol: String, _ title: String, active: Bool,

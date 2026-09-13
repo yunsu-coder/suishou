@@ -76,6 +76,43 @@ enum FCTextLayout {
 
 // MARK: - 渲染器（画布与 PNG 导出共用）
 
+/// 解析后的绘制样式：全局样式 × 主题 → 具体颜色/粗细
+struct FCRenderStyle {
+    var fill: NSColor?
+    var stroke: NSColor
+    var lineWidth: CGFloat
+    var corner: CGFloat
+    var fontSize: Double
+    var text: NSColor
+    var dashed: Bool
+}
+
+extension FCGlobalStyle {
+    /// 全局样式 + 主题 → 实际绘制参数
+    func resolved(theme: FlowchartTheme) -> FCRenderStyle {
+        let a = accent.flatMap { NSColor.fcHex($0) } ?? theme.accent
+        let width = CGFloat(max(0.5, min(6, lineWidth)))
+        let radius = CGFloat(max(0, min(40, corner)))
+        switch preset {
+        case .soft:
+            // 淡底：纸底里调进一点点强调色（fillOpacity 是强调色的比例）
+            let tinted = (theme.background.blended(withFraction: CGFloat(min(max(fillOpacity, 0), 1)),
+                                                   of: a) ?? a)
+            return FCRenderStyle(fill: tinted, stroke: a, lineWidth: width, corner: radius,
+                                 fontSize: fontSize, text: theme.text, dashed: dashed)
+        case .outline:
+            return FCRenderStyle(fill: theme.surface, stroke: a, lineWidth: width, corner: radius,
+                                 fontSize: fontSize, text: theme.text, dashed: dashed)
+        case .flat:
+            return FCRenderStyle(fill: a, stroke: a, lineWidth: width, corner: radius,
+                                 fontSize: fontSize, text: theme.background, dashed: dashed)
+        case .plain:
+            return FCRenderStyle(fill: nil, stroke: theme.secondary, lineWidth: width, corner: radius,
+                                 fontSize: fontSize, text: theme.text, dashed: dashed)
+        }
+    }
+}
+
 enum FCRenderer {
 
     /// 折线画成圆角：每个拐角用二次曲线倒角（半径按相邻段长度自动收敛）
@@ -153,79 +190,73 @@ enum FCRenderer {
     static func content(_ doc: FCDocument, theme: FlowchartTheme, transform: FCViewTransform,
                         ctx: inout GraphicsContext) {
         let index = doc.nodesByID()
-        for g in doc.groups { group(g, theme: theme, transform: transform, ctx: &ctx) }
-        for e in doc.edges { edge(e, nodes: index, theme: theme, transform: transform, ctx: &ctx) }
-        for n in doc.nodes { node(n, theme: theme, transform: transform, ctx: &ctx) }
-        for t in doc.texts { textItem(t, theme: theme, transform: transform, ctx: &ctx) }
+        let rs = doc.style.resolved(theme: theme)
+        for g in doc.groups { group(g, style: rs, theme: theme, transform: transform, ctx: &ctx) }
+        for e in doc.edges { edge(e, nodes: index, style: rs, theme: theme, transform: transform, ctx: &ctx) }
+        for n in doc.nodes { node(n, style: rs, theme: theme, transform: transform, ctx: &ctx) }
+        for t in doc.texts { textItem(t, style: rs, theme: theme, transform: transform, ctx: &ctx) }
     }
 
-    static func node(_ n: FCNode, theme: FlowchartTheme, transform: FCViewTransform,
+    static func node(_ n: FCNode, style rs: FCRenderStyle, theme: FlowchartTheme, transform: FCViewTransform,
                      ctx: inout GraphicsContext) {
         let rect = transform.r(n.rect)
-        let path = FCShape.path(kind: n.kind, rect: rect, corner: transform.len(n.style.corner))
-        let fill = NSColor.fcHex(n.style.fill) ?? theme.defaultFill()
-        let stroke = NSColor.fcHex(n.style.stroke) ?? theme.defaultStroke()
-        let lineWidth = max(0.5, transform.len(n.style.strokeWidth))
-        let dash: [CGFloat] = n.style.dashed ? [max(2, lineWidth * 4), max(2, lineWidth * 3)] : []
+        let path = FCShape.path(kind: n.kind, rect: rect, corner: transform.len(rs.corner))
+        let lineWidth = max(0.5, transform.len(rs.lineWidth))
+        let dash: [CGFloat] = rs.dashed ? [max(2, lineWidth * 4), max(2, lineWidth * 3)] : []
 
-        if n.style.shadow {
-            ctx.drawLayer { layer in
-                layer.addFilter(.shadow(color: Color.black.opacity(0.18), radius: transform.len(5),
-                                        x: 0, y: transform.len(2)))
-                layer.fill(path, with: .color(Color(nsColor: fill)))
-            }
-        } else {
+        if let fill = rs.fill {
             ctx.fill(path, with: .color(Color(nsColor: fill)))
         }
-        ctx.stroke(path, with: .color(Color(nsColor: stroke)),
+        ctx.stroke(path, with: .color(Color(nsColor: rs.stroke)),
                    style: StrokeStyle(lineWidth: lineWidth, dash: dash))
         if let detail = FCShape.detail(kind: n.kind, rect: rect) {
-            ctx.stroke(detail, with: .color(Color(nsColor: stroke)), lineWidth: lineWidth)
+            ctx.stroke(detail, with: .color(Color(nsColor: rs.stroke)), lineWidth: lineWidth)
         }
-        textBlock(n.text, in: rect, style: n.style, theme: theme,
+        textBlock(n.text, in: rect, style: n.style, global: rs, theme: theme,
                   transform: transform, ctx: &ctx,
                   verticalInset: n.kind == .cylinder ? transform.len(10) : transform.len(6))
     }
 
-    static func textItem(_ t: FCTextItem, theme: FlowchartTheme, transform: FCViewTransform,
+    static func textItem(_ t: FCTextItem, style rs: FCRenderStyle, theme: FlowchartTheme,
+                         transform: FCViewTransform,
                          ctx: inout GraphicsContext) {
         let rect = transform.r(t.rect)
-        textBlock(t.text, in: rect, style: t.style, theme: theme, transform: transform, ctx: &ctx)
+        textBlock(t.text, in: rect, style: t.style, global: rs, theme: theme,
+                  transform: transform, ctx: &ctx)
     }
 
-    static func group(_ g: FCGroup, theme: FlowchartTheme, transform: FCViewTransform,
+    static func group(_ g: FCGroup, style rs: FCRenderStyle, theme: FlowchartTheme,
+                      transform: FCViewTransform,
                       ctx: inout GraphicsContext) {
         let rect = transform.r(g.rect)
-        let path = Path(roundedRect: rect, cornerRadius: transform.len(max(4, g.style.corner)))
-        let stroke = NSColor.fcHex(g.style.stroke) ?? theme.secondary
+        let path = Path(roundedRect: rect, cornerRadius: transform.len(max(4, rs.corner)))
         let fill = NSColor.fcHex(g.style.fill)
         if let fill {
             ctx.fill(path, with: .color(Color(nsColor: fill)))
         }
-        let lineWidth = max(0.5, transform.len(g.style.strokeWidth))
-        let dash: [CGFloat] = g.style.dashed ? [max(3, lineWidth * 4), max(3, lineWidth * 3)] : []
-        ctx.stroke(path, with: .color(Color(nsColor: stroke)),
+        let lineWidth = max(0.5, transform.len(rs.lineWidth))
+        let dash: [CGFloat] = rs.dashed ? [max(3, lineWidth * 4), max(3, lineWidth * 3)] : []
+        ctx.stroke(path, with: .color(Color(nsColor: rs.stroke)),
                    style: StrokeStyle(lineWidth: lineWidth, dash: dash))
         guard !g.title.isEmpty else { return }
-        let font = theme.nsFont(size: g.style.fontSize, bold: g.style.bold || true, display: true)
+        let font = theme.nsFont(size: rs.fontSize, bold: true, display: true)
         let lines = FCTextLayout.lines(g.title, width: max(20, rect.width - transform.len(16)), font: font)
         let lh = FCTextLayout.lineHeight(font)
-        let color = NSColor.fcHex(g.style.text) ?? theme.text
         for (i, line) in lines.enumerated() {
-            ctx.draw(Text(line).font(theme.font(size: g.style.fontSize, bold: true, display: true))
-                        .foregroundStyle(Color(nsColor: color)),
+            ctx.draw(Text(line).font(theme.font(size: rs.fontSize, bold: true, display: true))
+                        .foregroundStyle(Color(nsColor: rs.text)),
                      at: CGPoint(x: rect.minX + transform.len(8),
                                  y: rect.minY + transform.len(6) + CGFloat(i) * lh + lh / 2),
                      anchor: .leading)
         }
     }
 
-    static func edge(_ e: FCEdge, nodes: [String: FCNode], theme: FlowchartTheme,
+    static func edge(_ e: FCEdge, nodes: [String: FCNode], style rs: FCRenderStyle, theme: FlowchartTheme,
                      transform: FCViewTransform, ctx: inout GraphicsContext) {
         guard let docPath = FCEdgePath(edge: e, nodes: nodes) else { return }
-        let stroke = NSColor.fcHex(e.style.stroke) ?? theme.secondary
-        let lineWidth = max(0.5, transform.len(e.style.strokeWidth))
-        let dash: [CGFloat] = e.style.dashed ? [max(2, lineWidth * 4), max(2, lineWidth * 3)] : []
+        let stroke = rs.stroke
+        let lineWidth = max(0.5, transform.len(rs.lineWidth))
+        let dash: [CGFloat] = rs.dashed ? [max(2, lineWidth * 4), max(2, lineWidth * 3)] : []
         var path = Path()
         let allLines = docPath.segments.allSatisfy { if case .line = $0 { return true } else { return false } }
         if allLines, docPath.segments.count >= 2 {
@@ -271,7 +302,7 @@ enum FCRenderer {
                      with: .color(Color(nsColor: stroke)))
         }
         guard !e.label.isEmpty else { return }
-        let font = theme.nsFont(size: max(9, e.style.fontSize - 1), bold: e.style.bold)
+        let font = theme.nsFont(size: max(9, rs.fontSize - 1), bold: e.style.bold)
         let lines = FCTextLayout.lines(e.label, width: transform.len(160), font: font)
         let lh = FCTextLayout.lineHeight(font)
         let widest = lines.map { FCTextLayout.measure($0, font: font) }.max() ?? 10
@@ -281,10 +312,9 @@ enum FCRenderer {
         let box = CGRect(x: mid.x - boxW / 2, y: mid.y - boxH / 2, width: boxW, height: boxH)
         ctx.fill(Path(roundedRect: box, cornerRadius: transform.len(4)),
                  with: .color(Color(nsColor: theme.surface)))
-        let color = NSColor.fcHex(e.style.text) ?? theme.text
         for (i, line) in lines.enumerated() {
-            ctx.draw(Text(line).font(theme.font(size: max(9, e.style.fontSize - 1), bold: e.style.bold))
-                        .foregroundStyle(Color(nsColor: color)),
+            ctx.draw(Text(line).font(theme.font(size: max(9, rs.fontSize - 1), bold: e.style.bold))
+                        .foregroundStyle(Color(nsColor: rs.text)),
                      at: CGPoint(x: box.midX,
                                  y: box.minY + transform.len(2) + CGFloat(i) * lh + lh / 2),
                      anchor: .center)
@@ -292,23 +322,23 @@ enum FCRenderer {
     }
 
     /// 图形内文字（自动换行 + 垂直居中 + 对齐）
-    static func textBlock(_ text: String, in rect: CGRect, style: FCStyle, theme: FlowchartTheme,
+    static func textBlock(_ text: String, in rect: CGRect, style: FCStyle, global rs: FCRenderStyle,
+                          theme: FlowchartTheme,
                           transform: FCViewTransform, ctx: inout GraphicsContext,
                           verticalInset: CGFloat = 6) {
         guard !text.isEmpty else { return }
-        let size = max(8, transform.len(style.fontSize))
+        let size = max(8, transform.len(rs.fontSize))
         let font = theme.nsFont(size: size, bold: style.bold)
         let lines = FCTextLayout.lines(text, width: max(10, rect.width - transform.len(16)), font: font)
         let lh = FCTextLayout.lineHeight(font)
         let total = CGFloat(lines.count) * lh
         let top = rect.midY - total / 2
-        let color = NSColor.fcHex(style.text) ?? theme.text
         let anchor: UnitPoint = style.align == .leading ? .leading : (style.align == .trailing ? .trailing : .center)
         let x: CGFloat = style.align == .leading ? rect.minX + transform.len(8)
             : (style.align == .trailing ? rect.maxX - transform.len(8) : rect.midX)
         for (i, line) in lines.enumerated() {
             ctx.draw(Text(line).font(theme.font(size: size, bold: style.bold))
-                        .foregroundStyle(Color(nsColor: color)),
+                        .foregroundStyle(Color(nsColor: rs.text)),
                      at: CGPoint(x: x, y: top + CGFloat(i) * lh + lh / 2),
                      anchor: anchor)
         }
@@ -458,7 +488,7 @@ struct FlowchartCanvas: View {
                     return false
                 }
                 let p = transform.doc(location)
-                let node = FCNode(kind: shape, origin: p)
+                let node = FCNode(kind: shape, origin: p, text: tool.defaultText)
                 editor.commit { $0.nodes.append(node) }
                 editor.selection = [node.id]
                 return true
@@ -498,6 +528,39 @@ struct FlowchartCanvas: View {
 
     // MARK: 叠加层（选中框 / 手柄 / 框选 / 连线预览 / 对齐线）
 
+    /// 拉线中的实时预览路径：起点 = 源图形锚点（.auto 按光标方向选边），
+    /// 终点 = 悬停高亮的目标图形最近的边，否则就是光标点本身；
+    /// 中间交给真正的正交路由器绕障（预览即所见：放下后就是这条线）。
+    private func pendingPreview(_ pending: (from: String, anchor: FCAnchor, point: CGPoint)) -> [CGPoint] {
+        guard let source = editor.doc.nodes.first(where: { $0.id == pending.from }) else { return [] }
+        let fromAnchor: FCAnchor = pending.anchor == .auto
+            ? FCEdgePath.autoAnchor(from: source.rect,
+                                    toward: CGRect(origin: pending.point, size: .zero))
+            : pending.anchor
+        let p0 = FCEdgePath.point(fromAnchor, in: source.rect)
+        var p1 = pending.point
+        var n1 = CGVector(dx: 0, dy: 0)
+        var targetRect: CGRect?
+        if let tid = edgeTargetID, tid != pending.from,
+           let target = editor.doc.nodes.first(where: { $0.id == tid }) {
+            let toAnchor = FCEdgePath.autoAnchor(from: target.rect, toward: source.rect)
+            p1 = FCEdgePath.point(toAnchor, in: target.rect)
+            n1 = toAnchor.vector
+            targetRect = target.rect
+        } else {
+            // 悬空：按光标进入方向收线，预览的拐弯与最终连线一致
+            let dx = p1.x - p0.x, dy = p1.y - p0.y
+            n1 = abs(dx) >= abs(dy) ? CGVector(dx: dx >= 0 ? 1 : -1, dy: 0)
+                                    : CGVector(dx: 0, dy: dy >= 0 ? 1 : -1)
+        }
+        let obstacles = editor.doc.nodes
+            .filter { $0.id != pending.from && $0.id != edgeTargetID }
+            .map(\.rect)
+        let avoid = [source.rect] + (targetRect.map { [$0] } ?? [])
+        return FCRouter.route(p0: p0, n0: fromAnchor.vector, p1: p1, n1: n1,
+                              obstacles: obstacles, avoid: avoid)
+    }
+
     private func drawOverlays(_ ctx: inout GraphicsContext) {
         let accent = Color(nsColor: theme.accent)
         for id in editor.selection {
@@ -529,17 +592,20 @@ struct FlowchartCanvas: View {
             ctx.fill(Path(ellipseIn: dot), with: .color(accent))
             ctx.stroke(Path(ellipseIn: dot), with: .color(Color(nsColor: theme.background)), lineWidth: 1.5)
         }
-        if let pending = editor.pendingEdge,
-           let node = editor.doc.nodes.first(where: { $0.id == pending.from }) {
-            let a = transform.p(FCEdgePath.point(pending.anchor, in: node.rect))
-            let b = transform.p(pending.point)
+        if let pending = editor.pendingEdge {
+            // 实时预览就用**真正的正交路由**：跟着鼠标拐弯，指到哪个图形就吸附到哪条边。
+            // 不再是「只有始末两点」的直虚线。
+            let pts = pendingPreview(pending).map { transform.p($0) }
             var p = Path()
-            p.move(to: a)
-            p.addLine(to: b)
-            ctx.stroke(p, with: .color(accent), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-            ctx.fill(FCShape.arrow(tip: b, direction: CGVector(dx: b.x - a.x, dy: b.y - a.y),
-                                   size: 9),
-                     with: .color(accent))
+            FCRenderer.roundedPolyline(&p, pts, radius: transform.len(8))
+            ctx.stroke(p, with: .color(accent.opacity(0.9)),
+                       style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+            if let tip = pts.last, let prev = pts.dropLast().last {
+                ctx.fill(FCShape.arrow(tip: tip,
+                                       direction: CGVector(dx: tip.x - prev.x, dy: tip.y - prev.y),
+                                       size: 9),
+                         with: .color(accent))
+            }
         }
         // 拉线目标高亮（draw.io 式：光标贴到哪个图形，哪个整框变亮）
         if let tid = edgeTargetID, let node = editor.doc.nodes.first(where: { $0.id == tid }) {
@@ -775,7 +841,7 @@ struct FlowchartCanvas: View {
                     beginTextEditing(at: p)          // 双击图形 → 改文字
                 } else {
                     // 双击空白 → 新建矩形（draw.io 习惯）
-                    let node = FCNode(kind: .rect, origin: p)
+                    let node = FCNode(kind: .rect, origin: p, text: FCTool.rect.defaultText)
                     editor.commit { $0.nodes.append(node) }
                     editor.selection = [node.id]
                 }
@@ -891,7 +957,7 @@ struct FlowchartCanvas: View {
 
         // 3) 工具：新建元素
         if let kind = editor.tool.shape {
-            let node = FCNode(kind: kind, origin: start)
+            let node = FCNode(kind: kind, origin: start, text: editor.tool.defaultText)
             editor.beginInteraction()
             editor.preview { $0.nodes.append(node) }
             editor.selection = [node.id]
