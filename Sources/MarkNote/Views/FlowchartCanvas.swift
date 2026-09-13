@@ -197,6 +197,22 @@ enum FCRenderer {
         for t in doc.texts { textItem(t, style: rs, theme: theme, transform: transform, ctx: &ctx) }
     }
 
+    /// 画一个小胶囊标签（拉线实时距离 / 缩放实时尺寸用）
+    static func drawBadge(ctx: inout GraphicsContext, theme: FlowchartTheme,
+                          at point: CGPoint, text: String) {
+        let font = theme.nsFont(size: 10)
+        let size = (text as NSString).size(withAttributes: [.font: font])
+        let box = CGRect(x: point.x - size.width / 2 - 5, y: point.y - size.height / 2 - 2,
+                         width: size.width + 10, height: size.height + 4)
+        ctx.fill(Path(roundedRect: box, cornerRadius: 4),
+                 with: .color(Color(nsColor: theme.surface).opacity(0.92)))
+        ctx.stroke(Path(roundedRect: box, cornerRadius: 4),
+                   with: .color(Color(nsColor: theme.border)), lineWidth: 0.8)
+        ctx.draw(Text(text).font(theme.font(size: 10))
+                    .foregroundStyle(Color(nsColor: theme.secondary)),
+                 at: CGPoint(x: box.midX, y: box.midY), anchor: .center)
+    }
+
     static func node(_ n: FCNode, style rs: FCRenderStyle, theme: FlowchartTheme, transform: FCViewTransform,
                      ctx: inout GraphicsContext) {
         let rect = transform.r(n.rect)
@@ -459,7 +475,6 @@ struct FlowchartCanvas: View {
     @State private var scrollTarget = FCScrollTargetBox()
     @State private var scrollMonitor: Any?
     @State private var magnifyMonitor: Any?
-    @FocusState private var textFieldFocused: Bool
     /// 自判双击用（DragGesture(0) 吞掉了 SwiftUI 的双击手势）
     @State private var lastClickAt: Date = .distantPast
     /// 拉线过程中光标悬停的目标图形（draw.io 式高亮 + 落点吸附）
@@ -488,7 +503,7 @@ struct FlowchartCanvas: View {
                     return false
                 }
                 let p = transform.doc(location)
-                let node = FCNode(kind: shape, origin: p, text: tool.defaultText)
+                let node = FCNode(kind: shape, origin: p)   // 形状不带默认文字
                 editor.commit { $0.nodes.append(node) }
                 editor.selection = [node.id]
                 return true
@@ -499,6 +514,10 @@ struct FlowchartCanvas: View {
                 case .ended: hoverAnchor = nil
                 }
             }
+            // 右键菜单：命中什么显示什么操作（AppKit 原生菜单，左键完全放行给手势）
+            .overlay(FCRightClickCatcher { windowPoint, screen in
+                presentContextMenu(windowPoint: windowPoint, screen: screen)
+            })
             .onAppear {
                 updateCanvasSize(geo.size)
                 installScrollMonitors()
@@ -606,6 +625,18 @@ struct FlowchartCanvas: View {
                                        size: 9),
                          with: .color(accent))
             }
+            // 拉线过程中一直显示「还没走到终点」的实时像素距离（放下即消失）
+            if let tip = pts.last, pts.count >= 2 {
+                var total: CGFloat = 0
+                for i in 1..<max(1, pts.count) {
+                    total += hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
+                }
+                if total > 1 {
+                    FCRenderer.drawBadge(ctx: &ctx, theme: theme,
+                                         at: CGPoint(x: tip.x + 20, y: tip.y - 18),
+                                         text: "\(Int(total.rounded())) px")
+                }
+            }
         }
         // 拉线目标高亮（draw.io 式：光标贴到哪个图形，哪个整框变亮）
         if let tid = edgeTargetID, let node = editor.doc.nodes.first(where: { $0.id == tid }) {
@@ -646,6 +677,18 @@ struct FlowchartCanvas: View {
             ctx.fill(Path(r), with: .color(Color(nsColor: theme.accent).opacity(0.12)))
             ctx.stroke(Path(r), with: .color(accent), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
         }
+        // 缩放 / 画框时显示实时尺寸（像素）
+        switch drag {
+        case .resize(let id, _, _), .create(let id, _):
+            if let rect = editor.doc.rect(of: id) {
+                let r = transform.r(rect)
+                FCRenderer.drawBadge(ctx: &ctx, theme: theme,
+                                     at: CGPoint(x: r.midX, y: r.maxY + 14),
+                                     text: "\(Int(rect.width.rounded())) × \(Int(rect.height.rounded())) px")
+            }
+        default:
+            break
+        }
         if let x = guideX {
             var p = Path()
             p.move(to: CGPoint(x: transform.p(CGPoint(x: x, y: 0)).x, y: 0))
@@ -664,25 +707,105 @@ struct FlowchartCanvas: View {
     private var editingOverlay: some View {
         if let id = editor.editingID, let rect = editor.doc.rect(of: id) {
             let r = transform.r(rect)
-            FCTextEditor(text: Binding(
-                get: { editor.doc.text(of: id) },
-                set: { value in editor.preview { $0.setText(id, value) } }
-            ), theme: theme, align: editor.doc.style(of: id)?.align ?? .center, focused: $textFieldFocused)
+            FCTextEditor(text: editor.doc.text(of: id),
+                         theme: theme,
+                         align: editor.doc.style(of: id)?.align ?? .center,
+                         bold: editor.doc.style(of: id)?.bold ?? false,
+                         onChange: { value in editor.preview { $0.setText(id, value) } },
+                         onEnd: { finishTextEditing() })
             .frame(width: max(90, r.width), height: max(30, r.height))
             .position(x: r.midX, y: r.midY)
-            .onAppear {
-                // 延后一拍再聚焦：overlay 尚未挂进窗口层级时设置 FocusState 会被系统丢弃
-                // （表现为编辑框出现但不接收键盘输入，得再点一下才能打字）
-                DispatchQueue.main.async { textFieldFocused = true }
-            }
-            .onExitCommand { finishTextEditing() }
-            .onChange(of: textFieldFocused) { _, focused in
-                if !focused { finishTextEditing() }
-            }
         }
     }
 
     // MARK: 手势
+
+    // MARK: 右键菜单
+
+    /// 弹出右键菜单：命中的元素先自动选中，菜单项按类型给（图形 / 连线 / 空白）
+    private func presentContextMenu(windowPoint: CGPoint, screen: CGPoint) {
+        let local = FCContextGeometry.canvasPoint(windowPoint: windowPoint,
+                                                  canvasFrameInWindow: scrollTarget.view?.frameInWindow)
+        let p = transform.doc(local)
+        let hitID = editor.doc.hit(p, tolerance: 11 / max(editor.zoom, 0.2))
+        if let id = hitID, !editor.selection.contains(id) { editor.selection = [id] }
+        let entries = FCContextMenu.entries(doc: editor.doc, selection: editor.selection,
+                                            hitID: hitID, at: p)
+        let menu = buildMenu(entries, hitID: hitID, at: p)
+        menu.popUp(positioning: nil, at: screen, in: nil)
+    }
+
+    /// 纯描述 → NSMenu（动作在这里落到 editor）
+    private func buildMenu(_ entries: [FCMenuEntry], hitID: String?, at p: CGPoint) -> NSMenu {
+        let menu = NSMenu()
+        for entry in entries {
+            switch entry {
+            case .separator:
+                menu.addItem(.separator())
+            case .submenu(let title, let children):
+                let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+                parent.submenu = buildMenu(children, hitID: hitID, at: p)
+                menu.addItem(parent)
+            case .item(let title, let checked, let action):
+                let item = menuItem(title) { perform(action, hitID: hitID, at: p) }
+                item.state = checked ? .on : .off
+                menu.addItem(item)
+            }
+        }
+        return menu
+    }
+
+    private func perform(_ action: FCMenuAction, hitID: String?, at p: CGPoint) {
+        switch action {
+        case .editText, .editLabel:
+            if let id = hitID { beginEdit(id) }
+        case .duplicate:
+            editor.duplicateSelection()
+        case .bringToFront:
+            let ids = editor.selection; editor.commit { $0.bringToFront(ids) }
+        case .sendToBack:
+            let ids = editor.selection; editor.commit { $0.sendToBack(ids) }
+        case .startEdge:
+            if let id = hitID {
+                editor.tool = .edge
+                edgeStartNode = id
+                editor.pendingEdge = (from: id, anchor: .auto, point: p)
+            }
+        case .delete:
+            editor.deleteSelection()
+        case .route(let r):
+            editor.applyEdges { $0.route = r }
+        case .arrow(let a):
+            editor.applyEdges { $0.arrow = a }
+        case .newProcess:
+            let node = FCNode(kind: .rect, origin: p)
+            editor.commit { $0.nodes.append(node) }
+            editor.selection = [node.id]
+        case .paste:
+            editor.pasteFromClipboard(at: p)
+        case .toggleGrid:
+            editor.commit { $0.showGrid.toggle() }
+        case .selectAll:
+            editor.selection = editor.allIDs
+        case .fit:
+            editor.fit(in: editor.canvasSize)
+        }
+    }
+
+    private func beginEdit(_ id: String) {
+        editor.selection = [id]
+        editor.editingID = id
+        editor.beginInteraction()
+    }
+
+    /// 菜单项包装（闭包 → target/action）
+    private func menuItem(_ title: String, _ run: @escaping () -> Void) -> NSMenuItem {
+        let target = FCMenuTarget(run)
+        let item = NSMenuItem(title: title, action: #selector(FCMenuTarget.fire), keyEquivalent: "")
+        item.target = target
+        item.representedObject = target   // 保活：NSMenuItem 的 target 是弱引用
+        return item
+    }
 
     private var dragGesture: some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .local)
@@ -691,6 +814,8 @@ struct FlowchartCanvas: View {
     }
 
     private func dragChanged(_ value: DragGesture.Value) {
+        // 点画布任意处 = 结束文字编辑（NSTextView 不一定会失焦）
+        if editor.editingID != nil, case .none = drag { finishTextEditing() }
         let start = transform.doc(value.startLocation)
         let current = transform.doc(value.location)
         switch drag {
@@ -841,7 +966,7 @@ struct FlowchartCanvas: View {
                     beginTextEditing(at: p)          // 双击图形 → 改文字
                 } else {
                     // 双击空白 → 新建矩形（draw.io 习惯）
-                    let node = FCNode(kind: .rect, origin: p, text: FCTool.rect.defaultText)
+                    let node = FCNode(kind: .rect, origin: p)
                     editor.commit { $0.nodes.append(node) }
                     editor.selection = [node.id]
                 }
@@ -957,7 +1082,7 @@ struct FlowchartCanvas: View {
 
         // 3) 工具：新建元素
         if let kind = editor.tool.shape {
-            let node = FCNode(kind: kind, origin: start, text: editor.tool.defaultText)
+            let node = FCNode(kind: kind, origin: start)   // 形状不带默认文字
             editor.beginInteraction()
             editor.preview { $0.nodes.append(node) }
             editor.selection = [node.id]
@@ -1220,27 +1345,169 @@ struct FlowchartCanvas: View {
     }
 }
 
-// MARK: - 内联文字编辑
+// MARK: - 内联文字编辑（AppKit NSTextView：打开即全选，直接输入就替换旧文字）
 
-private struct FCTextEditor: View {
-    @Binding var text: String
+private struct FCTextEditor: NSViewRepresentable {
+    let text: String
     let theme: FlowchartTheme
     let align: FCTextAlign
-    var focused: FocusState<Bool>.Binding
+    let bold: Bool
+    let onChange: (String) -> Void
+    let onEnd: () -> Void
 
-    var body: some View {
-        TextEditor(text: $text)
-            .font(theme.font(size: 13))
-            .multilineTextAlignment(align.alignment)
-            .scrollContentBackground(.hidden)
-            .background(Color(nsColor: theme.surface))
-            .overlay(RoundedRectangle(cornerRadius: 6)
-                .stroke(Color(nsColor: theme.accent), lineWidth: 1.5))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .focused(focused)
-            .shadow(color: Color.black.opacity(0.18), radius: 6, y: 2)
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = FCTextScrollView()
+        scroll.drawsBackground = false
+        scroll.hasVerticalScroller = true
+        scroll.autohidesScrollers = true
+        scroll.wantsLayer = true
+        scroll.layer?.cornerRadius = 6
+        scroll.layer?.borderWidth = 1.5
+        scroll.layer?.borderColor = theme.accent.cgColor
+        scroll.layer?.backgroundColor = theme.surface.cgColor
+
+        let tv = NSTextView()
+        tv.delegate = context.coordinator
+        tv.drawsBackground = false
+        tv.isRichText = false
+        tv.allowsUndo = true
+        tv.textContainerInset = CGSize(width: 4, height: 4)
+        tv.font = theme.nsFont(size: 13, bold: bold)
+        tv.textColor = theme.text
+        tv.insertionPointColor = theme.accent
+        tv.alignment = align.nsAlignment
+        tv.string = text
+        tv.isVerticallyResizable = true
+        tv.isHorizontallyResizable = false
+        tv.autoresizingMask = [.width]
+        tv.textContainer?.widthTracksTextView = true
+        scroll.documentView = tv
+        context.coordinator.textView = tv
+        scroll.onAttach = { [weak coordinator = context.coordinator] in
+            coordinator?.focus(selectAll: true)
+        }
+        return scroll
+    }
+
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        context.coordinator.parent = self
+        guard let tv = scroll.documentView as? NSTextView else { return }
+        if tv.string != text, !context.coordinator.editing { tv.string = text }
+        tv.font = theme.nsFont(size: 13, bold: bold)
+        tv.textColor = theme.text
+        tv.alignment = align.nsAlignment
+    }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: FCTextEditor
+        weak var textView: NSTextView?
+        /// 正在编辑时不回写 string，避免打断输入 / 光标跳动
+        var editing = false
+        private var focusedOnce = false
+
+        init(_ parent: FCTextEditor) { self.parent = parent }
+
+        func textDidBeginEditing(_ notification: Notification) {
+            editing = true
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let tv = notification.object as? NSTextView else { return }
+            parent.onChange(tv.string)
+        }
+
+        func textDidEndEditing(_ notification: Notification) {
+            editing = false
+            parent.onEnd()
+        }
+
+        /// Esc = 结束编辑（Enter 保留为换行）
+        func textView(_ textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+            if selector == #selector(NSResponder.cancelOperation(_:)) {
+                parent.onEnd()
+                return true
+            }
+            return false
+        }
+
+        /// 挂进窗口后自己抢焦点并**全选已有文字**：
+        /// 双击改字时直接输入就是替换，不用先手动选中。
+        func focus(selectAll: Bool) {
+            guard let tv = textView, let win = tv.window else { return }
+            win.makeFirstResponder(tv)
+            if selectAll, !tv.string.isEmpty {
+                tv.selectAll(nil)
+            } else {
+                tv.setSelectedRange(NSRange(location: tv.string.count, length: 0))
+            }
+            focusedOnce = true
+        }
+
+        var hasFocused: Bool { focusedOnce }
     }
 }
+
+// MARK: - 右键支持（左键完全放行给 SwiftUI 手势）
+
+/// 菜单项包装：NSMenuItem 的 target 是弱引用，靠 representedObject 保活
+final class FCMenuTarget: NSObject {
+    private let run: () -> Void
+    init(_ run: @escaping () -> Void) { self.run = run }
+    @objc func fire() { run() }
+}
+
+/// 只在**右键**时参与命中测试的透明视图：
+/// 左键返回 nil，SwiftUI 的拖拽/点选手势不受影响。
+final class FCRightClickView: NSView {
+    /// (窗口坐标, 屏幕坐标)
+    var onContextMenu: ((CGPoint, NSPoint) -> Void)?
+
+    override var isFlipped: Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        switch NSApp.currentEvent?.type {
+        case .rightMouseDown, .rightMouseUp, .rightMouseDragged:
+            return super.hitTest(point)
+        default:
+            return nil
+        }
+    }
+
+    override func rightMouseDown(with event: NSEvent) {
+        // 注意：toScreen 要的是**窗口坐标**（event.locationInWindow），
+        // 不能先把点转成视图坐标再当窗口坐标用（菜单会飘到别处）
+        let screen = window?.convertPoint(toScreen: event.locationInWindow) ?? .zero
+        onContextMenu?(event.locationInWindow, screen)
+    }
+}
+
+struct FCRightClickCatcher: NSViewRepresentable {
+    let onMenu: (CGPoint, NSPoint) -> Void
+
+    func makeNSView(context: Context) -> FCRightClickView {
+        let v = FCRightClickView()
+        v.onContextMenu = onMenu
+        return v
+    }
+
+    func updateNSView(_ nsView: FCRightClickView, context: Context) {
+        nsView.onContextMenu = onMenu
+    }
+}
+
+/// 挂进窗口后回调（延后一拍抢焦点，避免布局期改状态）
+private final class FCTextScrollView: NSScrollView {
+    var onAttach: (() -> Void)?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil else { return }
+        DispatchQueue.main.async { [weak self] in self?.onAttach?() }
+    }
+}
+
 
 // MARK: - 画布在窗口中的位置（滚轮命中判断用）
 //

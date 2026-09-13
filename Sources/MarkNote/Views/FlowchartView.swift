@@ -68,18 +68,12 @@ struct FlowchartView: View {
         // 先落盘当前图的未保存改动，避免"改完立刻新建 → 改动丢失"
         if let current = editor, current.dirty { current.save() }
         let url = FlowchartStore.uniqueURL(root: root, name: _L("未命名流程图", "Untitled"))
-        var doc = FCDocument(name: url.deletingPathExtension().lastPathComponent)
-        doc.nodes = [sampleStart()]
+        // 新图从空白画布开始：形状不带默认文字，左边挑框直接画
+        let doc = FCDocument(name: url.deletingPathExtension().lastPathComponent)
         FlowchartStore.save(doc, url: url)
         docs = FlowchartStore.list(root: root)
         editor = FlowchartEditor(doc: doc, url: url)
         store.reloadIndex()
-    }
-
-    private func sampleStart() -> FCNode {
-        var node = FCNode(kind: .capsule, origin: CGPoint(x: 120, y: 80), text: _L("开始", "Start"))
-        node.style.fill = nil
-        return node
     }
 
     private func open(_ ref: FCDocRef) {
@@ -778,6 +772,11 @@ struct FlowchartEditorHost: View {
             if editor.editingID != nil { editor.editingID = nil; return true }
             if mods.isEmpty, editor.hasSelection { editor.selection = []; return true }
             return false
+        case 36:        // return：直接编辑选中项的文字（图形 / 文本框 / 连线标签）
+            guard mods.isEmpty, editor.selection.count == 1, let id = editor.selection.first else { return false }
+            editor.beginInteraction()
+            editor.editingID = id
+            return true
         case 123: return arrow(dx: -1, dy: 0, mods: mods)
         case 124: return arrow(dx: 1, dy: 0, mods: mods)
         case 125: return arrow(dx: 0, dy: 1, mods: mods)
@@ -794,6 +793,15 @@ struct FlowchartEditorHost: View {
             return true
         case "d":
             editor.duplicateSelection()
+            return true
+        case "c":
+            editor.copySelection()
+            return true
+        case "x":
+            editor.cutSelection()
+            return true
+        case "v":
+            editor.pasteFromClipboard()
             return true
         case "s":
             editor.save()

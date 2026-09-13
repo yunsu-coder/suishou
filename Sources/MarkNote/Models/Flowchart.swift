@@ -424,6 +424,159 @@ struct FCGroup: Identifiable, Codable, Equatable, Hashable {
 }
 
 /// 一张流程图（= `source/flowchart/<名字>.json`）
+/// 剪切板片段：跨图粘贴用（id 会重排，连线两端一起重映射；粘贴多次不会撞 id）
+struct FCPasteboardPayload: Codable, Equatable {
+    var nodes: [FCNode] = []
+    var edges: [FCEdge] = []
+    var texts: [FCTextItem] = []
+    var groups: [FCGroup] = []
+
+    static let pasteboardType = NSPasteboard.PasteboardType("com.gzhysu.marknote.flowchart")
+
+    init() {}
+
+    init(doc: FCDocument, ids: Set<String>) {
+        nodes = doc.nodes.filter { ids.contains($0.id) }
+        texts = doc.texts.filter { ids.contains($0.id) }
+        groups = doc.groups.filter { ids.contains($0.id) }
+        // 连线：显式选中的 + 两端都在选区里的（和「复制」语义一致）
+        let nodeIDs = Set(nodes.map(\.id))
+        edges = doc.edges.filter {
+            ids.contains($0.id) || (nodeIDs.contains($0.fromNode) && nodeIDs.contains($0.toNode))
+        }
+    }
+
+    var allIDs: Set<String> {
+        Set(nodes.map(\.id)).union(edges.map(\.id))
+            .union(texts.map(\.id)).union(groups.map(\.id))
+    }
+
+    var isEmpty: Bool { nodes.isEmpty && edges.isEmpty && texts.isEmpty && groups.isEmpty }
+
+    var bounds: CGRect {
+        var box: CGRect?
+        for n in nodes { box = box.map { $0.union(n.rect) } ?? n.rect }
+        for t in texts { box = box.map { $0.union(t.rect) } ?? t.rect }
+        for g in groups { box = box.map { $0.union(g.rect) } ?? g.rect }
+        return box ?? CGRect(x: 0, y: 0, width: 0, height: 0)
+    }
+
+    /// 全新 id + 可选平移（粘贴用）
+    func freshCopy(dx: Double = 0, dy: Double = 0) -> FCPasteboardPayload {
+        var out = FCPasteboardPayload()
+        var map: [String: String] = [:]
+        for n in nodes {
+            var copy = n
+            copy.id = UUID().uuidString
+            copy.x += dx; copy.y += dy
+            map[n.id] = copy.id
+            out.nodes.append(copy)
+        }
+        for t in texts {
+            var copy = t
+            copy.id = UUID().uuidString
+            copy.x += dx; copy.y += dy
+            out.texts.append(copy)
+        }
+        for g in groups {
+            var copy = g
+            copy.id = UUID().uuidString
+            copy.x += dx; copy.y += dy
+            out.groups.append(copy)
+        }
+        for e in edges {
+            var copy = e
+            copy.id = UUID().uuidString
+            // 只保留两端都在这批里的连线，避免粘出悬空边
+            guard let from = map[e.fromNode], let to = map[e.toNode] else { continue }
+            copy.fromNode = from
+            copy.toNode = to
+            out.edges.append(copy)
+        }
+        return out
+    }
+}
+
+/// 一张流程图（= `source/flowchart/<名字>.json`）
+// MARK: - 右键菜单（纯描述，视图层只负责转成 NSMenuItem；便于单测）
+
+enum FCMenuAction: Equatable {
+    case editText
+    case duplicate
+    case bringToFront
+    case sendToBack
+    case startEdge
+    case delete
+    case editLabel
+    case route(FCRoute)
+    case arrow(FCArrow)
+    case newProcess
+    case paste
+    case toggleGrid
+    case selectAll
+    case fit
+}
+
+indirect enum FCMenuEntry: Equatable {
+    case item(title: String, checked: Bool, action: FCMenuAction)
+    case submenu(title: String, entries: [FCMenuEntry])
+    case separator
+}
+
+enum FCContextMenu {
+    /// 按命中对象给出菜单：图形 / 文本 / 分组 → 编辑与层级；连线 → 标签与走法；空白 → 新建与视图
+    static func entries(doc: FCDocument, selection: Set<String>, hitID: String?,
+                        at p: CGPoint) -> [FCMenuEntry] {
+        var out: [FCMenuEntry] = []
+        let node = hitID.flatMap { id in doc.nodes.first { $0.id == id } }
+        let edge = hitID.flatMap { id in doc.edges.first { $0.id == id } }
+        let text = hitID.flatMap { id in doc.texts.first { $0.id == id } }
+        let group = hitID.flatMap { id in doc.groups.first { $0.id == id } }
+
+        if node != nil || text != nil || group != nil {
+            out.append(.item(title: _L("编辑文字", "Edit Text"), checked: false, action: .editText))
+            out.append(.separator)
+            out.append(.item(title: _L("复制", "Duplicate"), checked: false, action: .duplicate))
+            out.append(.item(title: _L("置顶", "Bring to Front"), checked: false, action: .bringToFront))
+            out.append(.item(title: _L("置底", "Send to Back"), checked: false, action: .sendToBack))
+            out.append(.separator)
+            out.append(.item(title: _L("从这里连线", "Draw Connection"), checked: false, action: .startEdge))
+            out.append(.separator)
+            out.append(.item(title: _L("删除", "Delete"), checked: false, action: .delete))
+        } else if let e = edge {
+            out.append(.item(title: _L("编辑标签", "Edit Label"), checked: false, action: .editLabel))
+            out.append(.separator)
+            out.append(.submenu(title: _L("线的走法", "Line Route"), entries: FCRoute.allCases.map {
+                .item(title: $0.label, checked: e.route == $0, action: .route($0))
+            }))
+            out.append(.submenu(title: _L("箭头", "Arrow"), entries: FCArrow.allCases.map {
+                .item(title: $0.label, checked: e.arrow == $0, action: .arrow($0))
+            }))
+            out.append(.separator)
+            out.append(.item(title: _L("删除连线", "Delete Connection"), checked: false, action: .delete))
+        } else {
+            out.append(.item(title: _L("新建执行框", "New Process Box"), checked: false, action: .newProcess))
+            out.append(.item(title: _L("粘贴到此处", "Paste Here"), checked: false, action: .paste))
+            out.append(.separator)
+            out.append(.item(title: doc.showGrid ? _L("隐藏网格", "Hide Grid") : _L("显示网格", "Show Grid"),
+                             checked: doc.showGrid, action: .toggleGrid))
+            out.append(.separator)
+            out.append(.item(title: _L("全选", "Select All"), checked: false, action: .selectAll))
+            out.append(.item(title: _L("适应窗口", "Fit"), checked: false, action: .fit))
+        }
+        return out
+    }
+}
+
+/// 右键坐标换算：窗口坐标（左下原点）→ 画布内坐标（左上原点）
+enum FCContextGeometry {
+    static func canvasPoint(windowPoint: CGPoint, canvasFrameInWindow: CGRect?) -> CGPoint {
+        guard let frame = canvasFrameInWindow, frame.width > 1 else { return windowPoint }
+        return CGPoint(x: windowPoint.x - frame.minX, y: frame.maxY - windowPoint.y)
+    }
+}
+
+/// 一张流程图（= `source/flowchart/<名字>.json`）
 struct FCDocument: Codable, Equatable {
     var version: Int = 1
     var name: String = _L("未命名流程图", "Untitled")
@@ -1269,19 +1422,9 @@ enum FCTool: String, CaseIterable, Identifiable {
 
     var shape: FCShapeKind? {
         switch self {
-        case .start, .end: return .capsule
+        case .start: return .capsule     // 开始：圆角胶囊
+        case .end: return .ellipse       // 结束：椭圆（和开始明显区分）
         default: return FCShapeKind(rawValue: rawValue)
-        }
-    }
-
-    /// 新建图形的默认文字（开始框直接写「开始」，省得每次双击改字）
-    var defaultText: String {
-        switch self {
-        case .start: return _L("开始", "Start")
-        case .end: return _L("结束", "End")
-        case .rect, .roundedRect: return _L("执行", "Step")
-        case .diamond: return _L("判断", "Decide")
-        default: return FCShapeKind(rawValue: rawValue)?.label ?? _L("图形", "Shape")
         }
     }
 }
@@ -1369,6 +1512,48 @@ final class FlowchartEditor: ObservableObject {
         var fresh: Set<String> = []
         commit { fresh = $0.duplicate(ids) }
         selection = fresh
+    }
+
+    /// 复制到系统剪切板（自研类型，跨图也能粘）
+    @discardableResult
+    func copySelection() -> Bool {
+        guard !selection.isEmpty else { return false }
+        let payload = FCPasteboardPayload(doc: doc, ids: selection)
+        guard !payload.isEmpty, let data = try? JSONEncoder().encode(payload) else { return false }
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setData(data, forType: FCPasteboardPayload.pasteboardType)
+        return true
+    }
+
+    func cutSelection() {
+        guard copySelection() else { return }
+        deleteSelection()
+    }
+
+    /// 粘贴：`at` 给了就贴到那个点（右键菜单），否则原位偏移 24pt（⌘V）
+    @discardableResult
+    func pasteFromClipboard(at point: CGPoint? = nil) -> Bool {
+        guard let data = NSPasteboard.general.data(forType: FCPasteboardPayload.pasteboardType),
+              let payload = try? JSONDecoder().decode(FCPasteboardPayload.self, from: data),
+              !payload.isEmpty else { return false }
+        let b = payload.bounds
+        let dx: Double, dy: Double
+        if let point {
+            dx = Double(point.x - b.minX)
+            dy = Double(point.y - b.minY)
+        } else {
+            dx = 24; dy = 24
+        }
+        let fresh = payload.freshCopy(dx: dx, dy: dy)
+        commit { doc in
+            doc.nodes.append(contentsOf: fresh.nodes)
+            doc.edges.append(contentsOf: fresh.edges)
+            doc.texts.append(contentsOf: fresh.texts)
+            doc.groups.append(contentsOf: fresh.groups)
+        }
+        selection = fresh.allIDs
+        return true
     }
 
     func autoNumber() {

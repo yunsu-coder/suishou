@@ -538,18 +538,121 @@ final class FlowchartTests: XCTestCase {
         XCTAssertNil(old.style.accent)
     }
 
-    /// 四个框的语义：开始 / 执行 / 判断 / 结束
+    /// 四个框的语义：开始 / 执行 / 判断 / 结束（开始是胶囊、结束是椭圆，形状必须不一样；
+    /// 新建的框不带默认文字）
     func testBoxToolsSemantics() {
         XCTAssertEqual(FCTool.start.shape, .capsule)
-        XCTAssertEqual(FCTool.end.shape, .capsule)
+        XCTAssertEqual(FCTool.end.shape, .ellipse)
         XCTAssertEqual(FCTool.rect.shape, .rect)
         XCTAssertEqual(FCTool.diamond.shape, .diamond)
-        XCTAssertEqual(FCTool.start.defaultText, "开始")
-        XCTAssertEqual(FCTool.rect.defaultText, "执行")
-        XCTAssertEqual(FCTool.diamond.defaultText, "判断")
-        XCTAssertEqual(FCTool.end.defaultText, "结束")
         XCTAssertEqual(FCTool.rect.label, "执行")
         XCTAssertEqual(FCTool.diamond.label, "判断")
+        XCTAssertEqual(FCTool.start.label, "开始")
+        XCTAssertEqual(FCTool.end.label, "结束")
+        XCTAssertNotEqual(FCTool.start.shape, FCTool.end.shape, "开始和结束不能是同一个形状")
+        // 新建图形不带默认文字
+        XCTAssertEqual(FCNode(kind: FCTool.start.shape ?? .capsule, origin: .zero).text, "")
+    }
+
+    /// 剪切板片段：跨图粘贴要换新 id、重映射连线两端、不粘出悬空边
+    func testPasteboardPayloadFreshCopy() {
+        var doc = FCDocument()
+        var a = FCNode(kind: .capsule, origin: CGPoint(x: 10, y: 20))
+        var b = FCNode(kind: .rect, origin: CGPoint(x: 200, y: 20))
+        var c = FCNode(kind: .rect, origin: CGPoint(x: 600, y: 20))
+        a.id = "a"; b.id = "b"; c.id = "c"
+        doc.nodes = [a, b, c]
+        doc.edges = [FCEdge(fromNode: "a", toNode: "b"),
+                     FCEdge(fromNode: "a", toNode: "c")]
+        let payload = FCPasteboardPayload(doc: doc, ids: ["a", "b"])
+        XCTAssertEqual(payload.nodes.count, 2)
+        XCTAssertEqual(payload.edges.count, 1, "只复制两端都在选区里的连线")
+        let fresh = payload.freshCopy(dx: 30, dy: 40)
+        XCTAssertEqual(fresh.nodes.count, 2)
+        XCTAssertEqual(fresh.edges.count, 1)
+        XCTAssertTrue(Set(fresh.nodes.map(\.id)).isDisjoint(with: Set(["a", "b"])), "id 必须换新")
+        let newIDs = Set(fresh.nodes.map(\.id))
+        XCTAssertTrue(newIDs.contains(fresh.edges[0].fromNode))
+        XCTAssertTrue(newIDs.contains(fresh.edges[0].toNode))
+        XCTAssertEqual(fresh.bounds.minX, payload.bounds.minX + 30, accuracy: 0.001)
+        XCTAssertEqual(fresh.bounds.minY, payload.bounds.minY + 40, accuracy: 0.001)
+    }
+
+    // MARK: 右键菜单
+
+    private func itemTitles(_ entries: [FCMenuEntry]) -> [String] {
+        entries.compactMap { entry in
+            switch entry {
+            case .item(let title, _, _): return title
+            case .submenu(let title, _): return title
+            case .separator: return nil
+            }
+        }
+    }
+
+    private func submenu(_ entries: [FCMenuEntry], _ title: String) -> [FCMenuEntry] {
+        for entry in entries {
+            if case .submenu(let t, let children) = entry, t == title { return children }
+        }
+        return []
+    }
+
+    @MainActor
+    func testContextMenuPerHitType() {
+        let doc = FlowchartTests.sampleDocument()
+        // 图形
+        let onNode = FCContextMenu.entries(doc: doc, selection: [], hitID: doc.nodes[0].id, at: .zero)
+        let nodeTitles = itemTitles(onNode)
+        XCTAssertTrue(nodeTitles.contains("编辑文字"))
+        XCTAssertTrue(nodeTitles.contains("复制"))
+        XCTAssertTrue(nodeTitles.contains("置顶"))
+        XCTAssertTrue(nodeTitles.contains("从这里连线"))
+        XCTAssertTrue(nodeTitles.contains("删除"))
+        XCTAssertTrue(onNode.contains(.separator))
+
+        // 连线：标签 + 走法 / 箭头子菜单，且当前值打勾
+        let edge = doc.edges[0]
+        let onEdge = FCContextMenu.entries(doc: doc, selection: [], hitID: edge.id, at: .zero)
+        XCTAssertTrue(itemTitles(onEdge).contains("编辑标签"))
+        XCTAssertTrue(itemTitles(onEdge).contains("删除连线"))
+        let routes = submenu(onEdge, "线的走法")
+        XCTAssertEqual(routes.count, FCRoute.allCases.count)
+        XCTAssertTrue(routes.contains(.item(title: edge.route.label, checked: true, action: .route(edge.route))))
+        let arrows = submenu(onEdge, "箭头")
+        XCTAssertEqual(arrows.count, FCArrow.allCases.count)
+
+        // 空白：新建 / 粘贴 / 网格 / 全选 / 适应窗口
+        let onBlank = FCContextMenu.entries(doc: doc, selection: [], hitID: nil, at: .zero)
+        let blankTitles = itemTitles(onBlank)
+        XCTAssertTrue(blankTitles.contains("新建执行框"))
+        XCTAssertTrue(blankTitles.contains("粘贴到此处"))
+        XCTAssertTrue(blankTitles.contains("隐藏网格"), "网格开着时应给「隐藏网格」")
+        XCTAssertTrue(blankTitles.contains("全选"))
+        XCTAssertTrue(blankTitles.contains("适应窗口"))
+        XCTAssertFalse(blankTitles.contains("删除"))
+
+        // 网格关掉后，空白菜单给「显示网格」
+        var hidden = doc
+        hidden.showGrid = false
+        XCTAssertTrue(itemTitles(FCContextMenu.entries(doc: hidden, selection: [], hitID: nil, at: .zero))
+            .contains("显示网格"))
+    }
+
+    /// 右键坐标换算：窗口坐标（左下原点）→ 画布内坐标（左上原点）
+    func testContextMenuCoordinateConversion() {
+        let frame = CGRect(x: 152, y: 100, width: 600, height: 400)   // 窗口坐标
+        // 画布左上角（窗口坐标：x=152, y=500）→ 画布内 (0,0)
+        XCTAssertEqual(FCContextGeometry.canvasPoint(windowPoint: CGPoint(x: 152, y: 500),
+                                                     canvasFrameInWindow: frame),
+                       CGPoint(x: 0, y: 0))
+        // 画布内 (48, 50) → 窗口坐标 (200, 450)
+        XCTAssertEqual(FCContextGeometry.canvasPoint(windowPoint: CGPoint(x: 200, y: 450),
+                                                     canvasFrameInWindow: frame),
+                       CGPoint(x: 48, y: 50))
+        // 没有画布尺寸信息时原样返回（不崩）
+        XCTAssertEqual(FCContextGeometry.canvasPoint(windowPoint: CGPoint(x: 5, y: 6),
+                                                     canvasFrameInWindow: nil),
+                       CGPoint(x: 5, y: 6))
     }
 
     /// 整屏（工具栏 + 画布 + 检查器）渲染：用来肉眼检查界面，也防止布局整体崩掉
