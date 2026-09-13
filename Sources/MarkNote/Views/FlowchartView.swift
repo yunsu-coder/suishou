@@ -503,21 +503,13 @@ struct FlowchartEditorHost: View {
     }
 
     private var zoomLabel: some View {
-        Menu {
-            Button("50%") { editor.zoom = 0.5 }
-            Button("100%") { editor.resetZoom() }
-            Button("150%") { editor.zoom = 1.5 }
-            Button("200%") { editor.zoom = 2 }
-            Divider()
-            Button(_L("适应窗口", "Fit"), action: { editor.fit(in: editor.canvasSize) })
-        } label: {
-            Text("\(Int((editor.zoom * 100).rounded()))%")
-                .font(theme.font(size: 11))
-                .foregroundStyle(Color(nsColor: theme.secondary))
-                .frame(width: 44)
-        }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
+        // 只显示比例（缩放用 ⌘+滚轮 / 捏合，无极调节；不再给固定档位菜单）
+        Text("\(Int((editor.zoom * 100).rounded()))%")
+            .font(theme.font(size: 11))
+            .monospacedDigit()
+            .foregroundStyle(Color(nsColor: theme.secondary))
+            .frame(width: 44)
+            .help(_L("⌘ + 滚轮 / 触控板捏合 = 无极缩放", "⌘-scroll or pinch to zoom (continuous)"))
     }
 
     // MARK: 导出
@@ -1096,7 +1088,8 @@ private struct FlowchartInspector: View {
                 hint(_L("拖图形边缘圆点 / 连线工具 → 拉出连线", "Drag from a node edge dot to connect"))
                 hint(_L("拉线中：右键落断点 · 双击空白取消", "While drawing: right-click = bend point · double-click blank = cancel"))
                 hint(_L("双击图形 → 写文字", "Double-click a shape to edit text"))
-                hint(_L("⌥ 拖拽 / 双指滚动 → 平移，⌘ 滚轮 → 缩放", "⌥-drag or scroll to pan, ⌘-scroll to zoom"))
+                hint(_L("⌥ 拖拽 / 双指滚动 → 平移；⌘ + 滚轮 / 捏合 → 无极缩放（比例显示在工具栏）",
+                        "⌥-drag or scroll to pan; ⌘-scroll or pinch to zoom (ratio shown in the toolbar)"))
                 hint(_L("Esc 或右上角 ✕ 关闭", "Esc or ✕ (top right) closes"))
                 hint(_L("⌘Z 撤销 · ⌘D 复制 · ⌘E 自动编号 · 方向键微调",
                         "⌘Z undo · ⌘D duplicate · ⌘E number · arrows nudge"))

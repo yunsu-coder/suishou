@@ -1560,7 +1560,9 @@ struct FlowchartCanvas: View {
             let local = CGPoint(x: event.locationInWindow.x - frame.minX,
                                 y: frame.maxY - event.locationInWindow.y)
             if event.modifierFlags.contains(.command) {
-                let factor = 1 + event.scrollingDeltaY * 0.006
+                // 无极缩放：指数式（每格约 3~4%，触控板连续滚动则非常细腻），单次限幅防跳
+                let raw = exp(event.scrollingDeltaY * 0.004)
+                let factor = min(max(raw, 0.5), 2)
                 zoom(around: local, factor: factor)
             } else {
                 editor.offset.width += event.scrollingDeltaX
@@ -1590,7 +1592,7 @@ struct FlowchartCanvas: View {
 
     private func zoom(around local: CGPoint, factor: CGFloat) {
         let old = editor.zoom
-        let next = min(max(old * factor, 0.2), 4)
+        let next = min(max(old * factor, 0.15), 6)
         guard abs(next - old) > 0.0001 else { return }
         let docPoint = CGPoint(x: (local.x - editor.offset.width) / old,
                                y: (local.y - editor.offset.height) / old)
