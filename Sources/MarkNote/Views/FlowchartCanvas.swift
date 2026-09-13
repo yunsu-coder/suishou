@@ -188,7 +188,7 @@ enum FCRenderer {
 
     /// 图形 / 连线 / 文本（不含选中框与手柄）
     static func content(_ doc: FCDocument, theme: FlowchartTheme, transform: FCViewTransform,
-                        ctx: inout GraphicsContext) {
+                        jumpErase: NSColor? = nil, ctx: inout GraphicsContext) {
         let rs = doc.style.resolved(theme: theme)
         let paths = doc.edges.compactMap { e in doc.edgePath(e).map { (e, $0) } }
         for g in doc.groups { group(g, style: rs, theme: theme, transform: transform, ctx: &ctx) }
@@ -201,7 +201,7 @@ enum FCRenderer {
                     crossings.append(contentsOf: Self.crossings(item.1.polyline, paths[j].1.polyline))
                 }
                 Self.drawJumps(&ctx, crossings: crossings, polyline: item.1.polyline,
-                               color: rs.stroke, theme: theme, transform: transform)
+                               color: rs.stroke, erase: jumpErase, transform: transform)
             }
         }
         for n in doc.nodes { node(n, style: rs, theme: theme, transform: transform, ctx: &ctx) }
@@ -232,15 +232,17 @@ enum FCRenderer {
 
     /// 在交叉处画「跳线拱」：先用底色断开，再用自身颜色搭一小段半圆
     static func drawJumps(_ ctx: inout GraphicsContext, crossings: [CGPoint], polyline: [CGPoint],
-                          color: NSColor, theme: FlowchartTheme, transform: FCViewTransform) {
+                          color: NSColor, erase: NSColor?, transform: FCViewTransform) {
         guard !crossings.isEmpty else { return }
         let r: CGFloat = 5
         for c in crossings {
             let p = transform.p(c)
-            // 断开：用画布底色盖掉一个小圆
-            ctx.fill(Path(ellipseIn: CGRect(x: p.x - r - 1, y: p.y - r - 1,
-                                            width: (r + 1) * 2, height: (r + 1) * 2)),
-                     with: .color(Color(nsColor: theme.background)))
+            // 断开：用画布底色盖掉一个小圆（透明背景导出时不填，只保留跳线拱）
+            if let erase {
+                ctx.fill(Path(ellipseIn: CGRect(x: p.x - r - 1, y: p.y - r - 1,
+                                                width: (r + 1) * 2, height: (r + 1) * 2)),
+                         with: .color(Color(nsColor: erase)))
+            }
             // 拱：沿着这条线的走向搭半圆（竖直走向 → 拱向左；水平走向 → 拱向上）
             let vertical = Self.isVertical(at: c, in: polyline)
             var arc = Path()
@@ -447,7 +449,9 @@ struct FlowchartExportCanvas: View {
                 Color(nsColor: background)
             }
             Canvas { ctx, _ in
-                FCRenderer.content(doc, theme: theme, transform: transform, ctx: &ctx)
+                // 跳线的「断开」要用实际背景色；透明导出时传 nil（只画拱，不填底色）
+                FCRenderer.content(doc, theme: theme, transform: transform,
+                                   jumpErase: background, ctx: &ctx)
             }
             .frame(width: bounds.width, height: bounds.height)
         }
@@ -558,7 +562,8 @@ struct FlowchartCanvas: View {
             ZStack(alignment: .topLeading) {
                 Canvas { ctx, size in
                     if editor.doc.showGrid { FCRenderer.grid(&ctx, size: size, transform: transform, theme: theme) }
-                    FCRenderer.content(editor.doc, theme: theme, transform: transform, ctx: &ctx)
+                    FCRenderer.content(editor.doc, theme: theme, transform: transform,
+                                       jumpErase: theme.background, ctx: &ctx)
                     drawOverlays(&ctx)
                 }
                 .background(FCScrollTargetReporter(box: scrollTarget))
