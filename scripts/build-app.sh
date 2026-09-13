@@ -26,8 +26,8 @@ cat > "$APP/Contents/Info.plist" << 'PLIST'
   <key>CFBundleDevelopmentRegion</key><string>en</string>
   <key>CFBundleLocalizations</key>
   <array><string>en</string><string>zh-Hans</string></array>
-  <key>CFBundleVersion</key><string>1.1</string>
-  <key>CFBundleShortVersionString</key><string>1.1.0</string>
+  <key>CFBundleVersion</key><string>2.0</string>
+  <key>CFBundleShortVersionString</key><string>2.0.0</string>
   <key>CFBundleExecutable</key><string>MarkNote</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>

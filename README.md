@@ -2,7 +2,7 @@
 
 **中文** | [English](README.en.md)
 
-_A macOS Markdown notes editor / local-first note-taking app. Files are the storage; AI assistant (DeepSeek) and a declarative plugin system included. SwiftUI, offline-first, Obsidian alternative._
+_A macOS Markdown notes editor / local-first note-taking app. Files are the storage; a reviewed theme system, a workspace-scoped asset library, and an optional AI assistant (bring your own API key). SwiftUI, offline-first._
 
 一个 macOS 上的 Markdown 笔记编辑器。技术栈 SwiftUI + AppKit;核心思路是把笔记保存为普通文件,尽量避免私有格式。
 
@@ -11,31 +11,48 @@ _A macOS Markdown notes editor / local-first note-taking app. Files are the stor
 ## 设计
 
 - **文件即笔记**:工作台就是一个文件夹,每篇笔记对应一个 `.md` 或文本文件。想换编辑器、想备份迁移、想放进 git,都直接可用
-- **文件夹即分类**:子文件夹当作分类;图片、PDF、视频等资源按类型放到 source/ 下,并在笔记里插入引用
-- **功能可裁剪**:写 → 看 → 存 是核心;行号、当前行高亮、括号匹配、代码智能、导出、AI 快捷操作、渲染扩展等开关在设置里逐项控制
-- **AI 助手(可选)**:停靠式 AI 面板(⇧⌘A),支持 `@文件名` 引用工作台文件、文件读写代理、对话历史、总结到笔记。使用 DeepSeek 接口,内置可用
+- **工作台即环境**:每个工作台独立隔离(素材、卡片墙、索引都只算当前工作台);跨工作台只支持「显式勾选导入」,不做自动同步
+- **素材库**:图片 / 视频 / 音频 / 文档按类型自动归入 `source/`,拖入或粘贴文件自动入库(命名「日期-描述」);引用计数、未引用筛选、删除进废纸篓、跨工作台导入一应俱全
+- **功能可裁剪**:写 → 看 → 存 是核心;行号、当前行高亮、括号匹配、代码智能、导出等开关在设置里逐项控制
+- **AI 助手(可选)**:停靠式 AI 面板,支持 `@文件名` 引用工作台文件、文件读写代理、对话历史、总结到笔记。**API Key 由用户自备**(设置 → 模型服务),不内置
 
 ## 界面
 
 - 顶部标签行与窗口交通灯同高,点击切换、× 关闭;窗口标题跟随当前标签
 - 左侧:工作台 / 插件市场 / 设置(底部)
 - 编辑器基于 NSTextView;预览为单个 WKWebView,离线渲染 markdown-it、KaTeX、Mermaid、highlight.js
+- 编辑器语法高亮 33 类(标题/列表/表格/公式/媒体引用/多级编号 `1.1.1` …),**预览与编辑器共用当前主题的同一套语法配色**
+- 阅读专注态(`⌘⇧R`):隐藏侧栏/标签栏/状态栏,全宽沉浸阅读;`Esc` 或开始打字退出,鼠标移到窗口顶部滑出退出条
 - 中文 / English / 跟随系统,切换语言后重启生效(与 VS Code 一致)
+
+## 主题
+
+主题包(全局 UI + 预览配色)通过质量硬门槛审核:专属字体、语义图标、彩蛋、动效、对比度与体积全部达标才进市场。当前四套:
+
+| 主题 | 风格 |
+| --- | --- |
+| 雾青 | 纸感亮色 + 青瓷主色,植物语义图标与开花彩蛋 |
+| 墨纸 | 宣纸质感 + 朱砂点缀 |
+| Bubble Pop | 像素糖果风,专属像素字体与图标 |
+| 深林夜 | 暗色,墨绿森林 |
 
 ## 插件
 
-插件是声明式的(manifest + 数据文件,不执行用户代码),在插件市场里启用/禁用,默认关闭。当前内置:
+插件是声明式的(manifest + 数据文件,不执行任意用户代码),在插件市场里启用/禁用。当前市场只保留两类:
 
 | 类别 | 内容 |
 | --- | --- |
-| 渲染扩展 | 键帽 `[[⌘S]]`、提及高亮、引言美化、终端代码块、代码块复制按钮 |
-| 模板包 | 周报/会议纪要/PRD/复盘、README/API/CHANGELOG、康奈尔/费曼/错题本、邮件、OKR/项目计划、日记/年度/打卡、部署/故障/上线检查、课程/教案/考试、饮食/运动/睡眠 |
-| AI 专家 | 学术(论文/英文写作/综述)、语言(口语/日语/翻译)、生活(时间/习惯/情绪)、编程(代码评审/性能优化/算法)、商业(商业分析/产品经理/市场策划)、写作(文案/小说/公文) |
-| 文件类型 | 代码文件(ts/js/go/rs)、配置文件(env/ini)、排版语言(rst/tex/org/adoc)、数据文件(parquet/feather/delta/csv/tsv) |
-| 命令 | 版本历史/快速打开/AI 面板直达 |
-| 主题 | 15 款:Nord / Gruvbox / Ocean / Paper / Cyberpunk / Solarized / Dracula / Kanagawa / Monokai / Tokyo Night / Catppuccin / One Dark / Ayu / Rosé Pine / Everforest |
+| 主题包 | 见上「主题」一节(四套,人工审核) |
+| 视图插件 | **卡片墙**:按天分组的笔记卡片,全部/加星/待办筛选与待办进度徽章;**素材网格**:缩略图网格、搜索、未引用筛选、拖拽插入、跨工作台导入 |
 
-插件目录:工作台 `.plugins/<id>/` 或 `~/Library/Application Support/MarkNote/plugins/<id>/`;包元数据与模板正文含中英文。详见 `docs/05-内置插件库.md`。
+渲染增强(Callout、标签页、时间线、键帽、徽章、图片卡、代码复制等)已内置,不再需要插件。插件目录:工作台 `.plugins/<id>/` 或 `~/Library/Application Support/MarkNote/plugins/<id>/`。详见 `docs/05-内置插件库.md`。
+
+## 素材库
+
+- 外部文件拖入窗口或 `⌘V` 粘贴 → 自动复制进 `source/<类型>/`,命名「日期-描述」;文本/笔记类仍走「导入为笔记」
+- 从素材面板拖进编辑器:图片内联、视频/音频内嵌播放器(带首帧缩略图与时长)、其他文件渲染为附件卡;拖到哪插到哪
+- 素材面板支持搜索、未被引用筛选、引用计数;删除进废纸篓(带「被 N 篇引用」提示)
+- 跨工作台导入:勾选式复制,原工作台只读
 
 ## 运行
 
@@ -59,7 +76,11 @@ open build/随手.app
 | `⌥⌘↑/↓` | 上一篇 / 下一篇文件 |
 | `⌘,` | 设置(语言/主题/字号/缩放) |
 | `⇧⌘A` / `⌥⌘A` | AI 面板开关 |
+| `⌘P` | 快速打开(名称搜索) |
 | `⌃⇧P` | 命令面板 |
+| `⌘F` / `⇧⌘F` | 查找 / 替换 |
+| `⌘⇧R` | 阅读专注态(全宽沉浸,再按或 Esc 退出) |
+| `⌘W` | 关闭当前标签 |
 | `⌃+滚轮` | 分层缩放(编辑器=字号,预览=正文,其余=窗口) |
 | `⌘B` | 显示/隐藏资源管理器 |
 
@@ -70,7 +91,9 @@ open build/随手.app
 - Callout:`::: tip|note|warning|danger|info|details`
 - 脚注、任务列表、`==标记==`、`~下标~`、`^上标^`、`++下划线++`
 - KaTeX 公式、Mermaid 图表、代码高亮
-- 图片:粘贴/拖拽/`⌥⌘P` 自动存入 `source/image/`,正文可写短引用 `![说明](文件名.png)`
+- 表格(GFM)、多级编号 `1.` / `1.1` / `1.1.1`(预览按层级缩进)
+- 图片:粘贴/拖拽自动存入素材库,正文可写短引用 `![说明](img/文件名.png)`
+- 视频 / 音频:素材面板拖入即生成 `<video>` / `<audio>` 内嵌播放器
 - 附件卡:`@[文件名](相对路径)` → 预览渲染为卡片,点击打开
 
 ## 技术要点
@@ -97,14 +120,13 @@ note/
 │   ├── Views/                    # 侧栏/编辑器/预览/AI面板/市场/设置
 │   └── Resources/                # preview 管线 + vendor(离线)
 ├── Tests/MarkNoteTests/          # 测试
-├── plugins-market/               # 插件库
-├── plugins-samples/              # 示例包
+├── plugins-market/               # 插件库(主题包 ×4 + 视图插件 ×2)
 ├── scripts/build-app.sh          # 打包 .app
-└── docs/05-内置插件库.md         # 插件文档
+└── docs/                         # 插件/主题规则、发布稿
 ```
 
 ## 待办
 
-- 插件市场远程安装/更新通道
-- 更多模板与专家包
+- 插件市场远程安装/更新通道;插件「命令形态」扩展点(选中文字 → 操作)
+- 更多主题(暗色系补充)
 - 移动端 / 云同步(未开始)
