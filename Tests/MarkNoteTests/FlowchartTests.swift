@@ -203,6 +203,63 @@ final class FlowchartTests: XCTestCase {
 
     // MARK: 编辑操作
 
+    // MARK: 智能正交路由（draw.io 风格）
+
+    /// 无障碍：面对面锚点应合并成一条直线
+    func testRouterStraightWhenClear() {
+        let p0 = CGPoint(x: 0, y: 0), p1 = CGPoint(x: 200, y: 0)
+        let path = FCRouter.route(p0: p0, n0: CGVector(dx: 1, dy: 0),
+                                  p1: p1, n1: CGVector(dx: -1, dy: 0),
+                                  obstacles: [])
+        XCTAssertEqual(path.first, p0)
+        XCTAssertEqual(path.last, p1)
+        XCTAssertEqual(path.count, 2, "无障碍的面对面应为一条直线")
+    }
+
+    /// 中间横着障碍：路径必须绕开（不穿越），且首尾锚点保持精确
+    func testRouterAvoidsObstacle() {
+        let p0 = CGPoint(x: 0, y: 0), p1 = CGPoint(x: 260, y: 0)
+        let obstacle = CGRect(x: 100, y: -50, width: 60, height: 100)
+        let path = FCRouter.route(p0: p0, n0: CGVector(dx: 1, dy: 0),
+                                  p1: p1, n1: CGVector(dx: -1, dy: 0),
+                                  obstacles: [obstacle])
+        XCTAssertEqual(path.first, p0)
+        XCTAssertEqual(path.last, p1)
+        XCTAssertFalse(FCRouter.collides(path, [obstacle.insetBy(dx: -10, dy: -10)]),
+                       "路径不得穿过障碍（含 padding）")
+        XCTAssertGreaterThan(path.count, 2, "必须有绕行拐点")
+    }
+
+    /// 共线合并：多余共线点应被删除
+    func testRouterMergesCollinear() {
+        let pts = [CGPoint(x: 0, y: 0), CGPoint(x: 10, y: 0), CGPoint(x: 20, y: 0), CGPoint(x: 20, y: 30)]
+        let merged = FCRouter.mergeCollinear(pts)
+        XCTAssertEqual(merged, [CGPoint(x: 0, y: 0), CGPoint(x: 20, y: 0), CGPoint(x: 20, y: 30)])
+    }
+
+    /// 远距离 + 多障碍（复现用户画布）：路径必须全程正交、不穿障碍
+    func testRouterLongDistanceStaysOrthogonal() {
+        let obstacles = [
+            CGRect(x: 430, y: 60, width: 120, height: 48),    // 开始
+            CGRect(x: 214, y: 182, width: 140, height: 64),   // A
+            CGRect(x: 628, y: 468, width: 160, height: 70),   // C
+            CGRect(x: 617, y: 534, width: 140, height: 64),   // 椭圆
+            CGRect(x: 2945, y: 172, width: 102, height: 42),  // 远处矩形
+        ]
+        let p0 = CGPoint(x: 278 + 80, y: 318 + 70)            // B 底中点
+        let p1 = CGPoint(x: 2945, y: 333 + 32)                // 远处矩形左中点
+        let path = FCRouter.route(p0: p0, n0: CGVector(dx: 0, dy: 1),
+                                  p1: p1, n1: CGVector(dx: -1, dy: 0),
+                                  obstacles: obstacles)
+        for i in 1..<path.count {
+            let a = path[i - 1], b = path[i]
+            XCTAssertTrue(abs(a.x - b.x) < 0.6 || abs(a.y - b.y) < 0.6,
+                          "正交路由出现斜段：\(a) → \(b)")
+        }
+        XCTAssertFalse(FCRouter.collides(path, obstacles.map { $0.insetBy(dx: -9, dy: -9) }),
+                       "路径不得穿过障碍")
+    }
+
     /// 箭头绘制：direction 是"两端点差向量"（未归一化）——无论距离多远，
     /// 箭头都必须保持 size 尺度（曾把 2000pt 距离的箭头画成盖住半个画布的巨型三角）。
     func testArrowStaysSmallForLongDistanceDirection() {

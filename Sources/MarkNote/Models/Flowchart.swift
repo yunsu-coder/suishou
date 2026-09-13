@@ -745,45 +745,13 @@ struct FCEdgePath: Equatable {
             segments = [.line(p1)]
 
         case .orthogonal:
-            // draw.io 式简洁路由：优先「单弯 L 形」，只在必须（面对面/背对）时用 Z 形；
-            // 探出 stub 从 22 收到 14 —— 之前一条线顶多绕出两个弯、观感"弯得要死"。
-            let stub: CGFloat = 14
-            let s0 = CGPoint(x: p0.x + n0.dx * stub, y: p0.y + n0.dy * stub)
-            let s1 = CGPoint(x: p1.x + n1.dx * stub, y: p1.y + n1.dy * stub)
-            var pts: [CGPoint] = [s0]
-            let horizontal0 = n0.dy == 0
-            let horizontal1 = n1.dy == 0
-            if horizontal0 && horizontal1 {
-                let facing = (n0.dx > 0 && s1.x >= s0.x) || (n0.dx < 0 && s1.x <= s0.x)
-                let midX: CGFloat
-                if facing {
-                    midX = (s0.x + s1.x) / 2
-                } else {
-                    // 背对/同向：绕到外侧，避免折返糊在图形上
-                    midX = n0.dx > 0 ? max(s0.x, s1.x) + 20 : min(s0.x, s1.x) - 20
-                }
-                pts.append(CGPoint(x: midX, y: s0.y))
-                pts.append(CGPoint(x: midX, y: s1.y))
-            } else if !horizontal0 && !horizontal1 {
-                let facing = (n0.dy > 0 && s1.y >= s0.y) || (n0.dy < 0 && s1.y <= s0.y)
-                if facing {
-                    // 面对面：单弯 L 形（先横移到目标列，再纵向进入）
-                    pts.append(CGPoint(x: s1.x, y: s0.y))
-                } else {
-                    let midY = n0.dy > 0 ? max(s0.y, s1.y) + 20 : min(s0.y, s1.y) - 20
-                    pts.append(CGPoint(x: s0.x, y: midY))
-                    pts.append(CGPoint(x: s1.x, y: midY))
-                }
-            } else if horizontal0 {
-                // 源横向出、目标纵向进 → 单弯 L：先横到目标列，再竖进
-                pts.append(CGPoint(x: s1.x, y: s0.y))
-            } else {
-                // 源纵向出、目标横向进 → 单弯 L：先竖到目标行，再横进
-                pts.append(CGPoint(x: s0.x, y: s1.y))
-            }
-            pts.append(s1)
-            pts.append(p1)
-            segments = FCEdgePath.dedupe(pts).map { .line($0) }
+            // 智能正交路由（draw.io/GoJS 风格）：简单候选（L/Z）优先，全部碰撞时
+            // BFS 网格绕行障碍 + 视线拉直 —— 路径不再穿越图形、不再绕远。
+            let obstacles = nodes.values
+                .filter { $0.id != edge.fromNode && $0.id != edge.toNode }
+                .map(\.rect)
+            let routed = FCRouter.route(p0: p0, n0: n0, p1: p1, n1: n1, obstacles: obstacles)
+            segments = zip(routed, routed.dropFirst()).map { .line($1) }
 
         case .curve:
             let span = max(40, hypot(Double(p1.x - p0.x), Double(p1.y - p0.y)) * 0.45)

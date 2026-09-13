@@ -230,10 +230,21 @@ enum FCRenderer {
         let allLines = docPath.segments.allSatisfy { if case .line = $0 { return true } else { return false } }
         if allLines, docPath.segments.count >= 2 {
             // 折线圆角过渡（draw.io 观感：拐角是柔和圆弧，不是生硬尖角）
-            let pts = [docPath.start] + docPath.segments.compactMap { seg -> CGPoint? in
+            var pts = [docPath.start] + docPath.segments.compactMap { seg -> CGPoint? in
                 if case .line(let p) = seg { return p }
                 return nil
             }
+            // 正交化防御：任何斜段（旧存档 / 异常数据）自动插拐点拆成 L，
+            // 保证「折线」风格下永远不出现斜线
+            var ortho: [CGPoint] = []
+            for p in pts {
+                if let last = ortho.last,
+                   abs(last.x - p.x) > 0.6, abs(last.y - p.y) > 0.6 {
+                    ortho.append(CGPoint(x: p.x, y: last.y))
+                }
+                ortho.append(p)
+            }
+            pts = ortho
             Self.roundedPolyline(&path, pts.map { transform.p($0) }, radius: 8)
         } else {
             path.move(to: transform.p(docPath.start))
