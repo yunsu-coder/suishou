@@ -565,6 +565,8 @@ struct FlowchartCanvas: View {
     @State private var hoverEdgeID: String?
     /// 连线工具的起点（draw.io 同款：点源图形 → 点目标图形，不用按住拖）
     @State private var edgeStartNode: String?
+    /// 点击-点击连线时，起点落在哪条边（用户点哪条边就从哪条边出）
+    @State private var edgeStartAnchor: FCAnchor = .auto
     /// 连线工具本次按下的起始图形（决定「拖拽连线」还是「点击-点击连线」）
     @State private var edgePressNode: String?
     @State private var guideX: CGFloat?
@@ -669,7 +671,8 @@ struct FlowchartCanvas: View {
                 return FCEdgePath.selfLoop(rect: source.rect, from: fromAnchor,
                                            to: fromAnchor.selfLoopPartner, out: 26)
             }
-            let toAnchor = FCEdgePath.autoAnchor(from: target.rect, toward: source.rect)
+            // 落点边 = 鼠标所在的那条边（不再按两框相对位置猜）
+            let toAnchor = nearestAnchor(to: pending.point, node: target)
             p1 = FCEdgePath.point(toAnchor, in: target.rect)
             n1 = toAnchor.vector
             targetRect = target.rect
@@ -1066,7 +1069,8 @@ struct FlowchartCanvas: View {
             } else if let sid = edgeStartNode {
                 if let target = hitNode {
                     var edge = FCEdge(fromNode: sid, toNode: target.id,
-                                      fromAnchor: .auto, toAnchor: .auto)
+                                      fromAnchor: edgeStartAnchor,
+                                      toAnchor: nearestAnchor(to: current, node: target))
                     edge.waypoints = editor.pendingWaypoints
                     editor.commit { $0.edges.append(edge) }
                     editor.selection = [edge.id]
@@ -1079,8 +1083,9 @@ struct FlowchartCanvas: View {
                 }
             } else if let node = hitNode {
                 edgeStartNode = node.id
+                edgeStartAnchor = nearestAnchor(to: current, node: node)   // 点在哪条边就从哪条边出
                 editor.pendingWaypoints = []      // 新的一条线
-                editor.pendingEdge = (from: node.id, anchor: .auto, point: current)
+                editor.pendingEdge = (from: node.id, anchor: edgeStartAnchor, point: current)
             }
             edgePressNode = nil
             lastClickAt = .distantPast
@@ -1138,7 +1143,8 @@ struct FlowchartCanvas: View {
                 ?? nearestNode(to: current, within: tol)
                 ?? editor.doc.node(at: transform.doc(value.startLocation)) {
                 var edge = FCEdge(fromNode: from, toNode: target.id,
-                                  fromAnchor: anchor, toAnchor: .auto)
+                                  fromAnchor: anchor,
+                                  toAnchor: nearestAnchor(to: current, node: target))
                 edge.waypoints = editor.pendingWaypoints
                 editor.commit { $0.edges.append(edge) }
                 editor.selection = [edge.id]
@@ -1160,13 +1166,14 @@ struct FlowchartCanvas: View {
             if let target = editor.doc.node(at: current) ?? nearestNode(to: current, within: tol),
                let idx = editor.doc.edges.firstIndex(where: { $0.id == id }),
                editor.doc.nodes.contains(where: { $0.id == target.id }) {
+                let side = nearestAnchor(to: current, node: target)
                 editor.commit { doc in
                     if isFrom {
                         doc.edges[idx].fromNode = target.id
-                        doc.edges[idx].fromAnchor = .auto
+                        doc.edges[idx].fromAnchor = side
                     } else {
                         doc.edges[idx].toNode = target.id
-                        doc.edges[idx].toAnchor = .auto
+                        doc.edges[idx].toAnchor = side
                     }
                 }
             }
@@ -1339,15 +1346,7 @@ struct FlowchartCanvas: View {
     }
 
     private func nearestAnchor(to p: CGPoint, node: FCNode) -> FCAnchor {
-        let candidates: [FCAnchor] = [.top, .right, .bottom, .left]
-        var best = FCAnchor.auto
-        var bestDist = CGFloat.greatestFiniteMagnitude
-        for a in candidates {
-            let q = FCEdgePath.point(a, in: node.rect)
-            let d = hypot(q.x - p.x, q.y - p.y)
-            if d < bestDist { bestDist = d; best = a }
-        }
-        return best
+        FCEdgePath.nearestAnchor(to: p, in: node.rect)
     }
 
     /// 光标是否贴近某个图形的锚点（用于显示锚点 + 直接拉线）

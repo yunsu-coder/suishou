@@ -582,6 +582,20 @@ final class FlowchartTests: XCTestCase {
 
     // MARK: 循环（自环）/ 平行边 / 交叉跳线
 
+    /// 落点接边：鼠标丢在哪条边就接哪条边（不能用中点距离判断，否则会"掉到下面去"）
+    func testNearestAnchorFollowsDropPosition() {
+        let rect = CGRect(x: 0, y: 0, width: 200, height: 100)
+        // 丢在右边（哪怕靠下）→ 接右边
+        XCTAssertEqual(FCEdgePath.nearestAnchor(to: CGPoint(x: 205, y: 92), in: rect), .right)
+        XCTAssertEqual(FCEdgePath.nearestAnchor(to: CGPoint(x: 198, y: 60), in: rect), .right)
+        // 丢在下边靠左 → 接下边（旧的中点比较会误判成左边）
+        XCTAssertEqual(FCEdgePath.nearestAnchor(to: CGPoint(x: 20, y: 95), in: rect), .bottom)
+        XCTAssertEqual(FCEdgePath.nearestAnchor(to: CGPoint(x: 100, y: 103), in: rect), .bottom)
+        // 上边 / 左边
+        XCTAssertEqual(FCEdgePath.nearestAnchor(to: CGPoint(x: 150, y: -4), in: rect), .top)
+        XCTAssertEqual(FCEdgePath.nearestAnchor(to: CGPoint(x: -6, y: 80), in: rect), .left)
+    }
+
     /// 手动断点（拉线时右键落的拐点）：线必须依次经过，且全程正交
     func testWaypointsAreRespected() throws {
         var doc = FCDocument()

@@ -85,6 +85,16 @@ enum FCRouter {
         return total
     }
 
+    /// 点到线段距离（锚点落边判断用）
+    static func distanceToSegment(_ p: CGPoint, _ a: CGPoint, _ b: CGPoint) -> CGFloat {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let len2 = dx * dx + dy * dy
+        guard len2 > 0.0001 else { return hypot(p.x - a.x, p.y - a.y) }
+        var t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2
+        t = min(max(t, 0), 1)
+        return hypot(p.x - (a.x + dx * t), p.y - (a.y + dy * t))
+    }
+
     /// 去重 + 合并共线点
     static func mergeCollinear(_ raw: [CGPoint]) -> [CGPoint] {
         var pts: [CGPoint] = []

@@ -1208,6 +1208,24 @@ struct FCEdgePath: Equatable {
         return dy >= 0 ? .bottom : .top
     }
 
+    /// 鼠标点在某条边附近 → 应该接哪条边（按「点到四条边的距离」判断，
+    /// 不能用四条边的中点比距离：点在下边靠左时会误判成左边）。
+    static func nearestAnchor(to p: CGPoint, in rect: CGRect) -> FCAnchor {
+        let sides: [(FCAnchor, CGPoint, CGPoint)] = [
+            (.top, CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY)),
+            (.right, CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.maxY)),
+            (.bottom, CGPoint(x: rect.minX, y: rect.maxY), CGPoint(x: rect.maxX, y: rect.maxY)),
+            (.left, CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.minX, y: rect.maxY)),
+        ]
+        var best = FCAnchor.auto
+        var bestDist = CGFloat.greatestFiniteMagnitude
+        for (a, u, v) in sides {
+            let d = FCRouter.distanceToSegment(p, u, v)
+            if d < bestDist { bestDist = d; best = a }
+        }
+        return best
+    }
+
     /// 锚点坐标；`along` = 沿该边方向偏移（平行边错开用，自动夹在边缘内）
     static func point(_ anchor: FCAnchor, in rect: CGRect, along: CGFloat = 0) -> CGPoint {
         let margin: CGFloat = 8

@@ -953,6 +953,45 @@ private struct FlowchartInspector: View {
             .textFieldStyle(.roundedBorder)
             .font(theme.font(size: 11))
             .onSubmit { editor.endInteraction() }
+            // 两端接在哪条边（自动 = 按落点/位置判断；手动可精确指定，改完立刻重排）
+            anchorPicker(_L("起点边", "From side"),
+                         current: editor.selectedEdges.first?.fromAnchor ?? .auto) { anchor in
+                editor.applyEdges { $0.fromAnchor = anchor }
+            }
+            anchorPicker(_L("终点边", "To side"),
+                         current: editor.selectedEdges.first?.toAnchor ?? .auto) { anchor in
+                editor.applyEdges { $0.toAnchor = anchor }
+            }
+        }
+    }
+
+    /// 连线端点接边选择器（自动 / 上 / 右 / 下 / 左）
+    private func anchorPicker(_ title: String, current: FCAnchor,
+                              apply: @escaping (FCAnchor) -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(theme.font(size: 11))
+                .foregroundStyle(Color(nsColor: theme.secondary))
+            HStack(spacing: 4) {
+                ForEach(FCAnchor.allCases, id: \.self) { a in
+                    Button {
+                        apply(a)
+                    } label: {
+                        Text(a == .auto ? _L("自动", "Auto") : a.label)
+                            .font(theme.font(size: 10))
+                            .frame(minWidth: 26)
+                            .padding(.vertical, 3)
+                            .foregroundStyle(Color(nsColor: current == a ? theme.background : theme.text))
+                            .background(RoundedRectangle(cornerRadius: 5)
+                                .fill(current == a ? Color(nsColor: theme.accent)
+                                                   : Color(nsColor: theme.background)))
+                            .overlay(RoundedRectangle(cornerRadius: 5)
+                                .stroke(Color(nsColor: current == a ? theme.accent : theme.border),
+                                        lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
     }
 
