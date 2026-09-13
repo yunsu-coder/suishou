@@ -342,6 +342,8 @@ struct FCEdge: Identifiable, Codable, Equatable, Hashable {
     var route: FCRoute = .orthogonal
     var arrow: FCArrow = .end
     var style: FCStyle = .default
+    /// 手动断点（拉线时右键落下的拐点，按顺序经过；空 = 自动路由）
+    var waypoints: [CGPoint] = []
 
     init(fromNode: String, toNode: String, fromAnchor: FCAnchor = .auto,
          toAnchor: FCAnchor = .auto, label: String = "") {
@@ -363,6 +365,7 @@ struct FCEdge: Identifiable, Codable, Equatable, Hashable {
         route = c.v(FCRoute.self, .route, .orthogonal)
         arrow = c.v(FCArrow.self, .arrow, .end)
         style = c.v(FCStyle.self, .style, .default)
+        waypoints = c.v([CGPoint].self, .waypoints, [])
     }
 }
 
@@ -1116,6 +1119,12 @@ struct FCEdgePath: Equatable {
             segments = [.line(p1)]
 
         case .orthogonal:
+            // 手动断点：线按用户右键落下的拐点依次经过（每两站之间用一段折线正交连起来）
+            if !edge.waypoints.isEmpty {
+                let pts = FCEdgePath.throughWaypoints(p0: p0, p1: p1, waypoints: edge.waypoints)
+                segments = zip(pts, pts.dropFirst()).map { .line($1) }
+                break
+            }
             // 智能正交路由（draw.io/GoJS 风格）：简单候选（L/Z）优先，全部碰撞时
             // BFS 网格绕行障碍 + 视线拉直 —— 路径不再穿越图形、不再绕远。
             let obstacles = nodes.values
@@ -1132,6 +1141,25 @@ struct FCEdgePath: Equatable {
             let c1 = CGPoint(x: p1.x + n1.dx * span, y: p1.y + n1.dy * span)
             segments = [.cubic(c0, c1, p1)]
         }
+    }
+
+    /// 依次经过手动断点的正交折线：相邻两站之间若不对齐，就插一个拐点
+    /// （拐点方向跟随上一段的走向，画出来像「手动折的线」）。
+    static func throughWaypoints(p0: CGPoint, p1: CGPoint, waypoints: [CGPoint]) -> [CGPoint] {
+        let stops = [p0] + waypoints + [p1]
+        var out: [CGPoint] = [stops[0]]
+        for i in 1..<stops.count {
+            guard let a = out.last else { break }
+            let b = stops[i]
+            let dx = abs(b.x - a.x), dy = abs(b.y - a.y)
+            if dx < 0.5 || dy < 0.5 { out.append(b); continue }
+            // 上一段是竖的 → 先竖后横；否则先横后竖（更贴近手动画线的手感）
+            let previous = out.count >= 2 ? out[out.count - 2] : nil
+            let cameVertical = previous.map { abs($0.x - a.x) < abs($0.y - a.y) } ?? true
+            out.append(cameVertical ? CGPoint(x: a.x, y: b.y) : CGPoint(x: b.x, y: a.y))
+            out.append(b)
+        }
+        return FCRouter.mergeCollinear(out)
     }
 
     /// 自环路径：从 `from` 边探出去，绕到 `to` 边回来（全程正交，拐角由渲染层做圆角）
@@ -1607,6 +1635,8 @@ final class FlowchartEditor: ObservableObject {
     @Published var canvasSize: CGSize = .zero
     /// 连线拖拽中的临时预览（起点 + 当前点，doc 坐标）
     @Published var pendingEdge: (from: String, anchor: FCAnchor, point: CGPoint)?
+    /// 拉线过程中右键落下的手动断点（doc 坐标，按顺序）
+    @Published var pendingWaypoints: [CGPoint] = []
 
     let url: URL
     private var undoStack: [FCDocument] = []

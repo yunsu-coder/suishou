@@ -626,9 +626,10 @@ struct FlowchartCanvas: View {
             .onChange(of: geo.size) { _, size in updateCanvasSize(size) }
             .onChange(of: editor.tool) { _, _ in
                 // 切换工具时清掉「点击-点击连线」的半途状态
-                if edgeStartNode != nil {
+                if edgeStartNode != nil || !editor.pendingWaypoints.isEmpty {
                     edgeStartNode = nil
                     editor.pendingEdge = nil
+                    editor.pendingWaypoints = []
                     edgeTargetID = nil
                 }
             }
@@ -682,6 +683,10 @@ struct FlowchartCanvas: View {
             .filter { $0.id != pending.from && $0.id != edgeTargetID }
             .map(\.rect)
         let avoid = [source.rect] + (targetRect.map { [$0] } ?? [])
+        // 有手动断点：按断点走（预览 = 最终那条线）
+        if !editor.pendingWaypoints.isEmpty {
+            return FCEdgePath.throughWaypoints(p0: p0, p1: p1, waypoints: editor.pendingWaypoints)
+        }
         return FCRouter.route(p0: p0, n0: fromAnchor.vector, p1: p1, n1: n1,
                               obstacles: obstacles, avoid: avoid)
     }
@@ -725,6 +730,15 @@ struct FlowchartCanvas: View {
             FCRenderer.roundedPolyline(&p, pts, radius: transform.len(8))
             ctx.stroke(p, with: .color(accent.opacity(0.9)),
                        style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+            // 手动断点：画成小方块，提示「这里已经断了，会从这儿继续」
+            for w in editor.pendingWaypoints {
+                let q = transform.p(w)
+                let box = CGRect(x: q.x - 3.5, y: q.y - 3.5, width: 7, height: 7)
+                ctx.fill(Path(roundedRect: box, cornerRadius: 1.5),
+                         with: .color(Color(nsColor: theme.background)))
+                ctx.stroke(Path(roundedRect: box, cornerRadius: 1.5),
+                           with: .color(accent), lineWidth: 1.5)
+            }
             if let tip = pts.last, let prev = pts.dropLast().last {
                 ctx.fill(FCShape.arrow(tip: tip,
                                        direction: CGVector(dx: tip.x - prev.x, dy: tip.y - prev.y),
@@ -833,6 +847,19 @@ struct FlowchartCanvas: View {
         let local = FCContextGeometry.canvasPoint(windowPoint: windowPoint,
                                                   canvasFrameInWindow: scrollTarget.view?.frameInWindow)
         let p = transform.doc(local)
+        // 正在拉线：右键 = 在这里落一个断点，线从断点继续拉（不弹菜单）
+        if let pending = editor.pendingEdge {
+            var point = p
+            if editor.doc.snap {
+                point = CGPoint(x: (p.x / 5).rounded() * 5, y: (p.y / 5).rounded() * 5)
+            }
+            editor.pendingWaypoints.append(point)
+            // 断点落下后就转入「点击-点击」继续模式：即使左键松了，线也还挂在光标上，
+            // 可以继续右键落断点、或点目标框收尾
+            edgeStartNode = pending.from
+            editor.pendingEdge = (from: pending.from, anchor: pending.anchor, point: point)
+            return
+        }
         let hitID = editor.doc.hit(p, tolerance: 11 / max(editor.zoom, 0.2))
         if let id = hitID, !editor.selection.contains(id) { editor.selection = [id] }
         let entries = FCContextMenu.entries(doc: editor.doc, selection: editor.selection,
@@ -961,6 +988,16 @@ struct FlowchartCanvas: View {
                         doc.groups[i].y = origin.minY + dy
                     }
                 }
+                // 手动断点跟着图形一起走（否则移动后线会歪掉）
+                for i in doc.edges.indices {
+                    let e = doc.edges[i]
+                    guard !e.waypoints.isEmpty else { continue }
+                    guard ids.contains(e.fromNode) || ids.contains(e.toNode) else { continue }
+                    for j in doc.edges[i].waypoints.indices {
+                        doc.edges[i].waypoints[j].x += dx
+                        doc.edges[i].waypoints[j].y += dy
+                    }
+                }
             }
 
         case .resize(let id, let handle, let original):
@@ -1017,27 +1054,32 @@ struct FlowchartCanvas: View {
             let hitNode = editor.doc.node(at: current)
             if moved {
                 if let from = edgePressNode, let target = hitNode {
-                    let edge = FCEdge(fromNode: from, toNode: target.id,
+                    var edge = FCEdge(fromNode: from, toNode: target.id,
                                       fromAnchor: .auto, toAnchor: .auto)
+                    edge.waypoints = editor.pendingWaypoints     // 右键落下的断点
                     editor.commit { $0.edges.append(edge) }
                     editor.selection = [edge.id]
                 }
+                editor.pendingWaypoints = []
                 edgeStartNode = nil
                 editor.pendingEdge = nil
             } else if let sid = edgeStartNode {
                 if let target = hitNode {
-                    let edge = FCEdge(fromNode: sid, toNode: target.id,
+                    var edge = FCEdge(fromNode: sid, toNode: target.id,
                                       fromAnchor: .auto, toAnchor: .auto)
+                    edge.waypoints = editor.pendingWaypoints
                     editor.commit { $0.edges.append(edge) }
                     editor.selection = [edge.id]
                     edgeStartNode = nil
                     editor.pendingEdge = nil
                 } else {
-                    edgeStartNode = nil      // 点到空白/同一图形 = 取消
+                    edgeStartNode = nil      // 点到空白 = 取消
                     editor.pendingEdge = nil
+                    editor.pendingWaypoints = []
                 }
             } else if let node = hitNode {
                 edgeStartNode = node.id
+                editor.pendingWaypoints = []      // 新的一条线
                 editor.pendingEdge = (from: node.id, anchor: .auto, point: current)
             }
             edgePressNode = nil
@@ -1089,17 +1131,27 @@ struct FlowchartCanvas: View {
             if case .create = drag { editor.tool = .select }
             editor.endInteraction()
         case .edge(let from, let anchor):
-            defer { editor.pendingEdge = nil }
-            defer { edgeTargetID = nil }
+            edgeTargetID = nil
             // 落点吸附：精确命中优先，其次贴近图形 26pt 内也接住（draw.io 手感）
             let tol = 26 / max(editor.zoom, 0.2)
             if let target = editor.doc.node(at: current)
                 ?? nearestNode(to: current, within: tol)
                 ?? editor.doc.node(at: transform.doc(value.startLocation)) {
-                let edge = FCEdge(fromNode: from, toNode: target.id,
+                var edge = FCEdge(fromNode: from, toNode: target.id,
                                   fromAnchor: anchor, toAnchor: .auto)
+                edge.waypoints = editor.pendingWaypoints
                 editor.commit { $0.edges.append(edge) }
                 editor.selection = [edge.id]
+                editor.pendingWaypoints = []
+                edgeStartNode = nil
+                editor.pendingEdge = nil
+            } else if !editor.pendingWaypoints.isEmpty {
+                // 已经落过断点却在空白处松手：不取消，转成「点击-点击」继续拉
+                // （断点保留，点目标框即可收尾；Esc / 切工具取消）
+                edgeStartNode = from
+                editor.pendingEdge = (from: from, anchor: anchor, point: current)
+            } else {
+                editor.pendingEdge = nil
             }
         case .reconnect(let id, let isFrom):
             defer { editor.pendingEdge = nil }
@@ -1178,6 +1230,7 @@ struct FlowchartCanvas: View {
         //    自动吸附最近边；角已被上一分支占用，互不冲突）
         if let anchorHit = anchorHit(at: start) {
             drag = .edge(from: anchorHit.node, anchor: anchorHit.anchor)
+            editor.pendingWaypoints = []      // 新的一条线，断点从零开始
             editor.pendingEdge = (from: anchorHit.node, anchor: anchorHit.anchor, point: start)
             return
         }

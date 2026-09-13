@@ -770,6 +770,11 @@ struct FlowchartEditorHost: View {
             return true
         case 53:        // esc
             if editor.editingID != nil { editor.editingID = nil; return true }
+            if editor.pendingEdge != nil || !editor.pendingWaypoints.isEmpty {
+                editor.pendingEdge = nil
+                editor.pendingWaypoints = []   // 拉线 / 断点一起取消
+                return true
+            }
             if mods.isEmpty, editor.hasSelection { editor.selection = []; return true }
             return false
         case 36:        // return：直接编辑选中项的文字（图形 / 文本框 / 连线标签）

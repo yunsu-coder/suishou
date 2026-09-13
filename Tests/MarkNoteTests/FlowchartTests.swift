@@ -582,6 +582,46 @@ final class FlowchartTests: XCTestCase {
 
     // MARK: 循环（自环）/ 平行边 / 交叉跳线
 
+    /// 手动断点（拉线时右键落的拐点）：线必须依次经过，且全程正交
+    func testWaypointsAreRespected() throws {
+        var doc = FCDocument()
+        var a = FCNode(kind: .rect, origin: CGPoint(x: 0, y: 0)); a.w = 100; a.h = 50
+        var b = FCNode(kind: .rect, origin: CGPoint(x: 400, y: 300)); b.w = 100; b.h = 50
+        a.id = "a"; b.id = "b"
+        doc.nodes = [a, b]
+        var e = FCEdge(fromNode: "a", toNode: "b")
+        e.waypoints = [CGPoint(x: 60, y: 200), CGPoint(x: 300, y: 200)]
+        doc.edges = [e]
+        let path = try XCTUnwrap(doc.edgePath(e))
+        let pts = path.polyline
+        // 断点必须落在路径上（共线时会被合并成一段，所以按「到线的距离」判定）
+        for w in e.waypoints {
+            XCTAssertLessThanOrEqual(path.distance(to: w), 0.6, "路径没经过断点 \(w)：\(pts)")
+        }
+        for i in 1..<pts.count {
+            let dx = abs(pts[i].x - pts[i - 1].x), dy = abs(pts[i].y - pts[i - 1].y)
+            XCTAssertTrue(dx < 0.6 || dy < 0.6, "带断点的线出现斜段：\(pts)")
+        }
+        // JSON 往返保留断点
+        let enc = JSONEncoder(); enc.dateEncodingStrategy = .iso8601
+        let dec = JSONDecoder(); dec.dateDecodingStrategy = .iso8601
+        let back = try dec.decode(FCDocument.self, from: try enc.encode(doc))
+        XCTAssertEqual(back.edges.first?.waypoints, e.waypoints)
+    }
+
+    /// 断点折线：斜的两站之间自动插拐点（先沿上一段方向走）
+    func testWaypointOrthogonalization() {
+        let pts = FCEdgePath.throughWaypoints(p0: CGPoint(x: 0, y: 0),
+                                              p1: CGPoint(x: 100, y: 100),
+                                              waypoints: [CGPoint(x: 0, y: 40), CGPoint(x: 100, y: 40)])
+        for i in 1..<pts.count {
+            let dx = abs(pts[i].x - pts[i - 1].x), dy = abs(pts[i].y - pts[i - 1].y)
+            XCTAssertTrue(dx < 0.6 || dy < 0.6, "出现斜段：\(pts)")
+        }
+        XCTAssertEqual(pts.first, CGPoint(x: 0, y: 0))
+        XCTAssertEqual(pts.last, CGPoint(x: 100, y: 100))
+    }
+
     /// 自环自动挑「最空」的两条边：判断框右边已有「否」分支、上边已有入线时，
     /// 自环应该走左边/下边，而不是继续挤在右边
     func testSelfLoopAvoidsBusySides() {
