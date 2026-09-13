@@ -978,8 +978,13 @@ enum FCShape {
 
     /// 箭头三角
     static func arrow(tip: CGPoint, direction: CGVector, size: CGFloat) -> Path {
-        let back = CGPoint(x: tip.x - direction.dx * size, y: tip.y - direction.dy * size)
-        let nx = -direction.dy, ny = direction.dx
+        // direction 必须归一化再乘 size：调用方传的是「两端点差向量」，
+        // 距离一远（例如 2000pt）箭头会膨胀成覆盖半个画布的巨型三角（已复现）。
+        let len = hypot(direction.dx, direction.dy)
+        let dx = len > 0.0001 ? direction.dx / len : 1
+        let dy = len > 0.0001 ? direction.dy / len : 0
+        let back = CGPoint(x: tip.x - dx * size, y: tip.y - dy * size)
+        let nx = -dy, ny = dx
         let half = size * 0.42
         var p = Path()
         p.move(to: tip)

@@ -203,6 +203,17 @@ final class FlowchartTests: XCTestCase {
 
     // MARK: 编辑操作
 
+    /// 箭头绘制：direction 是"两端点差向量"（未归一化）——无论距离多远，
+    /// 箭头都必须保持 size 尺度（曾把 2000pt 距离的箭头画成盖住半个画布的巨型三角）。
+    func testArrowStaysSmallForLongDistanceDirection() {
+        let tip = CGPoint(x: 500, y: 500)
+        let huge = FCShape.arrow(tip: tip, direction: CGVector(dx: 2000, dy: -1500), size: 9)
+        let h = huge.boundingRect
+        // 未归一化时 back 点会跑到 9×2000=18000pt 之外；归一化后必须保持在 size 量级（斜向边界盒略大属正常几何）
+        XCTAssertLessThan(h.width, 30, "箭头边界必须保持在 size 量级（宽）")
+        XCTAssertLessThan(h.height, 30, "箭头边界必须保持在 size 量级（高）")
+    }
+
     func testRemoveNodeRemovesItsEdges() {
         var doc = FCDocument()
         var a = FCNode(kind: .rect, origin: .zero)

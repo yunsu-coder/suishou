@@ -358,12 +358,16 @@ struct FlowchartCanvas: View {
         case resize(id: String, handle: FCHandle, original: CGRect)
         case create(id: String, start: CGPoint)
         case edge(from: String, anchor: FCAnchor)
+        /// 拖动连线端点改接（draw.io：选中连线后拖端点换目标）
+        case reconnect(id: String, isFrom: Bool)
         case marquee(start: CGPoint)
     }
 
     @State private var drag: Drag = .none
     @State private var marquee: CGRect?
     @State private var hoverAnchor: (node: String, anchor: FCAnchor)?
+    /// hover 的文档坐标（draw.io 式：绿点跟随光标，落在浮动连接点上）
+    @State private var hoverPoint: CGPoint?
     @State private var guideX: CGFloat?
     @State private var guideY: CGFloat?
     /// 画布在窗口中的位置：由 NSView 自己记录，供滚轮命中判断读取。
@@ -374,6 +378,8 @@ struct FlowchartCanvas: View {
     @FocusState private var textFieldFocused: Bool
     /// 自判双击用（DragGesture(0) 吞掉了 SwiftUI 的双击手势）
     @State private var lastClickAt: Date = .distantPast
+    /// 拉线过程中光标悬停的目标图形（draw.io 式高亮 + 落点吸附）
+    @State private var edgeTargetID: String?
 
     private var transform: FCViewTransform {
         FCViewTransform(zoom: editor.zoom, offset: editor.offset)
@@ -450,10 +456,16 @@ struct FlowchartCanvas: View {
                 ctx.stroke(Path(roundedRect: box, cornerRadius: 1.5), with: .color(accent), lineWidth: 1.5)
             }
         }
-        if let hover = hoverAnchor, let node = editor.doc.nodes.first(where: { $0.id == hover.node }) {
-            let p = transform.p(FCEdgePath.point(hover.anchor, in: node.rect))
-            ctx.fill(Path(ellipseIn: CGRect(x: p.x - 4, y: p.y - 4, width: 8, height: 8)),
-                     with: .color(accent))
+        // draw.io 式浮动连接点：源图形描边变亮 + 绿点跟随光标
+        if let hover = hoverAnchor, let hp = hoverPoint,
+           let node = editor.doc.nodes.first(where: { $0.id == hover.node }) {
+            let rr = transform.r(node.rect).insetBy(dx: -2, dy: -2)
+            ctx.stroke(Path(roundedRect: rr, cornerRadius: 5),
+                       with: .color(accent.opacity(0.65)), lineWidth: 1.5)
+            let q = transform.p(hp)
+            let dot = CGRect(x: q.x - 5, y: q.y - 5, width: 10, height: 10)
+            ctx.fill(Path(ellipseIn: dot), with: .color(accent))
+            ctx.stroke(Path(ellipseIn: dot), with: .color(Color(nsColor: theme.background)), lineWidth: 1.5)
         }
         if let pending = editor.pendingEdge,
            let node = editor.doc.nodes.first(where: { $0.id == pending.from }) {
@@ -466,6 +478,24 @@ struct FlowchartCanvas: View {
             ctx.fill(FCShape.arrow(tip: b, direction: CGVector(dx: b.x - a.x, dy: b.y - a.y),
                                    size: 9),
                      with: .color(accent))
+        }
+        // 拉线目标高亮（draw.io 式：光标贴到哪个图形，哪个整框变亮）
+        if let tid = edgeTargetID, let node = editor.doc.nodes.first(where: { $0.id == tid }) {
+            let r = transform.r(node.rect).insetBy(dx: -3, dy: -3)
+            ctx.stroke(Path(roundedRect: r, cornerRadius: 6),
+                       with: .color(accent), style: StrokeStyle(lineWidth: 2.5))
+        }
+        // 选中连线 → 两端端点手柄（可拖动改接）
+        if editor.selection.count == 1, let id = editor.selection.first,
+           let edge = editor.doc.edges.first(where: { $0.id == id }),
+           let path = FCEdgePath(edge: edge, nodes: editor.doc.nodesByID()),
+           let s = path.polyline.first, let e = path.polyline.last {
+            for pt in [s, e] {
+                let q = transform.p(pt)
+                let box = CGRect(x: q.x - 5, y: q.y - 5, width: 10, height: 10)
+                ctx.fill(Path(ellipseIn: box), with: .color(Color(nsColor: theme.background)))
+                ctx.stroke(Path(ellipseIn: box), with: .color(accent), lineWidth: 2)
+            }
         }
         if let m = marquee {
             let r = transform.r(m)
@@ -571,6 +601,20 @@ struct FlowchartCanvas: View {
 
         case .edge(let from, let anchor):
             editor.pendingEdge = (from: from, anchor: anchor, point: current)
+            // draw.io 式目标高亮：光标进入/贴近某个图形时整框变亮
+            let hovered = editor.doc.node(at: current)?.id
+                ?? nearestNode(to: current, within: 26 / max(editor.zoom, 0.2))?.id
+            if hovered != from { edgeTargetID = hovered } else { edgeTargetID = nil }
+
+        case .reconnect(let id, let isFrom):
+            // 预览：固定端 → 光标（复用 pendingEdge 的虚线 + 箭头绘制）
+            if let edge = editor.doc.edges.first(where: { $0.id == id }) {
+                let fixedNode = isFrom ? edge.toNode : edge.fromNode
+                editor.pendingEdge = (from: fixedNode, anchor: .auto, point: current)
+            }
+            let hovered = editor.doc.node(at: current)?.id
+                ?? nearestNode(to: current, within: 26 / max(editor.zoom, 0.2))?.id
+            edgeTargetID = hovered
 
         case .marquee(let start):
             marquee = CGRect(x: min(start.x, current.x), y: min(start.y, current.y),
@@ -626,12 +670,33 @@ struct FlowchartCanvas: View {
             editor.endInteraction()
         case .edge(let from, let anchor):
             defer { editor.pendingEdge = nil }
-            if let target = editor.doc.node(at: current) ?? editor.doc.node(at: transform.doc(value.startLocation)) {
+            defer { edgeTargetID = nil }
+            // 落点吸附：精确命中优先，其次贴近图形 26pt 内也接住（draw.io 手感）
+            let tol = 26 / max(editor.zoom, 0.2)
+            if let target = editor.doc.node(at: current)
+                ?? nearestNode(to: current, within: tol)
+                ?? editor.doc.node(at: transform.doc(value.startLocation)) {
                 if target.id != from {
                     let edge = FCEdge(fromNode: from, toNode: target.id,
                                       fromAnchor: anchor, toAnchor: .auto)
                     editor.commit { $0.edges.append(edge) }
                     editor.selection = [edge.id]
+                }
+            }
+        case .reconnect(let id, let isFrom):
+            defer { editor.pendingEdge = nil }
+            defer { edgeTargetID = nil }
+            let tol = 26 / max(editor.zoom, 0.2)
+            if let target = editor.doc.node(at: current) ?? nearestNode(to: current, within: tol),
+               let idx = editor.doc.edges.firstIndex(where: { $0.id == id }) {
+                editor.commit { doc in
+                    if isFrom {
+                        doc.edges[idx].fromNode = target.id
+                        doc.edges[idx].fromAnchor = .auto
+                    } else {
+                        doc.edges[idx].toNode = target.id
+                        doc.edges[idx].toAnchor = .auto
+                    }
                 }
             }
         case .marquee(let start):
@@ -658,17 +723,7 @@ struct FlowchartCanvas: View {
             return
         }
 
-        // 1) 图形锚点 → 拉连线。
-        //    必须先于缩放手柄判断：边中点既是锚点又是手柄位置（两套热区完全重合），
-        //    手柄优先会让"从边缘拉线"永远变成"拉伸图形"（用户反馈的「连不起」病根）。
-        //    与 Figma/draw.io 一致：边中点 = 连线，缩放走四个角。
-        if let anchorHit = anchorHit(at: start) {
-            drag = .edge(from: anchorHit.node, anchor: anchorHit.anchor)
-            editor.pendingEdge = (from: anchorHit.node, anchor: anchorHit.anchor, point: start)
-            return
-        }
-
-        // 2) 已选中单个元素 → 角手柄缩放（边中点已让给锚点）
+        // 1) 已选中单个元素 → 角手柄缩放（draw.io：角 = 缩放，最高优先）
         if editor.selection.count == 1, let id = editor.selection.first,
            let rect = editor.doc.rect(of: id), !editor.doc.edges.contains(where: { $0.id == id }) {
             for h in FCHandle.corners {
@@ -679,6 +734,33 @@ struct FlowchartCanvas: View {
                     return
                 }
             }
+        }
+
+        // 2) 选中单条连线 → 拖端点改接（draw.io：端点手柄 ±8pt）。
+        //    必须先于浮动锚点：端点手柄天然落在图形边缘的锚点带内，锚点优先会把它永远抢走。
+        if editor.selection.count == 1, let id = editor.selection.first,
+           let edge = editor.doc.edges.first(where: { $0.id == id }),
+           let path = FCEdgePath(edge: edge, nodes: editor.doc.nodesByID()),
+           let s = path.polyline.first, let e = path.polyline.last {
+            let tol = 8 / max(editor.zoom, 0.2)
+            if hypot(s.x - start.x, s.y - start.y) <= tol {
+                drag = .reconnect(id: id, isFrom: true)
+                editor.pendingEdge = nil
+                return
+            }
+            if hypot(e.x - start.x, e.y - start.y) <= tol {
+                drag = .reconnect(id: id, isFrom: false)
+                editor.pendingEdge = nil
+                return
+            }
+        }
+
+        // 3) 图形边缘 → 拉连线（draw.io 浮动连接：边缘 14pt 带内任意位置，
+        //    自动吸附最近边；角已被上一分支占用，互不冲突）
+        if let anchorHit = anchorHit(at: start) {
+            drag = .edge(from: anchorHit.node, anchor: anchorHit.anchor)
+            editor.pendingEdge = (from: anchorHit.node, anchor: anchorHit.anchor, point: start)
+            return
         }
 
         // 3) 工具：新建元素
@@ -808,25 +890,58 @@ struct FlowchartCanvas: View {
 
     /// 光标是否贴近某个图形的锚点（用于显示锚点 + 直接拉线）
     private func anchorHit(at p: CGPoint) -> (node: String, anchor: FCAnchor)? {
-        let tolerance = 12 / max(editor.zoom, 0.2)
+        // draw.io 式浮动连接：图形边缘 14pt 带内任意位置都能起线，
+        // 自动吸附到最近的那条边（角手柄在 beginDrag 里优先处理，不受这里影响）。
+        let tolerance = 14 / max(editor.zoom, 0.2)
+        var best: (node: String, anchor: FCAnchor, dist: CGFloat)?
         for node in editor.doc.nodes.reversed() {
-            for a in [FCAnchor.top, .right, .bottom, .left] {
-                let q = FCEdgePath.point(a, in: node.rect)
-                if hypot(q.x - p.x, q.y - p.y) <= tolerance {
-                    return (node.id, a)
+            let r = node.rect
+            let edges: [(FCAnchor, CGFloat)] = [
+                (.top, Self.distToSegment(p, CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY))),
+                (.bottom, Self.distToSegment(p, CGPoint(x: r.minX, y: r.maxY), CGPoint(x: r.maxX, y: r.maxY))),
+                (.left, Self.distToSegment(p, CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.minX, y: r.maxY))),
+                (.right, Self.distToSegment(p, CGPoint(x: r.maxX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY))),
+            ]
+            for (a, d) in edges where d <= tolerance {
+                if best == nil || d < best!.dist {
+                    best = (node.id, a, d)
                 }
             }
         }
-        return nil
+        return best.map { ($0.node, $0.anchor) }
+    }
+
+    /// 点到线段距离（浮动连接命中用）
+    private static func distToSegment(_ p: CGPoint, _ a: CGPoint, _ b: CGPoint) -> CGFloat {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let len2 = dx * dx + dy * dy
+        guard len2 > 0.0001 else { return hypot(p.x - a.x, p.y - a.y) }
+        let t = max(0, min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2))
+        return hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+    }
+
+    /// 距离某点最近的图形（落点吸附；tol 为图形外容许距离）
+    private func nearestNode(to p: CGPoint, within tol: CGFloat) -> FCNode? {
+        var best: (FCNode, CGFloat)?
+        for n in editor.doc.nodes {
+            let dx = max(max(n.rect.minX - p.x, 0), p.x - n.rect.maxX)
+            let dy = max(max(n.rect.minY - p.y, 0), p.y - n.rect.maxY)
+            let d = hypot(dx, dy)
+            if d <= tol, best == nil || d < best!.1 { best = (n, d) }
+        }
+        return best?.0
     }
 
     private func updateHover(_ p: CGPoint) {
         if let hit = anchorHit(at: p) {
             hoverAnchor = hit
+            hoverPoint = p
         } else if let node = editor.doc.node(at: p) {
             hoverAnchor = (node.id, .auto)
+            hoverPoint = nil
         } else {
             hoverAnchor = nil
+            hoverPoint = nil
         }
     }
 
