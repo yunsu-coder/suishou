@@ -2,6 +2,25 @@ import SwiftUI
 import AppKit
 import AVFoundation
 
+/// 素材多选规则（纯函数，便于单测）：
+/// 普通点击 = 单选；⌘ 点击 = 切换该项；⇧ 点击 = 选中与锚点之间的区间（连续 ⇧ 可继续扩）。
+enum AssetSelection {
+    static func apply(current: Set<String>, clicked: String, ordered: [String],
+                      anchor: String?, command: Bool, shift: Bool) -> (selection: Set<String>, anchor: String) {
+        if shift, let anchor,
+           let a = ordered.firstIndex(of: anchor), let b = ordered.firstIndex(of: clicked) {
+            let range = a <= b ? a...b : b...a
+            return (Set(ordered[range]), anchor)
+        }
+        if command {
+            var next = current
+            if next.contains(clicked) { next.remove(clicked) } else { next.insert(clicked) }
+            return (next, clicked)
+        }
+        return ([clicked], clicked)
+    }
+}
+
 /// 素材网格 —— 视图插件 `assetGrid` 的内置渲染器（侧栏面板）。
 ///
 /// 规则（docs/05-内置插件库.md · 插件隔离规则）：
@@ -17,13 +36,17 @@ struct AssetGridView: View {
     @State private var query = ""
     @State private var onlyUnreferenced = false
     @State private var selected: NotesStore.AttachmentItem?
+    /// 多选（批量删除用）：存 url.path
+    @State private var selectedIDs: Set<String> = []
+    /// ⇧ 区间选择的锚点
+    @State private var selectionAnchor: String?
     @State private var reloadToken = 0
     @State private var showImport = false
     @State private var showCollector = false
     /// 导入后的轻提示（几秒后自动消失）
     @State private var toast: String?
-    /// 待确认删除的素材（引用计数提示后再移入废纸篓）
-    @State private var pendingDelete: NotesStore.AttachmentItem?
+    /// 待确认删除的素材（可单个、可批量；确认后再移入废纸篓）
+    @State private var pendingTrash: [NotesStore.AttachmentItem] = []
 
     private var filtered: [NotesStore.AttachmentItem] {
         var list = items
@@ -55,14 +78,14 @@ struct AssetGridView: View {
         .onReceive(NotificationCenter.default.publisher(for: .assetsChanged)) { _ in
             reload()
         }
-        .alert(_L("删除素材？", "Delete this asset?"),
-               isPresented: Binding(get: { pendingDelete != nil },
-                                    set: { if !$0 { pendingDelete = nil } }),
-               presenting: pendingDelete) { item in
-            Button(_L("移到废纸篓", "Move to Trash"), role: .destructive) { trash(item) }
-            Button(_L("取消", "Cancel"), role: .cancel) { pendingDelete = nil }
-        } message: { item in
-            Text(deleteWarning(item))
+        .alert(pendingTrash.count > 1 ? _L("删除这些素材？", "Delete these assets?")
+                                      : _L("删除素材？", "Delete this asset?"),
+               isPresented: Binding(get: { !pendingTrash.isEmpty },
+                                    set: { if !$0 { pendingTrash = [] } })) {
+            Button(_L("移到废纸篓", "Move to Trash"), role: .destructive) { trashPending() }
+            Button(_L("取消", "Cancel"), role: .cancel) { pendingTrash = [] }
+        } message: {
+            Text(batchDeleteWarning(pendingTrash))
         }
         .sheet(isPresented: $showImport) {
             AssetImportSheet { urls in
@@ -152,6 +175,38 @@ struct AssetGridView: View {
                 chip(_L("全部", "All"), on: !onlyUnreferenced) { onlyUnreferenced = false }
                 chip(_L("未被引用", "Unreferenced"), on: onlyUnreferenced) { onlyUnreferenced = true }
                 Spacer()
+                // 批量清理：选中 N 个一起删 / 一键清理当前列表里所有「未被引用」
+                Button {
+                    pendingTrash = unreferencedInList()
+                } label: {
+                    Text(_L("清理未引用", "Clean unused"))
+                        .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(unreferencedInList().isEmpty ? Color.secondary : appAppearance.accent)
+                .disabled(unreferencedInList().isEmpty)
+                .help(_L("把当前列表里所有未被引用的素材移到废纸篓",
+                         "Move every unreferenced asset in the list to Trash"))
+            }
+            if !selectedIDs.isEmpty {
+                HStack(spacing: 8) {
+                    Text(_L("已选 \(selectedIDs.count) 个", "\(selectedIDs.count) selected"))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(appAppearance.accent)
+                    Spacer()
+                    Button(_L("全选", "Select all")) {
+                        selectedIDs = Set(filtered.map(\.id))
+                        selectionAnchor = filtered.first?.id
+                    }
+                    .buttonStyle(.plain)
+                    Button(_L("删除选中", "Delete selected"), role: .destructive) {
+                        pendingTrash = filtered.filter { selectedIDs.contains($0.id) }
+                    }
+                    .buttonStyle(.plain)
+                    Button(_L("取消选择", "Clear")) { clearSelection() }
+                        .buttonStyle(.plain)
+                }
+                .font(.system(size: 10))
             }
         }
         .padding(.horizontal, 10)
@@ -186,7 +241,7 @@ struct AssetGridView: View {
     }
 
     private func tile(_ item: NotesStore.AttachmentItem) -> some View {
-        let isSel = selected?.url == item.url
+        let isSel = selectedIDs.contains(item.id)
         let refs = refCounts[item.name] ?? 0
         let kind = AssetSyntax.kind(forExt: item.url.pathExtension)
         return VStack(alignment: .leading, spacing: 4) {
@@ -194,6 +249,14 @@ struct AssetGridView: View {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground))
                 AssetThumbView(item: item, symbol: Self.symbol(for: item.url.pathExtension))
+                if isSel, selectedIDs.count > 1 {
+                    // 多选时给个勾标记（单选只用描边，不干扰拖拽）
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(appAppearance.accent)
+                        .padding(3)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
             }
             .frame(height: 64)
             .overlay(RoundedRectangle(cornerRadius: 6)
@@ -209,7 +272,16 @@ struct AssetGridView: View {
                 .foregroundStyle(refs > 0 ? .secondary : .tertiary)
         }
         .contentShape(Rectangle())
-        .onTapGesture { selected = item }
+        .onTapGesture {
+            let mods = NSEvent.modifierFlags
+            let result = AssetSelection.apply(current: selectedIDs, clicked: item.id,
+                                              ordered: filtered.map(\.id), anchor: selectionAnchor,
+                                              command: mods.contains(.command),
+                                              shift: mods.contains(.shift))
+            selectedIDs = result.selection
+            selectionAnchor = result.anchor
+            selected = result.selection.contains(item.id) ? item : filtered.first { selectedIDs.contains($0.id) }
+        }
         // 拖到编辑器：携带**短引用文本**（不是文件 URL —— 否则编辑器会再存一份素材）
         .onDrag {
             NSItemProvider(object: AssetSyntax.reference(name: item.name, path: relativePath(item)) as NSString)
@@ -288,7 +360,7 @@ struct AssetGridView: View {
                 .controlSize(.small)
                 .help(_L("在 Finder 中显示", "Reveal in Finder"))
                 Button {
-                    pendingDelete = item
+                    pendingTrash = [item]
                 } label: {
                     Image(systemName: "trash")
                 }
@@ -347,25 +419,52 @@ struct AssetGridView: View {
         board.setString(AssetSyntax.reference(name: item.name, path: relativePath(item)), forType: .string)
     }
 
-    /// 删除确认文案：引用计数提示（被 N 篇笔记引用 → 引用会失效）+ 可恢复说明。
-    private func deleteWarning(_ item: NotesStore.AttachmentItem) -> String {
-        let refs = refCounts[item.name] ?? 0
-        let recover = _L("文件会移到废纸篓，可随时恢复。", "The file moves to Trash and can be recovered.")
-        if refs > 0 {
-            return _L("该素材被 \(refs) 篇笔记引用，删除后这些引用会失效。" + recover,
-                      "Referenced by \(refs) note(s); those references will break. " + recover)
-        }
-        return _L("未被任何笔记引用。" + recover, "Not referenced by any note. " + recover)
+    /// 当前列表里「未被引用」的素材（清理用）
+    private func unreferencedInList() -> [NotesStore.AttachmentItem] {
+        filtered.filter { (refCounts[$0.name] ?? 0) == 0 }
     }
 
-    /// 删除素材 → 移到废纸篓（可恢复）；刷新网格与选中态。
-    private func trash(_ item: NotesStore.AttachmentItem) {
-        let ok = store.trashAsset(item.url)
-        if selected?.url == item.url { selected = nil }
-        pendingDelete = nil
+    private func clearSelection() {
+        selectedIDs = []
+        selectionAnchor = nil
+        selected = nil
+    }
+
+    /// 删除确认文案：引用计数提示（被 N 篇笔记引用 → 引用会失效）+ 可恢复说明。
+    private func batchDeleteWarning(_ list: [NotesStore.AttachmentItem]) -> String {
+        let recover = _L("文件会移到废纸篓，可随时恢复。", "Files move to Trash and can be recovered.")
+        let referenced = list.filter { (refCounts[$0.name] ?? 0) > 0 }.count
+        if list.count == 1, let item = list.first {
+            let refs = refCounts[item.name] ?? 0
+            if refs > 0 {
+                return _L("该素材被 \(refs) 篇笔记引用，删除后这些引用会失效。" + recover,
+                          "Referenced by \(refs) note(s); those references will break. " + recover)
+            }
+            return _L("未被任何笔记引用。" + recover, "Not referenced by any note. " + recover)
+        }
+        if referenced > 0 {
+            return _L("共 \(list.count) 个素材，其中 \(referenced) 个被笔记引用，删除后这些引用会失效。" + recover,
+                      "\(list.count) assets, \(referenced) referenced by notes; those references will break. " + recover)
+        }
+        return _L("共 \(list.count) 个素材，都没有被笔记引用。" + recover,
+                  "\(list.count) assets, none referenced by notes. " + recover)
+    }
+
+    /// 批量删除 → 逐个移到废纸篓（可恢复）；刷新网格与选中态。
+    private func trashPending() {
+        let list = pendingTrash
+        pendingTrash = []
+        var failed = 0
+        for item in list where !store.trashAsset(item.url) { failed += 1 }
+        clearSelection()
         reload()
-        toast = ok ? _L("已移到废纸篓：\(item.name)", "Moved to Trash: \(item.name)")
-                   : _L("删除失败：\(item.name)", "Delete failed: \(item.name)")
+        let okCount = list.count - failed
+        if failed == 0 {
+            toast = _L("已移到废纸篓 \(okCount) 个", "\(okCount) moved to Trash")
+        } else {
+            toast = _L("已移到废纸篓 \(okCount) 个，失败 \(failed) 个",
+                       "\(okCount) moved, \(failed) failed")
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { toast = nil }
     }
 

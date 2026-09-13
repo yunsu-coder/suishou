@@ -203,6 +203,37 @@ final class ViewPluginTests: XCTestCase {
         XCTAssertFalse(store.trashAsset(src), "已不存在的文件返回 false")
     }
 
+    /// 批量清理：一次把多个素材移入废纸篓（未被引用的那批），剩下的不受影响
+    @MainActor
+    func testBatchTrashUnreferencedAssets() throws {
+        let (store, dir) = try TestEnv.makeStore()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let imageDir = dir.appendingPathComponent("source/image", isDirectory: true)
+        try FileManager.default.createDirectory(at: imageDir, withIntermediateDirectories: true)
+        var urls: [URL] = []
+        for i in 1...4 {
+            let u = imageDir.appendingPathComponent("09-13-批量-\(i).png")
+            try Data([0x89, 0x50, 0x4E, 0x47]).write(to: u)
+            urls.append(u)
+        }
+        // 让第 2 个「被引用」：笔记里写它的引用
+        _ = store.createNote(title: "批量删除测试", category: "")
+        store.textChanged("![图](img/09-13-批量-2.png)")
+        store.saveCurrent()
+        store.reloadIndex()
+        TestEnv.pump()
+        let counts = store.assetReferenceCounts()
+        let unreferenced = urls.filter { (counts[$0.lastPathComponent] ?? 0) == 0 }
+        XCTAssertEqual(unreferenced.count, 3, "4 个里应有 3 个未被引用：\(counts)")
+        var failed = 0
+        for u in unreferenced where !store.trashAsset(u) { failed += 1 }
+        XCTAssertEqual(failed, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: urls[0].path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: urls[1].path), "被引用的那个不该删")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: urls[2].path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: urls[3].path))
+    }
+
     /// 卡片墙待办统计：未勾选 / 总数按笔记聚合；无任务的笔记不入表。
     @MainActor
     func testTodoStats() throws {
@@ -289,5 +320,41 @@ final class ViewPluginTests: XCTestCase {
         let srcNames = try fm.contentsOfDirectory(atPath: srcImg.path).sorted()
         XCTAssertEqual(srcNames, ["封面.png"])
         XCTAssertEqual(try String(contentsOf: srcImg.appendingPathComponent("封面.png"), encoding: .utf8), "PNGDATA")
+    }
+}
+
+/// 素材多选规则（批量删除的基础）
+final class AssetSelectionTests: XCTestCase {
+    private let ordered = ["a", "b", "c", "d", "e"]
+
+    func testPlainClickSelectsSingle() {
+        let r = AssetSelection.apply(current: ["a", "b"], clicked: "c", ordered: ordered,
+                                     anchor: "a", command: false, shift: false)
+        XCTAssertEqual(r.selection, ["c"])
+        XCTAssertEqual(r.anchor, "c")
+    }
+
+    func testCommandClickToggles() {
+        var r = AssetSelection.apply(current: ["a"], clicked: "c", ordered: ordered,
+                                     anchor: "a", command: true, shift: false)
+        XCTAssertEqual(r.selection, ["a", "c"], "⌘ 点击加选")
+        r = AssetSelection.apply(current: r.selection, clicked: "a", ordered: ordered,
+                                 anchor: r.anchor, command: true, shift: false)
+        XCTAssertEqual(r.selection, ["c"], "⌘ 再点取消该项")
+    }
+
+    func testShiftClickSelectsRange() {
+        let forward = AssetSelection.apply(current: ["a"], clicked: "d", ordered: ordered,
+                                           anchor: "a", command: false, shift: true)
+        XCTAssertEqual(forward.selection, ["a", "b", "c", "d"], "⇧ 向后选区间")
+        let backward = AssetSelection.apply(current: ["e"], clicked: "b", ordered: ordered,
+                                            anchor: "e", command: false, shift: true)
+        XCTAssertEqual(backward.selection, ["b", "c", "d", "e"], "⇧ 向前选区间")
+    }
+
+    func testShiftWithoutAnchorFallsBackToSingle() {
+        let r = AssetSelection.apply(current: ["a"], clicked: "c", ordered: ordered,
+                                     anchor: nil, command: false, shift: true)
+        XCTAssertEqual(r.selection, ["c"])
     }
 }
