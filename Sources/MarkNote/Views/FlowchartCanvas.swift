@@ -78,6 +78,33 @@ enum FCTextLayout {
 
 enum FCRenderer {
 
+    /// 折线画成圆角：每个拐角用二次曲线倒角（半径按相邻段长度自动收敛）
+    static func roundedPolyline(_ path: inout Path, _ pts: [CGPoint], radius: CGFloat) {
+        guard pts.count >= 2 else { return }
+        path.move(to: pts[0])
+        guard pts.count > 2 else {
+            path.addLine(to: pts[1])
+            return
+        }
+        for i in 1..<(pts.count - 1) {
+            let prev = pts[i - 1], cur = pts[i], next = pts[i + 1]
+            let l1 = hypot(cur.x - prev.x, cur.y - prev.y)
+            let l2 = hypot(next.x - cur.x, next.y - cur.y)
+            let r = min(radius, l1 / 2, l2 / 2)
+            guard r > 0.5, l1 > 0.001, l2 > 0.001 else {
+                path.addLine(to: cur)
+                continue
+            }
+            let a = CGPoint(x: cur.x + (prev.x - cur.x) / l1 * r,
+                            y: cur.y + (prev.y - cur.y) / l1 * r)
+            let b = CGPoint(x: cur.x + (next.x - cur.x) / l2 * r,
+                            y: cur.y + (next.y - cur.y) / l2 * r)
+            path.addLine(to: a)
+            path.addQuadCurve(to: b, control: cur)
+        }
+        path.addLine(to: pts[pts.count - 1])
+    }
+
     static func grid(_ ctx: inout GraphicsContext, size: CGSize, transform: FCViewTransform,
                      theme: FlowchartTheme, step: CGFloat = 20) {
         let minor = theme.border.withAlphaComponent(0.35)
@@ -200,12 +227,22 @@ enum FCRenderer {
         let lineWidth = max(0.5, transform.len(e.style.strokeWidth))
         let dash: [CGFloat] = e.style.dashed ? [max(2, lineWidth * 4), max(2, lineWidth * 3)] : []
         var path = Path()
-        path.move(to: transform.p(docPath.start))
-        for seg in docPath.segments {
-            switch seg {
-            case .line(let p): path.addLine(to: transform.p(p))
-            case .cubic(let c0, let c1, let p):
-                path.addCurve(to: transform.p(p), control1: transform.p(c0), control2: transform.p(c1))
+        let allLines = docPath.segments.allSatisfy { if case .line = $0 { return true } else { return false } }
+        if allLines, docPath.segments.count >= 2 {
+            // 折线圆角过渡（draw.io 观感：拐角是柔和圆弧，不是生硬尖角）
+            let pts = [docPath.start] + docPath.segments.compactMap { seg -> CGPoint? in
+                if case .line(let p) = seg { return p }
+                return nil
+            }
+            Self.roundedPolyline(&path, pts.map { transform.p($0) }, radius: 8)
+        } else {
+            path.move(to: transform.p(docPath.start))
+            for seg in docPath.segments {
+                switch seg {
+                case .line(let p): path.addLine(to: transform.p(p))
+                case .cubic(let c0, let c1, let p):
+                    path.addCurve(to: transform.p(p), control1: transform.p(c0), control2: transform.p(c1))
+                }
             }
         }
         ctx.stroke(path, with: .color(Color(nsColor: stroke)),
