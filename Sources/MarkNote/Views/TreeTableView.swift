@@ -264,7 +264,7 @@ struct TreeTableView: NSViewRepresentable {
             let cell = NSTableCellView()
             let content = NSStackView()
             content.orientation = .horizontal
-            content.spacing = 5
+            content.spacing = 4
             content.edgeInsets = NSEdgeInsets(top: 0, left: CGFloat(rows[row].level) * 16 + 6, bottom: 0, right: 6)
             content.alignment = .centerY
 
@@ -285,10 +285,14 @@ struct TreeTableView: NSViewRepresentable {
                 chevron.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 9, weight: .medium)
                 chevron.contentTintColor = .tertiaryLabelColor
                 content.addArrangedSubview(chevron)
+                content.setCustomSpacing(2, after: chevron)
                 let folder = NSImageView()
-                folder.frame = NSRect(x: 0, y: 0, width: 14, height: 14)
+                // 固定尺寸约束：NSImageView 的固有尺寸是原图 64×64，不约束会把「图标-文字」撑开
+                folder.translatesAutoresizingMaskIntoConstraints = false
+                folder.widthAnchor.constraint(equalToConstant: 16).isActive = true
+                folder.heightAnchor.constraint(equalToConstant: 16).isActive = true
                 folder.imageScaling = .scaleProportionallyDown
-                if let themed = themeIconImage(isOpen ? "folder.open" : "folder") {
+                if let themed = themeIconImage(isOpen ? "folder.open" : "folder", trimmed: true) {
                     folder.image = themed
                 } else {
                     folder.image = NSImage(systemSymbolName: "folder.fill", accessibilityDescription: nil)
@@ -296,13 +300,16 @@ struct TreeTableView: NSViewRepresentable {
                     folder.contentTintColor = Self.colorHex(cat.color) // 分类色 → 图标着色（替代色点）
                 }
                 content.addArrangedSubview(folder)
+                content.setCustomSpacing(3, after: folder)
                 label.stringValue = cat.name
             case .note(let n, _):
                 let (iconKey, iconName, tint) = Self.fileIcon(for: n.id)
                 let doc = NSImageView()
-                doc.frame = NSRect(x: 0, y: 0, width: 14, height: 14)
+                doc.translatesAutoresizingMaskIntoConstraints = false
+                doc.widthAnchor.constraint(equalToConstant: 16).isActive = true
+                doc.heightAnchor.constraint(equalToConstant: 16).isActive = true
                 doc.imageScaling = .scaleProportionallyDown
-                if let themed = themeIconImage(iconKey) {
+                if let themed = themeIconImage(iconKey, trimmed: true) {
                     doc.image = themed
                 } else {
                     doc.image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)
@@ -310,6 +317,7 @@ struct TreeTableView: NSViewRepresentable {
                     doc.contentTintColor = tint
                 }
                 content.addArrangedSubview(doc)
+                content.setCustomSpacing(3, after: doc)
                 // VSCode 惯例：树行显示完整文件名（含扩展名）；id = 相对路径
                 let displayName = n.id.isEmpty ? _L("无标题", "Untitled") : (n.id as NSString).lastPathComponent
                 label.stringValue = displayName.isEmpty ? _L("无标题", "Untitled") : displayName

@@ -267,9 +267,54 @@ private func resolveAppAppearance(base: Theme, plugin: PluginTheme?) -> AppAppea
 }
 
 /// 主题语义图标 → NSImage（未声明/文件损坏时返回 nil，由调用方回退 SF Symbol）。
-func themeIconImage(_ name: String) -> NSImage? {
+/// `trimmed: true` 会裁掉 PNG 的透明边距（树行专用）——主题图标为 64×64 且常带 ~35% 留白，
+/// 不裁剪时图形缩小、留白占位，「图标-文字」会显得离得远。
+func themeIconImage(_ name: String, trimmed: Bool = false) -> NSImage? {
     guard let path = appAppearance.themeIcons[name] else { return nil }
+    if trimmed { return ThemeIconTrim.trimmed(path) }
     return NSImage(contentsOfFile: path)
+}
+
+/// 树行图标裁边缓存（按文件路径；裁掉透明边距后图形填满视图）。
+enum ThemeIconTrim {
+    private static let cache = NSCache<NSString, NSImage>()
+
+    static func trimmed(_ path: String) -> NSImage? {
+        if let hit = cache.object(forKey: path as NSString) { return hit }
+        guard let raw = NSImage(contentsOfFile: path) else { return nil }
+        let out = crop(raw) ?? raw
+        cache.setObject(out, forKey: path as NSString)
+        return out
+    }
+
+    /// 扫描 alpha 边界并裁剪（64×64 量级，代价可忽略）。
+    private static func crop(_ image: NSImage) -> NSImage? {
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let w = cg.width, h = cg.height
+        guard w > 0, h > 0 else { return nil }
+        let bytesPerRow = w * 4
+        var buf = [UInt8](repeating: 0, count: h * bytesPerRow)
+        guard let ctx = CGContext(data: &buf, width: w, height: h, bitsPerComponent: 8,
+                                  bytesPerRow: bytesPerRow,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var minX = w, minY = h, maxX = -1, maxY = -1
+        for y in 0..<h {
+            let row = y * bytesPerRow
+            for x in 0..<w where buf[row + x * 4 + 3] > 8 {
+                if x < minX { minX = x }
+                if x > maxX { maxX = x }
+                if y < minY { minY = y }
+                if y > maxY { maxY = y }
+            }
+        }
+        guard maxX >= minX, maxY >= minY,
+              let cropped = cg.cropping(to: CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1)) else {
+            return nil
+        }
+        return NSImage(cgImage: cropped, size: NSSize(width: cropped.width, height: cropped.height))
+    }
 }
 
 // MARK: - 插件主题 CSS 简化级联

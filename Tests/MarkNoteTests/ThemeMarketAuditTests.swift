@@ -133,6 +133,27 @@ final class ThemeMarketAuditTests: XCTestCase {
     }
 
     @MainActor
+    /// 树行图标裁边：透明边距必须被裁掉（主题图标 64×64 常带 ~35% 留白，
+    /// 不裁剪时「图标-文字」视觉间距会过大且图形显小）。
+    func testThemeIconTrimCropsTransparentMargins() throws {
+        // 造图：64×64 透明底 + 居中 20×20 不透明块（对称，避免坐标系翻转歧义）
+        let size = 64
+        let ctx = try XCTUnwrap(CGContext(data: nil, width: size, height: size, bitsPerComponent: 8,
+                                          bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        ctx.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1))
+        ctx.fill(CGRect(x: 22, y: 22, width: 20, height: 20))
+        let cg = try XCTUnwrap(ctx.makeImage())
+        let png = try XCTUnwrap(NSBitmapImageRep(cgImage: cg).representation(using: .png, properties: [:]))
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("icon-\(UUID().uuidString).png")
+        try png.write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let trimmed = try XCTUnwrap(ThemeIconTrim.trimmed(url.path))
+        XCTAssertEqual(Int(trimmed.size.width), 20, "宽度裁到内容边界")
+        XCTAssertEqual(Int(trimmed.size.height), 20, "高度裁到内容边界")
+    }
+
     func testAtLeastOneThemePackageAlwaysEnabled() throws {
         let pm = PluginManager.shared
         let ids = ["theme-bubble-pop", "theme-sumi-paper"]
