@@ -145,7 +145,7 @@ final class ImagePipelineTests: XCTestCase {
         ))
         // 写入按「日期-描述」命名、返回未编码的短相对路径；编码统一由 AssetSyntax.reference 负责
         XCTAssertTrue(ref.hasPrefix("img/"), "短引用前缀，实际：\(ref)")
-        XCTAssertTrue(ref.hasSuffix("-我的 图.png"), "日期前缀 + 原描述，实际：\(ref)")
+        XCTAssertTrue(ref.hasSuffix("-我的-图.png"), "日期前缀 + 描述（空格压成 -，保证 Markdown 引用不破），实际：\(ref)")
         let saved = try XCTUnwrap(store.resolvedImageURL(for: ref))
         XCTAssertEqual(saved.lastPathComponent, String(ref.dropFirst("img/".count)))
         XCTAssertEqual(saved.deletingLastPathComponent().lastPathComponent, "image")
@@ -159,6 +159,70 @@ final class ImagePipelineTests: XCTestCase {
         XCTAssertEqual(store.resolvedImageURL(for: "manual.png")?.lastPathComponent, "manual.png")
         XCTAssertEqual(store.resolvedImageURL(for: "img/manual.png")?.lastPathComponent, "manual.png")
         XCTAssertEqual(store.resolvedImageURL(for: "source/img/manual.png")?.lastPathComponent, "manual.png")
+    }
+
+    /// 文件名清洗：空格 / 括号 / 引号 / 全角竖线都要压掉，保证 Markdown 引用不被截断
+    func testMaterialStemIsReferenceSafe() {
+        XCTAssertEqual(NotesStore.materialStem("2k壁纸 | 火影 (2)"), "2k壁纸-火影-2")
+        XCTAssertEqual(NotesStore.materialStem("a｜b（2）「引号」"), "a-b-2-引号")
+        XCTAssertEqual(NotesStore.materialStem("multiple   spaces"), "multiple-spaces")
+        XCTAssertEqual(NotesStore.materialStem("emoji 🐱 图"), "emoji-🐱-图")
+        XCTAssertFalse(NotesStore.materialStem("a b(c)\"d\"").contains(" "))
+    }
+
+    /// 旧笔记容错：名字里空格/编码/全角差异（｜ vs |，(2) vs %282%29）也要能解析到文件
+    @MainActor
+    func testLegacyReferenceTolerantResolution() throws {
+        let (store, dir) = try TestEnv.makeStore()
+        let imageDir = dir.appendingPathComponent("source/image", isDirectory: true)
+        try FileManager.default.createDirectory(at: imageDir, withIntermediateDirectories: true)
+        let real = "09-13-2k日向宁次壁纸｜火影忍者背景图片-角色特写「哲风壁纸」 (2).jpg"
+        try Data([0xFF, 0xD8, 0xFF]).write(to: imageDir.appendingPathComponent(real))
+        // 用户笔记里那条坏引用：全角｜写成半角 |，空格没编码，(2) 编码成 %282%29
+        let broken = "img/09-13-2k日向宁次壁纸 | 火影忍者背景图片-角色特写「哲风壁纸」 %20%282%29.jpg"
+        XCTAssertEqual(store.resolvedImageURL(for: broken)?.lastPathComponent, real,
+                       "归一化后应命中唯一文件")
+        // 精确存在时仍然精确命中（不走模糊匹配）
+        XCTAssertEqual(store.resolvedImageURL(for: "img/\(real)")?.lastPathComponent, real)
+        // 完全不同的名字不该误匹配
+        XCTAssertNil(store.resolvedImageURL(for: "img/完全不相干的图.jpg"))
+    }
+
+    /// 渲染注册表也要能吃到「文件名带空格 / 未编码」的老引用（否则预览里根本不出图）
+    @MainActor
+    func testRegistryResolvesLegacySpacedReference() throws {
+        let (store, dir) = try TestEnv.makeStore()
+        let imageDir = dir.appendingPathComponent("source/image", isDirectory: true)
+        try FileManager.default.createDirectory(at: imageDir, withIntermediateDirectories: true)
+        let real = "09-13-图 片｜测试 (2).jpg"
+        // 一颗最小 JPEG 头 + 数据（够 balancedImageData 走原始数据回退）
+        let minimalJPEG = Data([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00,
+                                0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xFF, 0xD9])
+        try minimalJPEG.write(to: imageDir.appendingPathComponent(real))
+        // 用户笔记里那条坏引用：全角｜写成半角 |，空格原样，(2) 编码成 %282%29
+        let md = """
+        老引用：![图 片](img/09-13-图 片 | 测试 %20%282%29.jpg)
+        普通引用：![正常](img/图片-正常.jpg)
+        """
+        _ = store.prepareImageRegistry(md)
+        XCTAssertNotNil(store.imageRegistry["img/09-13-图 片 | 测试 %20%282%29.jpg"],
+                        "空格/全角竖线/编码差异的老引用要能解析到同一个文件")
+        XCTAssertNil(store.imageRegistry["img/图片-正常.jpg"], "文件不存在就不该塞进注册表")
+    }
+
+    /// 引用计数也要认「名字有差异的老引用」，否则明明引用了却显示未引用
+    @MainActor
+    func testAssetReferenceCountsToleratesLegacyNames() throws {
+        let (noteStore, noteDir) = try TestEnv.makeStore()
+        let noteImageDir = noteDir.appendingPathComponent("source/image", isDirectory: true)
+        try FileManager.default.createDirectory(at: noteImageDir, withIntermediateDirectories: true)
+        let real = "09-13-图 片｜测试 (2).jpg"
+        try Data([0xFF, 0xD8, 0xFF]).write(to: noteImageDir.appendingPathComponent(real))
+        _ = noteStore.createNote(title: "引用测试", category: "")
+        noteStore.textChanged("![老引用](img/09-13-图 片 | 测试 %20%282%29.jpg)")
+        noteStore.saveCurrent()
+        let counts = noteStore.assetReferenceCounts()
+        XCTAssertEqual(counts[real], 1, "名字有差异的老引用也要算被引用：\(counts)")
     }
 
     func testResampleWideImage() throws {

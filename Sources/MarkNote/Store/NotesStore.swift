@@ -6,7 +6,9 @@ import CryptoKit
 
 /// 图片引用内联的正则（相对路径 → data URL，避开 WebKit file 权限）
 private enum ImgInline {
-    static let re: NSRegularExpression? = try? .init(pattern: #"(!\[[^\]]*\]\()(?!data:|file:|https?:)([^)\s]+)(\))"#)
+    /// 路径允许含空格：老笔记里「文件名带空格又没编码」的引用也要能被识别并解析
+    /// （`[^)\s]+` 会直接漏掉这类引用 → 预览里图片显示不出来）。
+    static let re: NSRegularExpression? = try? .init(pattern: #"(!\[[^\]]*\]\()(?!data:|file:|https?:)([^)]+)(\))"#)
     static let maxSize = 5 * 1024 * 1024
 }
 
@@ -1019,10 +1021,19 @@ final class NotesStore {
 
     /// 描述清洗：去掉路径分隔符与控制字符、时间戳样式的长数字段，压缩重复分隔符。
     nonisolated static func materialStem(_ raw: String) -> String {
-        var s = raw
-            .replacingOccurrences(of: "/", with: "-")
-            .replacingOccurrences(of: ":", with: "-")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        // 文件名要能安全地写进 Markdown 引用：空格、括号、引号、全角竖线等一律压成「-」，
+        // 只保留字母 / 数字 / 汉字 / emoji / - _ .（否则「日期-描述」里带空格，引用必坏）
+        var s = ""
+        for ch in raw {
+            if ch.isLetter || ch.isNumber || ch == "-" || ch == "_" || ch == "." {
+                s.append(ch)
+            } else if let scalar = ch.unicodeScalars.first, scalar.value >= 0x1F000 {
+                s.append(ch)          // emoji 保留（不影响引用解析）
+            } else {
+                s.append("-")
+            }
+        }
+        s = s.trimmingCharacters(in: CharacterSet(charactersIn: "-_. "))
         // 10 位以上连续数字多为时间戳/随机 ID；整段删掉后若还有可读内容才采纳
         let noStamp = s.replacingOccurrences(of: #"\d{10,}"#, with: "", options: .regularExpression)
         if !noStamp.trimmingCharacters(in: CharacterSet(charactersIn: "-_. ")).isEmpty { s = noStamp }
@@ -1105,12 +1116,20 @@ final class NotesStore {
     /// 只读缓存（不额外扫盘）；返回文件名 → 引用篇数。
     func assetReferenceCounts() -> [String: Int] {
         var counts: [String: Int] = [:]
+        // 归一化后匹配：老引用里的空格 / 全角符号 / 百分号编码差异（｜ vs |、(2) vs %282%29）
+        // 也要算「被引用」，否则明明引用了却显示「未引用」（删素材时还会少提醒）。
+        let normalizedNames = assetNames.map { ($0, Self.normalizedMaterialName($0)) }
         for (_, data) in fullTextCache {
             guard let text = String(data: data, encoding: .utf8), !text.isEmpty else { continue }
             // 同一篇里重复提到只算一次
             var seen = Set<String>()
-            for name in assetNames where text.contains(name) {
-                if seen.insert(name).inserted { counts[name, default: 0] += 1 }
+            let normalizedText = Self.normalizedMaterialName(text)
+            for (name, norm) in normalizedNames where !norm.isEmpty {
+                guard !seen.contains(name) else { continue }
+                if text.contains(name) || normalizedText.contains(norm) {
+                    seen.insert(name)
+                    counts[name, default: 0] += 1
+                }
             }
         }
         return counts
@@ -1693,11 +1712,33 @@ final class NotesStore {
         let fileName = (decoded as NSString).lastPathComponent
         guard !fileName.isEmpty else { return nil }
         for dirName in ["source/image", "source/img", "images"] {
-            let candidate = notesDir.appendingPathComponent(dirName, isDirectory: true)
-                .appendingPathComponent(fileName)
+            let dir = notesDir.appendingPathComponent(dirName, isDirectory: true)
+            let candidate = dir.appendingPathComponent(fileName)
             if FileManager.default.fileExists(atPath: candidate.path) { return candidate }
+            // 旧笔记容错：文件名里的空格/全角符号/编码差异（如「｜ vs |」「(2) vs %282%29」）
+            // 会让精确查找失败 —— 归一化后唯一命中就直接用，老引用不用改文本也能显示。
+            if let fuzzy = Self.fuzzyImageMatch(fileName: fileName, in: dir) { return fuzzy }
         }
         return nil
+    }
+
+    /// 归一化文件名：百分号解码 + 全角/半角折叠 + 去掉空格与常见分隔符/括号差异 + 小写
+    nonisolated static func normalizedMaterialName(_ name: String) -> String {
+        var t = name.removingPercentEncoding ?? name
+        t = t.folding(options: [.widthInsensitive, .caseInsensitive], locale: nil)
+        t = t.replacingOccurrences(of: #"[\s\-_()\[\]{}「」『』【】'\"“”‘’]+"#,
+                                   with: "", options: .regularExpression)
+        return t.lowercased()
+    }
+
+    /// 在目录里找与目标文件名「归一化后相同」的文件；多个命中时取名字最短的
+    nonisolated static func fuzzyImageMatch(fileName: String, in dir: URL) -> URL? {
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]) else { return nil }
+        let target = normalizedMaterialName(fileName)
+        guard !target.isEmpty else { return nil }
+        let hits = files.filter { normalizedMaterialName($0.lastPathComponent) == target }
+        return hits.min { $0.lastPathComponent.count < $1.lastPathComponent.count }
     }
 
     /// Markdown 链接目标只转义会截断解析的字符；中文文件名保持可读。
@@ -1763,7 +1804,11 @@ final class NotesStore {
         let matches = re.matches(in: md, range: NSRange(location: 0, length: ns.length))
         var changed = false
         for m in matches {
-            let src = ns.substring(with: m.range(at: 2))
+            var src = ns.substring(with: m.range(at: 2)).trimmingCharacters(in: .whitespacesAndNewlines)
+            // Markdown 可选 title（path "标题"）→ 只保留路径部分；路径里的普通空格保留（老笔记）
+            if let r = src.range(of: #"\s+["“'‘]"#, options: .regularExpression) {
+                src = String(src[src.startIndex..<r.lowerBound]).trimmingCharacters(in: .whitespaces)
+            }
             guard src.hasSuffix(".png") || src.hasSuffix(".jpg") || src.hasSuffix(".jpeg")
                 || src.hasSuffix(".gif") || src.hasSuffix(".webp") || src.hasSuffix(".heic") || src.hasSuffix(".bmp")
                 || src.hasSuffix(".tiff") || src.hasSuffix(".tif") else { continue } // 媒体/文档交给 JS 处理

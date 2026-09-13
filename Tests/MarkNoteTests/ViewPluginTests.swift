@@ -154,7 +154,7 @@ final class ViewPluginTests: XCTestCase {
         let sep2 = Calendar(identifier: .gregorian).date(from: comps)!
         XCTAssertEqual(NotesStore.materialBaseName(originalName: "3.png", modified: sep2), "09-02-3")
         XCTAssertEqual(NotesStore.materialBaseName(originalName: "录屏 2026-08-08 18.08.12.mov", modified: sep2),
-                       "09-02-录屏 2026-08-08 18.08.12", "普通描述保留原样（含空格）")
+                       "09-02-录屏-2026-08-08-18.08.12", "空格压成 -，文件名可安全写进 Markdown 引用")
         XCTAssertEqual(NotesStore.materialBaseName(originalName: "1787423369627-95bdc4.png", modified: sep2),
                        "09-02-95bdc4", "时间戳样式长数字剔除后仍有描述")
         XCTAssertEqual(NotesStore.materialBaseName(originalName: "1787423369627.png", modified: sep2),
@@ -183,7 +183,7 @@ final class ViewPluginTests: XCTestCase {
             return XCTFail("图片应入库为素材")
         }
         XCTAssertTrue(rel.hasPrefix("img/"), "图片走 img/ 短引用，实际：\(rel)")
-        XCTAssertTrue(rel.contains("-图 片"), "命名应带日期前缀与描述，实际：\(rel)")
+        XCTAssertTrue(rel.contains("-图-片"), "命名应带日期前缀与描述（空格压成 -），实际：\(rel)")
         XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent("source/image").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: md.path), "笔记导入不得删除源文件")
 
