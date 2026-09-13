@@ -354,6 +354,125 @@ struct CollectRequest: Codable, Equatable {
         if noWatermark, let t = c.title.lowercased().contains("watermark") ? c.title : nil, !t.isEmpty { return false }
         return true
     }
+
+    /// 「选项总结出来的提示词」：把卡片上的选择用人话拼成一句，便于回看/复用/分享。
+    func promptSummary() -> String {
+        let kindText = kind == "video" ? _L("视频", "video") : _L("图片", "images")
+        var head = _L("找 \(count) 个\(kindText)", "Find \(count) \(kindText)")
+        if let subject, !subject.isEmpty { head += "：" + subject }
+        var details: [String] = []
+        if let usage, !usage.isEmpty { details.append(_L("用途", "usage") + " " + usage) }
+        if !styles.isEmpty { details.append(styles.joined(separator: "/")) }
+        if let styleNote, !styleNote.isEmpty { details.append(styleNote) }
+        let o = CollectOrientation(rawValue: orientation) ?? .any
+        if o != .any { details.append(o.label) }
+        if aspect != CollectAspect.any.rawValue { details.append(aspect) }
+        let size = CollectMinSize(rawValue: minSize) ?? .any
+        if !size.keywordZh.isEmpty { details.append("≥" + size.keywordZh) }
+        if !tones.isEmpty { details.append(_L("色调", "tone") + " " + tones.joined(separator: "/")) }
+        if !palette.isEmpty { details.append(_L("主色", "color") + " " + palette.joined(separator: "/")) }
+        if !moods.isEmpty { details.append(_L("氛围", "mood") + " " + moods.joined(separator: "/")) }
+        if !compositions.isEmpty { details.append(_L("构图", "composition") + " " + compositions.joined(separator: "/")) }
+        if !contentFlags.isEmpty { details.append(contentFlags.joined(separator: "/")) }
+        if needTextSpace { details.append(_L("要留白", "copy space")) }
+        if noWatermark { details.append(_L("无水印", "no watermark")) }
+        if transparent { details.append(_L("透明底", "transparent")) }
+        if kind == "video" {
+            if let d = CollectVideoDuration(rawValue: videoDuration), d != .any { details.append(d.label) }
+            if let r = CollectVideoResolution(rawValue: videoResolution), r != .any { details.append(r.label) }
+            if let a = CollectVideoAudio(rawValue: videoAudio), a != .any { details.append(a.label) }
+            if let s = CollectVideoSubtitle(rawValue: videoSubtitle), s != .any { details.append(s.label) }
+            if !platforms.isEmpty { details.append(platforms.joined(separator: "/")) }
+        } else {
+            if let f = CollectImageFormat(rawValue: imageFormat), f != .any { details.append(f.label) }
+            if let t = CollectImageType(rawValue: imageType), t != .any { details.append(t.label) }
+        }
+        if let l = CollectLicense(rawValue: license), l != .any { details.append(l.label) }
+        if let r = CollectRecency(rawValue: recency), r != .any { details.append(r.label) }
+        if let s = CollectStrictness(rawValue: strictness), s != .balanced { details.append(_L("筛选", "filter") + " " + s.label) }
+        if let site = siteFilter, !site.isEmpty { details.append(_L("只看", "only") + " " + site) }
+        if let site = excludeSites, !site.isEmpty { details.append(_L("排除", "exclude") + " " + site) }
+        if let avoid, !avoid.isEmpty { details.append(_L("不要", "avoid") + " " + avoid) }
+        guard !details.isEmpty else { return head }
+        return head + "（" + details.joined(separator: " · ") + "）"
+    }
+}
+
+// MARK: - 采集历史（提示词记录：手动输入 + 选项总结）
+
+/// 一条采集历史：既有用户手打的提示词，也有「选项总结出来的提示词」，
+/// 还保留完整需求（点一下就能整张卡恢复，直接复用）。
+struct CollectHistoryEntry: Codable, Equatable, Identifiable {
+    var id: String = UUID().uuidString
+    /// 用户手打的提示词（可能为空 —— 纯手工勾选时没有这句话）
+    var text: String = ""
+    /// 选项总结出来的提示词（人话摘要）
+    var summary: String = ""
+    /// 实际使用的搜索词（中/英各一条）
+    var queries: [String] = []
+    /// 完整需求，用于「再用一次」
+    var request: CollectRequest = CollectRequest()
+    var createdAt: Date = Date()
+    /// 这次实际入库了几个（采集结束后回填）
+    var importedCount: Int = 0
+
+    var displayTitle: String {
+        if let s = request.subject, !s.isEmpty { return s }
+        let first = text.split(separator: "\n").first.map(String.init) ?? ""
+        return first.isEmpty ? summary : first
+    }
+
+    var kindBadge: String {
+        request.kind == "video" ? _L("视频", "Video") : _L("图片", "Image")
+    }
+}
+
+/// 历史记录存取：按**工作台**分开存（不写进工作台目录，符合插件隔离规则），
+/// 路径为 `~/Library/Application Support/MarkNote/collector-history/<hash>.json`。
+enum CollectHistoryStore {
+    static let limit = 50
+
+    static func defaultBaseDir() -> URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("MarkNote/collector-history", isDirectory: true)
+    }
+
+    /// 工作台路径 → 稳定文件名（含末级目录名，便于人眼辨认）
+    static func fileURL(workspace: URL, baseDir: URL? = nil) -> URL {
+        let base = baseDir ?? defaultBaseDir()
+        var hash: UInt64 = 14_695_981_039_346_656_037   // FNV-1a
+        for b in workspace.path.utf8 { hash = (hash ^ UInt64(b)) &* 1_099_511_628_211 }
+        let tail = workspace.lastPathComponent.replacingOccurrences(
+            of: #"[^A-Za-z0-9\u4e00-\u9fa5_-]"#, with: "-", options: .regularExpression)
+        return base.appendingPathComponent("\(tail)-\(String(hash, radix: 16)).json")
+    }
+
+    static func load(workspace: URL, baseDir: URL? = nil) -> [CollectHistoryEntry] {
+        let url = fileURL(workspace: workspace, baseDir: baseDir)
+        guard let data = try? Data(contentsOf: url) else { return [] }
+        let dec = JSONDecoder()
+        dec.dateDecodingStrategy = .iso8601
+        return (try? dec.decode([CollectHistoryEntry].self, from: data)) ?? []
+    }
+
+    @discardableResult
+    static func save(_ entries: [CollectHistoryEntry], workspace: URL, baseDir: URL? = nil) -> Bool {
+        let url = fileURL(workspace: workspace, baseDir: baseDir)
+        let enc = JSONEncoder()
+        enc.dateEncodingStrategy = .iso8601
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard let data = try? enc.encode(Array(entries.prefix(limit))) else { return false }
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                 withIntermediateDirectories: true)
+        return (try? data.write(to: url, options: .atomic)) != nil
+    }
+
+    /// 追加一条：同一「提示词 + 选项摘要」视为同一条，更新为最新（时间/结果），并裁到上限。
+    static func adding(_ entry: CollectHistoryEntry, to entries: [CollectHistoryEntry]) -> [CollectHistoryEntry] {
+        var list = entries.filter { !($0.text == entry.text && $0.summary == entry.summary) }
+        list.insert(entry, at: 0)
+        return Array(list.prefix(limit))
+    }
 }
 
 // MARK: - 候选素材

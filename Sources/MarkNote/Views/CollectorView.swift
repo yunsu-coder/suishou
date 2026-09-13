@@ -19,6 +19,10 @@ struct CollectorView: View {
     @State private var candidates: [CollectCandidate] = []
     @State private var importing = false
     @State private var importedCount = 0
+    /// 提示词历史（手动输入的 + 选项总结的），按工作台存
+    @State private var history: [CollectHistoryEntry] = []
+    /// 本次采集对应的历史条目（入库完成后回填结果）
+    @State private var currentEntryID: String?
     /// 本次会话已入库的来源链接（「跳过重复」用）
     @State private var importedURLs: Set<String> = []
     @State private var statusText: String?
@@ -44,6 +48,9 @@ struct CollectorView: View {
         }
         .frame(width: 820, height: 660)
         .background(Color(nsColor: appAppearance.editorBackground))
+        .task(id: store.notesDir.path) {
+            history = CollectHistoryStore.load(workspace: store.notesDir)
+        }
     }
 
     // MARK: - 顶栏
@@ -116,9 +123,115 @@ struct CollectorView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(parsing || inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            if !history.isEmpty {
+                Divider()
+                historySection
+            }
+            Spacer(minLength: 0)
         }
         .padding(18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    // MARK: 提示词历史（手动输入的 + 选项总结的，都能复用）
+
+    private var historySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.system(size: 11))
+                    .foregroundStyle(appAppearance.accent)
+                Text(_L("提示词历史 \(history.count)", "Prompt history \(history.count)"))
+                    .font(.system(size: 12, weight: .semibold))
+                Spacer()
+                Button(_L("清空", "Clear")) {
+                    history = []
+                    CollectHistoryStore.save([], workspace: store.notesDir)
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(history) { entry in
+                        historyRow(entry)
+                    }
+                }
+            }
+            .frame(maxHeight: 240)
+        }
+    }
+
+    private func historyRow(_ entry: CollectHistoryEntry) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text(entry.kindBadge)
+                    .font(.system(size: 9, weight: .semibold))
+                    .padding(.horizontal, 5).padding(.vertical, 1)
+                    .background(Capsule().fill(appAppearance.accent.opacity(0.16)))
+                    .foregroundStyle(appAppearance.accent)
+                Text(entry.displayTitle)
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1)
+                Spacer()
+                Text(Self.historyTime(entry.createdAt))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                if entry.importedCount > 0 {
+                    Text(_L("已入库 \(entry.importedCount)", "\(entry.importedCount) saved"))
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            // 选项总结出来的提示词
+            Text(entry.summary)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+            // 手动输入的提示词（有就显示）
+            if !entry.text.isEmpty {
+                Text("「" + entry.text.replacingOccurrences(of: "\n", with: " ") + "」")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(2)
+            }
+            HStack(spacing: 8) {
+                Button(_L("再用一次", "Use again")) {
+                    inputText = entry.text
+                    request = entry.request
+                    currentEntryID = entry.id
+                    statusText = nil
+                    stage = .review
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11))
+                .foregroundStyle(appAppearance.accent)
+                Button {
+                    history.removeAll { $0.id == entry.id }
+                    CollectHistoryStore.save(history, workspace: store.notesDir)
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help(_L("删除这条记录", "Delete this record"))
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8)
+            .fill(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground)))
+        .overlay(RoundedRectangle(cornerRadius: 8)
+            .stroke(Color(nsColor: appAppearance.editorForeground.withAlphaComponent(0.08))))
+    }
+
+    static func historyTime(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_CN")
+        f.dateFormat = "MM-dd HH:mm"
+        return f.string(from: date)
     }
 
     private func runParse() async {
@@ -412,6 +525,12 @@ struct CollectorView: View {
 
     var queryPreview: some View {
         VStack(alignment: .leading, spacing: 6) {
+            // 选项总结出来的提示词（会记进历史，一眼能看懂这张卡要什么）
+            Text(_L("需求提示词", "Requirement prompt")).font(.system(size: 12, weight: .semibold))
+            Text(request.promptSummary())
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
             Text(_L("计划搜索词", "Search queries")).font(.system(size: 12, weight: .semibold))
             let qs = request.searchQueries()
             if qs.isEmpty {
@@ -449,6 +568,7 @@ struct CollectorView: View {
 
     private func runSearch() async {
         guard request.isReady else { return }
+        recordHistory()      // 开始采集 = 用了一次这条提示词，记进历史
         searching = true
         statusText = nil
         candidates = []
@@ -476,6 +596,28 @@ struct CollectorView: View {
         if candidates.isEmpty {
             statusText = _L("没有搜到结果，回上一步换个说法试试", "No results — go back and rephrase")
         }
+    }
+
+    // MARK: - 提示词历史：写入与回填
+
+    /// 记一条历史：手动输入的提示词 + 选项总结出来的提示词 + 实际搜索词 + 完整需求
+    private func recordHistory() {
+        let entry = CollectHistoryEntry(
+            text: inputText.trimmingCharacters(in: .whitespacesAndNewlines),
+            summary: request.promptSummary(),
+            queries: request.searchQueries(),
+            request: request)
+        history = CollectHistoryStore.adding(entry, to: history)
+        currentEntryID = entry.id
+        CollectHistoryStore.save(history, workspace: store.notesDir)
+    }
+
+    /// 采集结束后把结果回填到这条历史（显示「已入库 N」）
+    private func updateHistoryResult(_ count: Int) {
+        guard let id = currentEntryID,
+              let i = history.firstIndex(where: { $0.id == id }) else { return }
+        history[i].importedCount = count
+        CollectHistoryStore.save(history, workspace: store.notesDir)
     }
 
     // MARK: - 第三步：候选网格（勾选才下载）
@@ -630,6 +772,7 @@ struct CollectorView: View {
         var note = _L("已入库 \(importedCount) 个", "\(importedCount) imported")
         if skipped > 0 { note += _L("（跳过重复 \(skipped)）", " (\(skipped) duplicates skipped)") }
         statusText = note
+        updateHistoryResult(importedCount)
     }
 
     /// 候选标题 → 素材描述名（截断 + 去掉文件系统敏感字符；入库时还会加「日期-」前缀）

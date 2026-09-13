@@ -158,3 +158,79 @@ final class CollectorTests: XCTestCase {
         XCTAssertEqual(NotesStore.imageExt(mime: "", url: URL(string: "https://x/a")!), "jpg", "未知默认 jpg")
     }
 }
+
+/// 采集提示词历史：手动输入 + 选项总结都能存、能复用、按工作台隔离
+final class CollectHistoryTests: XCTestCase {
+
+    private func makeRequest() -> CollectRequest {
+        var r = CollectRequest()
+        r.kind = "image"
+        r.subject = "赛博朋克霓虹街道"
+        r.styles = ["赛博朋克", "电影感"]
+        r.tones = ["冷色"]
+        r.orientation = CollectOrientation.landscape.rawValue
+        r.minSize = CollectMinSize.uhd2160.rawValue
+        r.count = 12
+        return r
+    }
+
+    func testPromptSummaryCoversOptions() {
+        let s = makeRequest().promptSummary()
+        XCTAssertTrue(s.contains("12"), "数量：\(s)")
+        XCTAssertTrue(s.contains("图片"), "类型：\(s)")
+        XCTAssertTrue(s.contains("赛博朋克霓虹街道"), "主题：\(s)")
+        XCTAssertTrue(s.contains("横图") || s.contains("landscape"), "方向：\(s)")
+        XCTAssertTrue(s.contains("4K"), "尺寸：\(s)")
+        XCTAssertTrue(s.contains("冷色"), "色调：\(s)")
+        XCTAssertTrue(s.contains("无水印"), "默认过滤水印：\(s)")
+        XCTAssertFalse(s.contains("（)"), "不该出现空括号：\(s)")
+    }
+
+    func testAddingDedupesAndCaps() {
+        var r = makeRequest()
+        var list: [CollectHistoryEntry] = []
+        let first = CollectHistoryEntry(text: "找点赛博朋克图", summary: r.promptSummary(), request: r)
+        list = CollectHistoryStore.adding(first, to: list)
+        XCTAssertEqual(list.count, 1)
+        // 同提示词 + 同摘要 → 更新（不新增）
+        var second = first
+        second.id = UUID().uuidString
+        second.importedCount = 5
+        list = CollectHistoryStore.adding(second, to: list)
+        XCTAssertEqual(list.count, 1, "同一条提示词只保留一条")
+        XCTAssertEqual(list[0].importedCount, 5, "保留最新结果")
+        // 不同选项 → 新增，且新条目在最前
+        r.count = 30
+        let third = CollectHistoryEntry(text: "找点赛博朋克图", summary: r.promptSummary(), request: r)
+        list = CollectHistoryStore.adding(third, to: list)
+        XCTAssertEqual(list.count, 2)
+        XCTAssertEqual(list[0].summary, third.summary, "新记录排最前")
+        // 上限
+        for i in 0..<(CollectHistoryStore.limit + 5) {
+            var x = CollectRequest()
+            x.kind = "image"; x.subject = "主题\(i)"
+            list = CollectHistoryStore.adding(CollectHistoryEntry(summary: x.promptSummary(), request: x), to: list)
+        }
+        XCTAssertEqual(list.count, CollectHistoryStore.limit, "历史有上限")
+    }
+
+    func testSaveLoadRoundTripAndWorkspaceIsolation() throws {
+        let base = FileManager.default.temporaryDirectory
+            .appendingPathComponent("collect-history-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: base) }
+        let wsA = URL(fileURLWithPath: "/tmp/工作台A", isDirectory: true)
+        let wsB = URL(fileURLWithPath: "/tmp/工作台B", isDirectory: true)
+        let entry = CollectHistoryEntry(text: "手打的提示词", summary: "找 8 个图片：猫",
+                                        queries: ["猫", "cat"], request: makeRequest())
+        XCTAssertTrue(CollectHistoryStore.save([entry], workspace: wsA, baseDir: base))
+        let back = CollectHistoryStore.load(workspace: wsA, baseDir: base)
+        XCTAssertEqual(back.count, 1)
+        XCTAssertEqual(back[0].text, "手打的提示词")
+        XCTAssertEqual(back[0].queries, ["猫", "cat"])
+        XCTAssertEqual(back[0].request.subject, "赛博朋克霓虹街道", "整张需求卡都要能恢复")
+        XCTAssertTrue(CollectHistoryStore.load(workspace: wsB, baseDir: base).isEmpty,
+                      "不同工作台的历史互不干扰")
+        XCTAssertNotEqual(CollectHistoryStore.fileURL(workspace: wsA, baseDir: base),
+                          CollectHistoryStore.fileURL(workspace: wsB, baseDir: base))
+    }
+}
