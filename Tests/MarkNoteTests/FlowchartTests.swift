@@ -581,6 +581,29 @@ final class FlowchartTests: XCTestCase {
 
     // MARK: 循环（自环）/ 平行边 / 交叉跳线
 
+    /// 拉线中的点击判定：双击空白取消、单击空白继续、点图形收尾（选择/连线工具都走这套）
+    func testDrawGateActions() {
+        let t0 = Date()
+        // 没在拉线 → 交给常规逻辑（双击空白才会建框）
+        XCTAssertEqual(FCDrawGate.action(drawing: false, moved: false, onNode: false,
+                                         lastBlankClick: t0, now: t0.addingTimeInterval(0.1)), .idle)
+        // 拉线中点图形 → 收尾
+        XCTAssertEqual(FCDrawGate.action(drawing: true, moved: false, onNode: true,
+                                         lastBlankClick: .distantPast, now: t0), .finish)
+        // 拉线中第一次点空白 → 继续（不取消）
+        XCTAssertEqual(FCDrawGate.action(drawing: true, moved: false, onNode: false,
+                                         lastBlankClick: .distantPast, now: t0), .keep)
+        // 拉线中 0.45 秒内第二次点空白 → 取消
+        XCTAssertEqual(FCDrawGate.action(drawing: true, moved: false, onNode: false,
+                                         lastBlankClick: t0, now: t0.addingTimeInterval(0.2)), .cancel)
+        // 超过窗口的第二次点空白 → 又算新的一次单击（继续）
+        XCTAssertEqual(FCDrawGate.action(drawing: true, moved: false, onNode: false,
+                                         lastBlankClick: t0, now: t0.addingTimeInterval(0.8)), .keep)
+        // 有位移（拖拽过程）不走这套
+        XCTAssertEqual(FCDrawGate.action(drawing: true, moved: true, onNode: false,
+                                         lastBlankClick: t0, now: t0.addingTimeInterval(0.1)), .idle)
+    }
+
     /// 落点接边：鼠标丢在哪条边就接哪条边（不能用中点距离判断，否则会"掉到下面去"）
     func testNearestAnchorFollowsDropPosition() {
         let rect = CGRect(x: 0, y: 0, width: 200, height: 100)
