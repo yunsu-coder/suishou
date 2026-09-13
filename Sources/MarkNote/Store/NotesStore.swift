@@ -907,6 +907,63 @@ final class NotesStore {
         }
     }
 
+    // MARK: - 采集器：远程素材下载
+
+    /// 采集下载：从远程 URL 取图片 → 入当前工作台素材库（「日期-描述」命名；referer 用于防盗链）。
+    /// 返回相对引用路径（img/…），失败 nil。
+    func downloadCollectedImage(from url: URL, preferredName: String, referer: URL?) async -> String? {
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 30
+        req.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
+                     + "(KHTML, like Gecko) Version/18.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+        if let referer { req.setValue(referer.absoluteString, forHTTPHeaderField: "Referer") }
+        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+              let http = resp as? HTTPURLResponse, http.statusCode == 200,
+              data.count >= 2_048 else { return nil }   // 过小多半是错误页/占位图
+        let mime = (http.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
+        let ext = Self.imageExt(mime: mime, url: url)
+        return saveImage(data, ext: ext, noteID: "", preferredName: preferredName)
+    }
+
+    /// Content-Type / URL 后缀 → 扩展名（默认 jpg）
+    nonisolated static func imageExt(mime: String, url: URL) -> String {
+        if mime.contains("png") { return "png" }
+        if mime.contains("gif") { return "gif" }
+        if mime.contains("webp") { return "webp" }
+        if mime.contains("avif") { return "avif" }
+        if mime.contains("heic") || mime.contains("heif") { return "heic" }
+        let urlExt = url.pathExtension.lowercased()
+        let known: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "avif", "heic", "bmp", "tiff"]
+        if known.contains(urlExt) { return urlExt == "jpeg" ? "jpg" : urlExt }
+        return "jpg"
+    }
+
+    /// 采集的视频 → 在工作台根维护一份「视频收藏.md」清单（标题 / 时长 / 链接 / 封面本地引用）。
+    /// 不下载视频文件本体（平台直链多不可得）；封面图由调用方先行入库。
+    @discardableResult
+    func appendVideoFavorite(title: String, pageURL: URL, duration: String?, coverRel: String?) -> Bool {
+        let fileURL = notesDir.appendingPathComponent("视频收藏.md")
+        let clean = title.replacingOccurrences(of: "|", with: "｜")
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespaces)
+        let dur = (duration?.isEmpty == false) ? "（\(duration!)）" : ""
+        let cover = coverRel.map { " · ![封面](\($0))" } ?? ""
+        let line = "- [\(clean)](\(pageURL.absoluteString))\(dur)\(cover)\n"
+        do {
+            if !FileManager.default.fileExists(atPath: fileURL.path) {
+                try "# 视频收藏\n\n> 由「素材采集」收录；点击标题跳转原站。\n\n".write(to: fileURL, atomically: true, encoding: .utf8)
+            }
+            let handle = try FileHandle(forWritingTo: fileURL)
+            defer { try? handle.close() }
+            try handle.seekToEnd()
+            try handle.write(contentsOf: Data(line.utf8))
+            reloadIndex()
+            return true
+        } catch {
+            return false
+        }
+    }
+
     /// 外部拖入的统一结果：笔记导入 / 素材入库 / 失败。
     enum ExternalDropResult: Equatable {
         case noteImported

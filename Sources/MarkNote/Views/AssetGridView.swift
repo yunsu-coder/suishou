@@ -19,6 +19,7 @@ struct AssetGridView: View {
     @State private var selected: NotesStore.AttachmentItem?
     @State private var reloadToken = 0
     @State private var showImport = false
+    @State private var showCollector = false
     /// 导入后的轻提示（几秒后自动消失）
     @State private var toast: String?
     /// 待确认删除的素材（引用计数提示后再移入废纸篓）
@@ -76,6 +77,10 @@ struct AssetGridView: View {
             }
             .environment(store)
         }
+        .sheet(isPresented: $showCollector) {
+            CollectorView()
+                .environment(store)
+        }
     }
 
     // MARK: - 顶部：标题 + 搜索 + 未引用筛选
@@ -87,6 +92,23 @@ struct AssetGridView: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.tertiary)
                 Spacer()
+                // 采集插件启用时出现：AI 找素材 → 候选勾选 → 入当前工作台素材库
+                if PluginManager.shared.allViews().contains(where: { $0.type == .collector }) {
+                    Button {
+                        showCollector = true
+                    } label: {
+                        Text(_L("采集…", "Collect…"))
+                            .font(.system(size: 10))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(RoundedRectangle(cornerRadius: 7)
+                                .fill(appAppearance.accent.opacity(0.18)))
+                            .foregroundStyle(appAppearance.accent)
+                    }
+                    .buttonStyle(.plain)
+                    .help(_L("描述你想要的素材，AI 帮你找（图片/视频）",
+                             "Describe what you need and let AI find it (images/videos)"))
+                }
                 // 跨工作台只有一个通道：显式勾选导入（原库只读）
                 if spec.options.allowImport == true, !store.otherWorkspaces.isEmpty {
                     Button {

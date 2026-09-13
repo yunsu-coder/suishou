@@ -169,7 +169,7 @@ final class PluginManager {
             for v in items {
                 guard !v.id.isEmpty, !v.name.isEmpty else { continue }
                 guard let type = PluginViewType(rawValue: v.type) else {
-                    d.viewIssues[pkg.id, default: []].append("\(v.name)：未知视图类型 \(v.type)（只支持 noteCards / assetGrid）")
+                    d.viewIssues[pkg.id, default: []].append("\(v.name)：未知视图类型 \(v.type)（只支持 noteCards / assetGrid / collector / flowchart）")
                     continue
                 }
                 guard let scope = PluginViewScope(rawValue: v.scope) else {
@@ -182,9 +182,18 @@ final class PluginManager {
                 }
                 // 隔离硬门槛：读笔记内容的视图必须是 workspace 作用域
                 // 隔离硬门槛：读取当前工作台内容的视图都必须是 workspace
-                if (type == .noteCards || type == .assetGrid), scope != .workspace {
-                    let why = type == .noteCards ? "卡片墙读取笔记内容" : "素材网格读取工作台资源"
+                if (type == .noteCards || type == .assetGrid || type == .collector || type == .flowchart),
+                   scope != .workspace {
+                    let why = type == .noteCards ? "卡片墙读取笔记内容"
+                        : (type == .assetGrid ? "素材网格读取工作台资源"
+                           : (type == .collector ? "素材采集写入当前工作台的素材库"
+                              : "流程图读写当前工作台的 source/flowchart"))
                     d.viewIssues[pkg.id, default: []].append("\(v.name)：\(why)，作用域必须是 workspace")
+                    continue
+                }
+                // 流程图是「主区域画布」，面板形态没有意义（避免装出看不见的插件）
+                if type == .flowchart, placement != .main {
+                    d.viewIssues[pkg.id, default: []].append("\(v.name)：流程图必须 placement = main")
                     continue
                 }
                 d.views.append(PluginView(id: "view-\(pkg.id)-\(v.id)", name: v.name,

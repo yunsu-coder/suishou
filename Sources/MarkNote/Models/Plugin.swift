@@ -255,11 +255,15 @@ struct RenderPlugin: Identifiable {
 enum PluginViewType: String, Codable, CaseIterable {
     case noteCards
     case assetGrid
+    case collector
+    case flowchart
 
     var displayName: String {
         switch self {
         case .noteCards: return _L("卡片墙", "Note Cards")
         case .assetGrid: return _L("素材网格", "Asset Grid")
+        case .collector: return _L("素材采集", "Asset Collector")
+        case .flowchart: return _L("流程图", "Flowchart")
         }
     }
 }

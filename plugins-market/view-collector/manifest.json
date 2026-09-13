@@ -1,0 +1,27 @@
+{
+  "id": "view-collector",
+  "name": "素材采集",
+  "nameEn": "Asset Collector",
+  "version": "1.0.0",
+  "kind": "views",
+  "desc": "用一句话描述想要的素材，AI 解析成需求卡片、缺什么补什么，确认后从公开站点搜索候选；勾选才下载，图片入当前工作台素材库，视频保存为收藏条目",
+  "descEn": "Describe the assets you want; AI turns it into a requirement card, searches public sites after your confirmation, and only downloads what you check",
+  "features": [
+    "卡片式需求确认：类型/主题/用途/风格/数量，缺必填项高亮追问，确认后才开始",
+    "结果先以候选网格呈现，勾选哪些才下载哪些（不自动落地）",
+    "图片入 source/image（命名「日期-描述」）；视频保存为收藏条目（含封面与链接）",
+    "来源只搜公开图片/视频站点；只在当前工作台读写",
+    "颜色与字体全部取当前主题（四套主题自动适配）"
+  ],
+  "featuresEn": [
+    "Card-style requirement check: type/subject/usage/style/count with required-field prompts",
+    "Candidates as a grid — only checked items are downloaded",
+    "Images go to source/image (named date-description); videos become favorite entries with cover and link",
+    "Public image/video sites only; current workspace only",
+    "All colors/fonts come from the active theme"
+  ],
+  "author": "随手社区",
+  "main": "views.json",
+  "minAppVersion": "2.0.0",
+  "icon": "sparkle.magnifyingglass"
+}

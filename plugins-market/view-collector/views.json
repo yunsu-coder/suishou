@@ -1,0 +1,11 @@
+[
+  {
+    "id": "collector",
+    "name": "素材采集",
+    "nameEn": "Asset Collector",
+    "type": "collector",
+    "scope": "workspace",
+    "placement": "panel",
+    "options": {}
+  }
+]
