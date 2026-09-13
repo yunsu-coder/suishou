@@ -297,6 +297,10 @@ struct FlowchartExportCanvas: View {
 enum FCHandle: String, CaseIterable {
     case tl, t, tr, r, br, b, bl, l
 
+    /// 缩放手柄只用四个角：边中点位置让给连线锚点（两套热区原本完全重合，
+    /// 手柄优先级又更高 —— 结果是"从边缘拉不出线"）
+    static let corners: [FCHandle] = [.tl, .tr, .br, .bl]
+
     func point(in rect: CGRect) -> CGPoint {
         switch self {
         case .tl: return CGPoint(x: rect.minX, y: rect.minY)
@@ -430,7 +434,7 @@ struct FlowchartCanvas: View {
         if editor.selection.count == 1, let id = editor.selection.first,
            let rect = editor.doc.rect(of: id), !editor.doc.edges.contains(where: { $0.id == id }) {
             let r = transform.r(rect)
-            for h in FCHandle.allCases {
+            for h in FCHandle.corners {   // 只画角手柄；边中点让给连线锚点（hover 显示圆点）
                 let c = h.point(in: r)
                 let box = CGRect(x: c.x - 4, y: c.y - 4, width: 8, height: 8)
                 ctx.fill(Path(roundedRect: box, cornerRadius: 1.5),
@@ -632,10 +636,20 @@ struct FlowchartCanvas: View {
             return
         }
 
-        // 1) 已选中单个元素 → 手柄缩放
+        // 1) 图形锚点 → 拉连线。
+        //    必须先于缩放手柄判断：边中点既是锚点又是手柄位置（两套热区完全重合），
+        //    手柄优先会让"从边缘拉线"永远变成"拉伸图形"（用户反馈的「连不起」病根）。
+        //    与 Figma/draw.io 一致：边中点 = 连线，缩放走四个角。
+        if let anchorHit = anchorHit(at: start) {
+            drag = .edge(from: anchorHit.node, anchor: anchorHit.anchor)
+            editor.pendingEdge = (from: anchorHit.node, anchor: anchorHit.anchor, point: start)
+            return
+        }
+
+        // 2) 已选中单个元素 → 角手柄缩放（边中点已让给锚点）
         if editor.selection.count == 1, let id = editor.selection.first,
            let rect = editor.doc.rect(of: id), !editor.doc.edges.contains(where: { $0.id == id }) {
-            for h in FCHandle.allCases {
+            for h in FCHandle.corners {
                 let c = h.point(in: rect)
                 if hypot(c.x - start.x, c.y - start.y) <= 7 / max(editor.zoom, 0.2) {
                     editor.beginInteraction()
@@ -643,13 +657,6 @@ struct FlowchartCanvas: View {
                     return
                 }
             }
-        }
-
-        // 2) 图形锚点 → 拉连线
-        if let anchorHit = anchorHit(at: start) {
-            drag = .edge(from: anchorHit.node, anchor: anchorHit.anchor)
-            editor.pendingEdge = (from: anchorHit.node, anchor: anchorHit.anchor, point: start)
-            return
         }
 
         // 3) 工具：新建元素
