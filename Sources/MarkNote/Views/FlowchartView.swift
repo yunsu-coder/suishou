@@ -1087,6 +1087,7 @@ private struct FlowchartInspector: View {
             Divider().padding(.vertical, 2)
             VStack(alignment: .leading, spacing: 4) {
                 hint(_L("拖图形边缘圆点 / 连线工具 → 拉出连线", "Drag from a node edge dot to connect"))
+                hint(_L("拉线中：右键落断点 · 双击空白取消", "While drawing: right-click = bend point · double-click blank = cancel"))
                 hint(_L("双击图形 → 写文字", "Double-click a shape to edit text"))
                 hint(_L("⌥ 拖拽 / 双指滚动 → 平移，⌘ 滚轮 → 缩放", "⌥-drag or scroll to pan, ⌘-scroll to zoom"))
                 hint(_L("⌘Z 撤销 · ⌘D 复制 · ⌘E 自动编号 · 方向键微调",

@@ -578,6 +578,8 @@ struct FlowchartCanvas: View {
     @State private var magnifyMonitor: Any?
     /// 自判双击用（DragGesture(0) 吞掉了 SwiftUI 的双击手势）
     @State private var lastClickAt: Date = .distantPast
+    /// 拉线中「双击空白取消」的自判时间（只在空白点击上累计，避免和双击建框冲突）
+    @State private var lastBlankClickAt: Date = .distantPast
     /// 拉线过程中光标悬停的目标图形（draw.io 式高亮 + 落点吸附）
     @State private var edgeTargetID: String?
 
@@ -935,6 +937,15 @@ struct FlowchartCanvas: View {
         editor.beginInteraction()
     }
 
+    /// 取消整条拉线（含已落的手动断点）
+    private func cancelDrawing() {
+        editor.pendingEdge = nil
+        editor.pendingWaypoints = []
+        edgeStartNode = nil
+        edgeTargetID = nil
+        lastBlankClickAt = .distantPast
+    }
+
     /// 菜单项包装（闭包 → target/action）
     private func menuItem(_ title: String, _ run: @escaping () -> Void) -> NSMenuItem {
         let target = FCMenuTarget(run)
@@ -1051,11 +1062,33 @@ struct FlowchartCanvas: View {
 
         // 连线工具（drag == .none 分支接管）：
         // · 移动超过阈值 = 拖拽连线（起点图形 → 落点图形）
-        // · 原地松开 = 点击-点击连线（第一次点 = 起点；第二次点目标 = 连线；点空白 = 取消）
+        // · 原地松开 = 点击-点击连线（第一次点 = 起点；点目标 = 连线）
+        // · 拉线中「双击空白」= 取消整条线；单击空白只让线继续挂在光标上
         if editor.tool == .edge, case .none = drag {
             let moved = hypot(value.location.x - value.startLocation.x,
                               value.location.y - value.startLocation.y) >= 3
             let hitNode = editor.doc.node(at: current)
+            // 拉线中「双击左键（空白处）」= 取消整条拉线；
+            // 单击空白不再取消 —— 线继续挂在光标上，可以接着连/落断点。
+            let drawing = editor.pendingEdge != nil || edgeStartNode != nil
+                || !editor.pendingWaypoints.isEmpty
+            if !moved, drawing, hitNode == nil {
+                let now = Date()
+                if now.timeIntervalSince(lastBlankClickAt) < 0.45 {
+                    lastBlankClickAt = .distantPast
+                    cancelDrawing()
+                    edgePressNode = nil
+                    drag = .none
+                    return
+                }
+                lastBlankClickAt = now
+                edgePressNode = nil
+                if let from = edgeStartNode {
+                    editor.pendingEdge = (from: from, anchor: edgeStartAnchor, point: current)
+                }
+                drag = .none
+                return
+            }
             if moved {
                 if let from = edgePressNode, let target = hitNode {
                     var edge = FCEdge(fromNode: from, toNode: target.id,
@@ -1078,9 +1111,10 @@ struct FlowchartCanvas: View {
                     edgeStartNode = nil
                     editor.pendingEdge = nil
                 } else {
-                    edgeStartNode = nil      // 点到空白 = 取消
-                    editor.pendingEdge = nil
-                    editor.pendingWaypoints = []
+                    // 点空白：保持拉线（双击才取消）
+                    if let from = edgeStartNode {
+                        editor.pendingEdge = (from: from, anchor: edgeStartAnchor, point: current)
+                    }
                 }
             } else if let node = hitNode {
                 edgeStartNode = node.id
@@ -1152,13 +1186,11 @@ struct FlowchartCanvas: View {
                 editor.pendingWaypoints = []
                 edgeStartNode = nil
                 editor.pendingEdge = nil
-            } else if !editor.pendingWaypoints.isEmpty {
-                // 已经落过断点却在空白处松手：不取消，转成「点击-点击」继续拉
-                // （断点保留，点目标框即可收尾；Esc / 切工具取消）
+            } else {
+                // 空白处松手：不取消，转成「点击-点击」继续拉
+                // （已落的断点保留；点目标框收尾，双击空白 / Esc 取消）
                 edgeStartNode = from
                 editor.pendingEdge = (from: from, anchor: anchor, point: current)
-            } else {
-                editor.pendingEdge = nil
             }
         case .reconnect(let id, let isFrom):
             defer { editor.pendingEdge = nil }
