@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # 打包 随手.dmg(含 build/随手.app)
-# 用法: ./scripts/make-dmg.sh [版本号, 默认 1.8.0]
+# 用法: ./scripts/make-dmg.sh [版本号, 默认 2.0.0]
 set -e
 cd "$(dirname "$0")/.."
 
-VERSION="${1:-1.8.0}"
+VERSION="${1:-2.0.0}"
 BUILD_DIR="build/dmg"
 APP="build/随手.app"
 
@@ -28,4 +28,3 @@ hdiutil create -volname "随手 $VERSION" -srcfolder "$BUILD_DIR" -ov -format UD
 
 echo "==> 完成: $DMG"
 echo "    open \"$DMG\"  # 验证"
-
