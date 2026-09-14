@@ -80,3 +80,29 @@ final class BilibiliLoginTests: XCTestCase {
     }
 }
 
+
+/// 预览播放请求头：B 站直链必须带 Referer，否则 403（系统播放器不会自带）
+final class VideoPlaybackHeaderTests: XCTestCase {
+    func testBilibiliNeedsReferer() {
+        let h = CollectorVideoResolver.playbackHeaders(
+            for: URL(string: "https://upos-sz-mirrorcos.bilivideo.com/x.flv")!,
+            referer: URL(string: "https://www.bilibili.com/video/BV1xx"))
+        XCTAssertEqual(h["Referer"], "https://www.bilibili.com")
+        XCTAssertTrue(h["User-Agent"]?.contains("Safari") ?? false)
+    }
+
+    func testDouyinUsesPageReferer() {
+        let page = URL(string: "https://www.douyin.com/video/729")!
+        let h = CollectorVideoResolver.playbackHeaders(for: URL(string: "https://aweme.snssdk.com/aweme/v1/play/x.mp4")!,
+                                                       referer: page)
+        XCTAssertEqual(h["Referer"], "https://www.douyin.com/video/729")
+    }
+
+    func testGenericSiteKeepsPageReferer() {
+        let page = URL(string: "https://news.example.com/watch/1")!
+        let h = CollectorVideoResolver.playbackHeaders(for: URL(string: "https://cdn.example.com/v.mp4")!, referer: page)
+        XCTAssertEqual(h["Referer"], "https://news.example.com/watch/1")
+        XCTAssertNil(CollectorVideoResolver.playbackHeaders(for: URL(string: "https://cdn.example.com/v.mp4")!,
+                                                            referer: nil)["Referer"])
+    }
+}

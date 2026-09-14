@@ -860,6 +860,47 @@ enum CollectorVideoResolver {
         guard let u = douyinPlayURL(fromPageHTML: html) else { return nil }
         return ResolvedVideo(url: u, quality: nil)
     }
+
+    // MARK: 预览播放：先按正确请求头取到本地临时文件，再交给系统播放器
+
+    /// 直链播放需要哪些请求头（B 站防盗链、抖音校验 UA）——纯函数，便于测试
+    static func playbackHeaders(for url: URL, referer: URL?) -> [String: String] {
+        var headers: [String: String] = [
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
+                + "(KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+        ]
+        let host = url.host?.lowercased() ?? ""
+        if host.contains("bilivideo") || (referer?.host?.lowercased().contains("bilibili.com") ?? false) {
+            headers["Referer"] = "https://www.bilibili.com"
+        } else if host.contains("douyin") || host.contains("snssdk") || host.contains("bytedance") {
+            headers["Referer"] = referer?.absoluteString ?? "https://www.douyin.com/"
+        } else if let referer {
+            headers["Referer"] = referer.absoluteString
+        }
+        return headers
+    }
+
+    /// 预览用小体积下载：≤ maxBytes 才下载（超大视频让用户走「入库」流程，避免久等）
+    static func downloadForPreview(_ url: URL, referer: URL?,
+                                   maxBytes: Int = 120 * 1024 * 1024) async -> URL? {
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 60
+        for (k, v) in playbackHeaders(for: url, referer: referer) {
+            req.setValue(v, forHTTPHeaderField: k)
+        }
+        if let cookie = CollectorPrefs.bilibiliCookie, !cookie.isEmpty,
+           url.host?.lowercased().contains("bilivideo") == true {
+            req.setValue(cookie, forHTTPHeaderField: "Cookie")
+        }
+        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+              let http = resp as? HTTPURLResponse, http.statusCode == 200,
+              data.count <= maxBytes, data.count >= 32 * 1024 else { return nil }
+        let ext = url.pathExtension.isEmpty ? "mp4" : url.pathExtension
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("preview-\(UUID().uuidString).\(ext)")
+        guard (try? data.write(to: tmp)) != nil else { return nil }
+        return tmp
+    }
 }
 
 /// 采集器的小设置（目前只有 B 站 Cookie：填了才能下 1080P）

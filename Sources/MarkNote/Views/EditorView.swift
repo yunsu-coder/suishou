@@ -329,7 +329,8 @@ struct EditorView: View {
             fontRegistry: store.fontRegistry,
             fontRegistryVersion: store.fontRegistryVersion,
             glass: appAppearance.glass,
-            previewFont: previewFontFamily
+            previewFont: previewFontFamily,
+            workspaceRoot: store.notesDir
         ))
     }
 

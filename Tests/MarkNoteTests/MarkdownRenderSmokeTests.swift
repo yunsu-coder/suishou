@@ -369,3 +369,54 @@ final class PreviewImageBehaviorTests: XCTestCase {
         XCTAssertTrue(out.contains("\"imgVisible\":true"), "图片本身要留着：\(out)")
     }
 }
+
+/// 本地媒体绝对化：预览页在「工作台根/.preview」下，相对 source/… 会指错 → 宿主注入根路径后必须改写成绝对 file://
+final class PreviewAssetBaseTests: XCTestCase {
+    private func loadPreviewWeb() throws -> WKWebView {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let resources = root.appendingPathComponent(".build/arm64-apple-macosx/debug/MarkNote_MarkNote.bundle/Resources")
+        let html = resources.appendingPathComponent("preview.html")
+        let web = WKWebView(frame: NSRect(x: -5000, y: -5000, width: 800, height: 600))
+        web.loadFileURL(html, allowingReadAccessTo: resources)
+        for _ in 0..<60 {
+            var value: Any?
+            let e = XCTestExpectation(description: "ready")
+            web.evaluateJavaScript("typeof window.renderMd") { r, _ in value = r; e.fulfill() }
+            wait(for: [e], timeout: 2)
+            if (value as? String) == "function" { return web }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+        XCTFail("预览渲染管线未就绪")
+        return web
+    }
+
+    private func evaluate(_ web: WKWebView, _ script: String) throws -> String {
+        let done = XCTestExpectation(description: "evaluate")
+        var out = ""
+        var err: Error?
+        web.evaluateJavaScript(script) { value, error in
+            out = (value as? String) ?? String(describing: value ?? "")
+            err = error
+            done.fulfill()
+        }
+        wait(for: [done], timeout: 5)
+        if let err { throw err }
+        return out
+    }
+
+    func testLocalMediaGetsAbsoluteFileURL() throws {
+        let web = try loadPreviewWeb()
+        let out = try evaluate(web, """
+        window.__setAssetBase('file:///Users/me/工作台/');
+        window.renderMd('![视频](source/mp4/09-14-城市夜景.mp4)\\n\\n![图](img/09-13-a.png)', 'file:///Users/me/工作台/sub/', { dark: false, resetScroll: true });
+        JSON.stringify({
+          video: (document.querySelector('video.md-media') || {}).getAttribute ? document.querySelector('video.md-media').getAttribute('src') : '',
+          img: (document.querySelector('.markdown-body img') || {}).getAttribute ? document.querySelector('.markdown-body img').getAttribute('src') : ''
+        });
+        """)
+        XCTAssertTrue(out.contains("file:///Users/me/工作台/source/mp4/09-14-"), "视频要指到工作台根下的真实文件：\(out)")
+        XCTAssertTrue(out.contains("source/image/09-13-a.png"), "img/ 要映射到 source/image/：\(out)")
+        XCTAssertFalse(out.contains("%25E5"), "中文不能被二次编码：\(out)")
+    }
+}

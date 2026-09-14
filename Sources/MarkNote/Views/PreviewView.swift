@@ -68,6 +68,8 @@ struct PreviewView: NSViewRepresentable {
     var glass: Double = 0
     /// 预览字体 CSS family（空 = 系统默认）
     var previewFont: String
+    /// 工作台根：本地媒体（source/mp4 等）的读取授权 + 绝对化基准
+    var workspaceRoot: URL?
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -94,8 +96,13 @@ struct PreviewView: NSViewRepresentable {
             // 工作台语义：把预览页镜像到 notesDir/.preview/ 再以「工作台根」为读取授权加载 ——
             // 页面 vendor 与 source/ 资源同根，file:// 直放行（视频/PDF/图片卡全链路可渲染）。
             // 包内加载仅授权资源目录 → 跨目录 file:// 被 WebKit 拦截（旧病根）。
-            let mirror = Self.mirroredPage(html, basePath: URL(string: basePath))
-            web.loadFileURL(mirror ?? html, allowingReadAccessTo: mirror != nil ? URL(string: basePath)! : (Bundle.module.resourceURL ?? html.deletingLastPathComponent()))
+            // 镜像到「工作台根/.preview」，并把读取授权放到工作台根 ——
+            // 这样 source/mp4 里的本地视频、source/image 里的图都能被页面直接读取。
+            let mirrorRoot = workspaceRoot ?? URL(string: basePath)
+            let mirror = Self.mirroredPage(html, basePath: mirrorRoot)
+            web.loadFileURL(mirror ?? html,
+                            allowingReadAccessTo: mirror != nil ? (mirrorRoot ?? html.deletingLastPathComponent())
+                                                               : (Bundle.module.resourceURL ?? html.deletingLastPathComponent()))
             context.coordinator.webReady = false // makeNSView 写入需对外可见（didFinish 后置 true）
         }
         return web
@@ -271,6 +278,7 @@ struct PreviewView: NSViewRepresentable {
                 window.renderMd(\(mdJSON), \(baseJSON), { dark: \(dark), resetScroll: \(resetScroll) });
               }
               if (window.__setImageCaptions) window.__setImageCaptions(\(parent.showImageCaptions));
+              if (window.__setAssetBase) window.__setAssetBase(\(Self.jsString(parent.workspaceRoot?.absoluteString ?? "")));
               document.documentElement.style.colorScheme = \(dark) ? 'dark' : 'light';
               document.body.style.fontSize = \(String(format: "%.3f", scale * 16)) + 'px';
               document.body.style.fontFamily = \(fontJS); // 空串 = 清除内联覆盖（还原系统默认）

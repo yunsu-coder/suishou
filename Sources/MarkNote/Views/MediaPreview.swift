@@ -45,6 +45,9 @@ struct MediaPreviewSheet: View {
     @State private var fitScale: CGFloat = 1
     @State private var resolvingPlayable = false
     @State private var resolvedPlayable: URL?
+    /// 取到本地的预览播片（B 站直链要带 Referer，系统播放器不带 → 先下临时文件再播）
+    @State private var localPlayback: URL?
+    @State private var preparingPlayback = false
     @State private var resolvedQuality: String?
 
     var body: some View {
@@ -58,6 +61,10 @@ struct MediaPreviewSheet: View {
         .task {
             await loadImage()
             await resolvePlayableIfNeeded()
+            await prepareLocalPlayback()
+        }
+        .onDisappear {
+            if let localPlayback { try? FileManager.default.removeItem(at: localPlayback) }
         }
     }
 
@@ -120,9 +127,29 @@ struct MediaPreviewSheet: View {
         .padding(.vertical, 10)
     }
 
+    /// 能播就播：优先用「带请求头下好的本地副本」，本地方案失败再退回直链
+    private func prepareLocalPlayback() async {
+        guard let direct = videoURL ?? resolvedPlayable else { return }
+        if direct.isFileURL { localPlayback = direct; return }
+        preparingPlayback = true
+        localPlayback = await CollectorVideoResolver.downloadForPreview(direct, referer: pageURL)
+        preparingPlayback = false
+    }
+
     @ViewBuilder
     private var content: some View {
-        if let playable = videoURL ?? resolvedPlayable {
+        if let local = localPlayback {
+            MediaPlayerBox(url: local)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black.opacity(0.92))
+        } else if preparingPlayback {
+            VStack(spacing: 10) {
+                ProgressView().controlSize(.small)
+                Text(_L("正在准备播放（部分站点要先本地化才能播）…", "Preparing playback…"))
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let playable = videoURL ?? resolvedPlayable {
             MediaPlayerBox(url: playable)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.black.opacity(0.92))

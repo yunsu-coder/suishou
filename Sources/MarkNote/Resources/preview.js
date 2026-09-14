@@ -319,6 +319,26 @@ if (typeof katex !== 'undefined') {
     });
   }
 
+  // ===== 本地媒体/资源绝对化 =====
+  // 预览页是从「工作台根/.preview/」加载的镜像页，相对路径 `source/mp4/x.mp4` 会指到
+  // .preview/source/…（不存在）→ 视频/音频/未内联的图片全都加载不出来。
+  // 宿主把工作台根（file:///…/工作台/）通过 __setAssetBase 注入，这里改写成绝对地址
+  // （宿主已把 loadFileURL 的读取授权放到工作台根，file:// 才放行）。
+  var ASSET_BASE = '';
+  window.__setAssetBase = function (base) { ASSET_BASE = base || ''; };
+
+  function absolutizeAssets(html) {
+    if (!ASSET_BASE) return html;
+    return html.replace(/(src=")((?:source|img|attachments|images)\/[^"]*)(")/g, function (m, pre, path, post) {
+      if (/^(https?:|data:|file:)/.test(path)) return m;
+      // img/ = source/image/（工作台素材约定）；其余按工作台根拼
+      var full = path.indexOf('img/') === 0 ? 'source/image/' + path.slice(4) : path;
+      // 只补空格：markdown-it 已经把中文/括号等编码过一次，再 encodeURIComponent 会二次编码（%25E5…）
+      var encoded = full.split('/').map(function (seg) { return seg.replace(/ /g, '%20'); }).join('/');
+      return pre + ASSET_BASE + encoded + post;
+    });
+  }
+
   // ===== 图片图注开关（有些图注不想看时一键隐藏）=====
   window.__setImageCaptions = function (on) {
     document.documentElement.classList.toggle('no-figcaption', !on);
@@ -726,7 +746,10 @@ window.renderMd = function (md, baseDir, opts) {
     var scrollRatio = 0;
     var availBefore = document.documentElement.scrollHeight - window.innerHeight;
     if (availBefore > 0) { scrollRatio = window.pageYOffset / availBefore; }
-    var html = renderMedia(resolveImages(md2html(fixLegacyAssetTargets(md)), baseDir || null));
+    // 顺序要紧：先让注册表把「相对路径」图片换成内联 data URL（键是相对路径），
+    // 再把剩下的本地资源绝对化到工作台根（source/mp4 里的视频、未内联的图）。
+    // 之前先按「笔记目录」补路径，会把 source/… 拼成 笔记目录/source/…（对不上工作台根）。
+    var html = renderMedia(absolutizeAssets(resolveImages(md2html(fixLegacyAssetTargets(md)), null)));
     // 标题锚点（anchor）与 [TOC] 目录（toc）独立开关
     if (isMod('anchor') || isMod('toc')) {
       html = anchorize(html);
