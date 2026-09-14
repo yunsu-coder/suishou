@@ -923,7 +923,10 @@ final class NotesStore {
               let http = resp as? HTTPURLResponse, http.statusCode == 200,
               data.count >= 2_048 else { return nil }   // 过小多半是错误页/占位图
         let mime = (http.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
-        let ext = Self.imageExt(mime: mime, url: url)
+        // 错误页 / HTML 直接丢：以前会存成 .jpg，用户看到的就是「一张坏图」
+        guard Self.isProbablyImage(data: data, mime: mime) else { return nil }
+        // 扩展名优先按**字节**判定（Content-Type/URL 后缀都可能是 jpg，实际却是 WebP/AVIF）
+        let ext = Self.sniffedImageFormat(data) ?? Self.imageExt(mime: mime, url: url)
         return saveImage(data, ext: ext, noteID: "", preferredName: preferredName)
     }
 
@@ -1675,7 +1678,9 @@ final class NotesStore {
         if let hit = imageInlineCache[src], hit.mtime == mtime { return hit.dataURL }
         if mtime == nil && !FileManager.default.fileExists(atPath: url.path) { return nil }
         guard let data = try? Data(contentsOf: url), data.count < maxInlineSize,
-              let mime = Self.mimeType(for: src) else { return nil }
+              // 现存素材也可能是「WebP 字节 + .jpg 名字」：按字节定 MIME，
+              // 否则 WebView 会拿 jpeg 解码 WebP → 图裂/显示不全
+              let mime = Self.sniffedMime(data, fallbackPath: src) else { return nil }
         let payload = Self.balancedImageData(data, mime: mime)
         let dataURL = "data:\(mime);base64,\(payload.base64EncodedString())"
         imageInlineCache[src] = (mtime, dataURL)
@@ -1992,6 +1997,56 @@ final class NotesStore {
         return ["png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
                 "gif": "image/gif", "webp": "image/webp", "heic": "image/heic",
                 "bmp": "image/bmp", "tiff": "image/tiff", "tif": "image/tiff"][ext]
+    }
+
+    /// 从**字节**判断图片格式（扩展名 / Content-Type 都可能骗人：
+    /// 公开图站常返回 WebP / AVIF，却挂着 .jpg 名字或 application/octet-stream）。
+    nonisolated static func sniffedImageFormat(_ data: Data) -> String? {
+        func has(_ bytes: [UInt8], at offset: Int = 0) -> Bool {
+            guard data.count >= offset + bytes.count else { return false }
+            let start = data.index(data.startIndex, offsetBy: offset)
+            let end = data.index(start, offsetBy: bytes.count)
+            return Array(data[start..<end]) == bytes
+        }
+        if has([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]) { return "png" }
+        if has([0xFF, 0xD8, 0xFF]) { return "jpg" }
+        if has([0x47, 0x49, 0x46, 0x38]) { return "gif" }
+        if has([0x52, 0x49, 0x46, 0x46]) && has([0x57, 0x45, 0x42, 0x50], at: 8) { return "webp" }
+        if has([0x42, 0x4D]) { return "bmp" }
+        if has([0x49, 0x49, 0x2A, 0x00]) || has([0x4D, 0x4D, 0x00, 0x2A]) { return "tiff" }
+        if has([0x66, 0x74, 0x79, 0x70], at: 4) {          // ISO-BMFF：avif / heic / heif
+            guard data.count >= 12 else { return nil }
+            let start = data.index(data.startIndex, offsetBy: 8)
+            let end = data.index(start, offsetBy: 4)
+            let brand = String(decoding: data[start..<end], as: UTF8.self).lowercased()
+            if brand.hasPrefix("avif") || brand.hasPrefix("avis") { return "avif" }
+            if brand.hasPrefix("heic") || brand.hasPrefix("heix") || brand.hasPrefix("mif1") { return "heic" }
+        }
+        return nil
+    }
+
+    /// 字节嗅探失败再按扩展名兜底
+    nonisolated static func sniffedMime(_ data: Data, fallbackPath: String? = nil) -> String? {
+        if let f = sniffedImageFormat(data) {
+            return ["png": "image/png", "jpg": "image/jpeg", "gif": "image/gif",
+                    "webp": "image/webp", "avif": "image/avif", "heic": "image/heic",
+                    "bmp": "image/bmp", "tiff": "image/tiff"][f]
+        }
+        return fallbackPath.flatMap { mimeType(for: $0) }
+    }
+
+    /// 采集下载的字节是不是图片：字节认出来（可靠）或 Content-Type 明说是图片（可信度次之）。
+    /// HTML 错误页 / 防盗链提示页一律拒绝 —— 存下来只会变成一张坏图。
+    nonisolated static func isProbablyImage(data: Data, mime: String) -> Bool {
+        if sniffedImageFormat(data) != nil { return true }
+        if mime.hasPrefix("image/") { return true }
+        // 文本开头（HTML/JSON）几乎可以断定不是图片
+        if let head = String(data: data.prefix(64), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+           head.hasPrefix("<!doctype") || head.hasPrefix("<html") || head.hasPrefix("{") || head.hasPrefix("<") {
+            return false
+        }
+        return false
     }
 
     // MARK: - 轻提示（非模态：任意点击/自动消失）

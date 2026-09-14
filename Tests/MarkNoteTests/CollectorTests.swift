@@ -234,3 +234,62 @@ final class CollectHistoryTests: XCTestCase {
                           CollectHistoryStore.fileURL(workspace: wsB, baseDir: base))
     }
 }
+
+/// 图片格式嗅探 + 视频直链识别（修「只有 jpg」「图显示不全」「视频不能播放」）
+final class CollectMediaFormatTests: XCTestCase {
+
+    func testSniffedImageFormatByBytes() {
+        XCTAssertEqual(NotesStore.sniffedImageFormat(Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0])), "png")
+        XCTAssertEqual(NotesStore.sniffedImageFormat(Data([0xFF, 0xD8, 0xFF, 0xE0, 0, 0])), "jpg")
+        XCTAssertEqual(NotesStore.sniffedImageFormat(Data(Array("GIF89a".utf8) + [0, 0])), "gif")
+        var webp = Array("RIFF".utf8); webp += [0, 0, 0, 0]; webp += Array("WEBP".utf8)
+        XCTAssertEqual(NotesStore.sniffedImageFormat(Data(webp)), "webp")
+        let avif: [UInt8] = [0, 0, 0, 0x20] + Array("ftypavif".utf8)
+        XCTAssertEqual(NotesStore.sniffedImageFormat(Data(avif)), "avif")
+        XCTAssertEqual(NotesStore.sniffedImageFormat(Data([0x42, 0x4D, 0, 0])), "bmp")
+        XCTAssertNil(NotesStore.sniffedImageFormat(Data([1, 2, 3, 4])))
+    }
+
+    /// WebP 字节伪装成 .jpg：MIME 必须按字节给出，否则 WebView 用 jpeg 解码 → 图裂/显示不全
+    func testSniffedMimePrefersBytesOverExtension() {
+        var webp = Array("RIFF".utf8); webp += [0, 0, 0, 0]; webp += Array("WEBP".utf8)
+        XCTAssertEqual(NotesStore.sniffedMime(Data(webp), fallbackPath: "a.jpg"), "image/webp")
+        XCTAssertEqual(NotesStore.sniffedMime(Data([1, 2, 3]), fallbackPath: "a.png"), "image/png",
+                       "嗅探不出来时按扩展名兜底")
+        XCTAssertNil(NotesStore.sniffedMime(Data([1, 2, 3]), fallbackPath: nil))
+    }
+
+    func testImageExtFallsBackToUrlThenJpg() {
+        XCTAssertEqual(NotesStore.imageExt(mime: "image/png", url: URL(string: "https://x/a")!), "png")
+        XCTAssertEqual(NotesStore.imageExt(mime: "", url: URL(string: "https://x/a.webp")!), "webp")
+        XCTAssertEqual(NotesStore.imageExt(mime: "", url: URL(string: "https://x/a")!), "jpg")
+    }
+
+    /// 下载回来的字节：图片收、HTML 错误页丢（不然库里会多出「坏图」）
+    func testDownloadedBytesMustLookLikeImage() {
+        XCTAssertTrue(NotesStore.isProbablyImage(data: Data([0xFF, 0xD8, 0xFF, 0, 0]), mime: ""),
+                      "JPEG 头 → 图片")
+        XCTAssertTrue(NotesStore.isProbablyImage(data: Data([1, 2, 3]), mime: "image/png"),
+                      "Content-Type 说是图片也收")
+        XCTAssertFalse(NotesStore.isProbablyImage(
+            data: Data(Array("<!DOCTYPE html><html><body>404</body></html>".utf8)), mime: "text/html"),
+                       "HTML 错误页必须丢")
+        XCTAssertFalse(NotesStore.isProbablyImage(data: Data([1, 2, 3]), mime: "application/octet-stream"),
+                       "既认不出又没说图片 → 不收，避免存成坏图")
+    }
+
+    func testVideoCandidateKeepsDirectPlayURL() {
+        let html = """
+        <div class="mc_vtvc" mmeta="{&quot;murl&quot;:&quot;https://cdn.example.com/clip.mp4&quot;,&quot;pgurl&quot;:&quot;https://www.bilibili.com/video/BV1&quot;,&quot;turl&quot;:&quot;https://ts2.mm.bing.net/th?id=O&amp;pid=1&quot;,&quot;vt&quot;:&quot;城市夜景&quot;,&quot;du&quot;:&quot;00:42&quot;}"></div>
+        <div class="mc_vtvc" mmeta="{&quot;murl&quot;:&quot;https://www.douyin.com/shipin/729&quot;,&quot;turl&quot;:&quot;https://ts2.mm.bing.net/th?id=O2&quot;,&quot;vt&quot;:&quot;没有直链&quot;}"></div>
+        """
+        let list = CollectorSearch.parseVideos(html)
+        XCTAssertEqual(list.count, 2)
+        XCTAssertEqual(list[0].videoURL?.absoluteString, "https://cdn.example.com/clip.mp4", "直链要留下用于播放")
+        XCTAssertEqual(list[0].pageURL?.host, "www.bilibili.com", "页面优先 pgurl")
+        XCTAssertNil(list[1].videoURL, "页面地址不是媒体直链，不能当播放源")
+        XCTAssertEqual(list[1].pageURL?.host, "www.douyin.com")
+        XCTAssertTrue(CollectCandidate.looksLikeMediaURL("https://x/a.MP4?x=1"))
+        XCTAssertFalse(CollectCandidate.looksLikeMediaURL("https://x/watch?video=1"))
+    }
+}

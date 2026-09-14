@@ -17,6 +17,8 @@ struct CollectorView: View {
     @State private var parsing = false
     @State private var searching = false
     @State private var candidates: [CollectCandidate] = []
+    /// 正在放大查看的候选（点缩略图打开）
+    @State private var previewCandidate: CollectCandidate?
     @State private var importing = false
     @State private var importedCount = 0
     /// 提示词历史（手动输入的 + 选项总结的），按工作台存
@@ -48,6 +50,23 @@ struct CollectorView: View {
         }
         .frame(width: 820, height: 660)
         .background(Color(nsColor: appAppearance.editorBackground))
+        .sheet(item: $previewCandidate) { c in
+            MediaPreviewSheet(
+                title: c.title.isEmpty ? _L("未命名", "Untitled") : c.title,
+                subtitle: c.pageURL?.host ?? c.thumbURL.host ?? "",
+                imageURL: c.kind == "video" ? (c.videoURL == nil ? c.thumbURL : nil)
+                                            : (c.fullURL ?? c.thumbURL),
+                videoURL: c.videoURL,
+                pageURL: c.pageURL ?? c.videoURL,
+                extra: AnyView(
+                    Button(c.selected ? _L("取消选中", "Deselect") : _L("选中这个", "Select")) {
+                        if let i = candidates.firstIndex(where: { $0.id == c.id }) {
+                            candidates[i].selected.toggle()
+                        }
+                    }
+                    .controlSize(.small)
+                ))
+        }
         .task(id: store.notesDir.path) {
             history = CollectHistoryStore.load(workspace: store.notesDir)
         }
@@ -649,10 +668,11 @@ struct CollectorView: View {
             Divider()
             ScrollView {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 10)], spacing: 10) {
-                    ForEach($candidates) { $c in
-                        candidateCard(c)
-                            .onTapGesture { c.selected.toggle() }
-                    }
+                ForEach($candidates) { $c in
+                    candidateCard(c)
+                        .onTapGesture { c.selected.toggle() }
+                        .simultaneousGesture(TapGesture(count: 2).onEnded { previewCandidate = c })
+                }
                 }
                 .padding(16)
             }
@@ -726,6 +746,22 @@ struct CollectorView: View {
                         .padding(6)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 }
+                // 预览入口：图片=放大镜（可缩放看细节）；视频=播放（能直连就直接播放）
+                Button {
+                    previewCandidate = c
+                } label: {
+                    Image(systemName: c.kind == "video" ? "play.circle.fill" : "plus.magnifyingglass")
+                        .font(.system(size: 15))
+                        .foregroundStyle(.white)
+                        .shadow(radius: 2)
+                        .padding(6)
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                .help(c.kind == "video"
+                      ? (c.videoURL == nil ? _L("看封面 / 打开视频页", "Preview cover / open page")
+                                           : _L("播放预览", "Play preview"))
+                      : _L("放大预览（可缩放）", "Zoom preview"))
             }
             Text(c.title.isEmpty ? _L("未命名", "Untitled") : c.title)
                 .font(.system(size: 11))

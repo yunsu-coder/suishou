@@ -47,6 +47,8 @@ struct AssetGridView: View {
     @State private var toast: String?
     /// 待确认删除的素材（可单个、可批量；确认后再移入废纸篓）
     @State private var pendingTrash: [NotesStore.AttachmentItem] = []
+    /// 大图 / 播放预览
+    @State private var previewItem: NotesStore.AttachmentItem?
 
     private var filtered: [NotesStore.AttachmentItem] {
         var list = items
@@ -103,6 +105,14 @@ struct AssetGridView: View {
         .sheet(isPresented: $showCollector) {
             CollectorView()
                 .environment(store)
+        }
+        .sheet(item: $previewItem) { item in
+            let kind = AssetSyntax.kind(forExt: item.url.pathExtension)
+            MediaPreviewSheet(title: item.name,
+                              subtitle: relativePath(item),
+                              imageURL: kind == .image ? item.url : nil,
+                              videoURL: kind == .video ? item.url : nil,
+                              pageURL: nil)
         }
     }
 
@@ -347,6 +357,16 @@ struct AssetGridView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             HStack(spacing: 8) {
+                let kind = AssetSyntax.kind(forExt: item.url.pathExtension)
+                if kind == .image || kind == .video {
+                    Button {
+                        previewItem = item
+                    } label: {
+                        Label(kind == .video ? _L("播放", "Play") : _L("预览", "Preview"),
+                              systemImage: kind == .video ? "play.circle" : "plus.magnifyingglass")
+                    }
+                    .controlSize(.small)
+                }
                 Button(_L("插入到光标处", "Insert")) { insert(item) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
@@ -534,7 +554,8 @@ private struct AssetThumbView: View {
     private func thumb(_ img: NSImage) -> some View {
         Image(nsImage: img)
             .resizable()
-            .aspectRatio(contentMode: .fill)
+            // 完整显示整张图（不裁切）——缩略图被裁掉一半时很像"图坏了"
+            .aspectRatio(contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }

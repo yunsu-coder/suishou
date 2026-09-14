@@ -482,10 +482,20 @@ struct CollectCandidate: Identifiable, Equatable {
     let kind: String              // "image" / "video"
     let title: String
     let thumbURL: URL
-    let fullURL: URL?             // 图片原图；视频仅存页面链接
+    let fullURL: URL?             // 图片原图
     let pageURL: URL?             // 来源页
     let duration: String?         // 视频时长（"03:24"）
+    /// 视频直链（mp4/webm/m3u8…）：有就能在采集面板里直接播放
+    var videoURL: URL? = nil
     var selected: Bool = false
+
+    /// 媒体直链判定：后缀像视频文件、或本来就没有页面（murl 即媒体）
+    static func looksLikeMediaURL(_ s: String) -> Bool {
+        let lower = s.lowercased()
+        let exts = [".mp4", ".webm", ".mov", ".m4v", ".mkv", ".m3u8", ".flv", ".avi", ".ts"]
+        if exts.contains(where: lower.contains) { return true }
+        return false
+    }
 }
 
 // MARK: - Bing 搜索客户端（直连可用，无需 API key；只搜用户明确给出的关键词）
@@ -565,13 +575,17 @@ enum CollectorSearch {
         var out: [CollectCandidate] = []
         for raw in captures(pattern: #"mmeta="([^"]+)""#, in: html) {
             guard let dict = jsonFromEscaped(raw),
-                  let turl = dict["turl"] as? String, let thumb = URL(string: turl),
-                  let pageStr = (dict["pgurl"] as? String) ?? (dict["murl"] as? String),
-                  let page = URL(string: pageStr) else { continue }
+                  let turl = dict["turl"] as? String, let thumb = URL(string: turl) else { continue }
+            let murl = dict["murl"] as? String
+            let pg = dict["pgurl"] as? String
+            // murl 是媒体直链时留着播放；页面优先 pgurl，其次才用 murl
+            let mediaURL = murl.flatMap { CollectCandidate.looksLikeMediaURL($0) ? URL(string: $0) : nil }
+            let pageStr = pg ?? murl
+            guard let pageStr, let page = URL(string: pageStr) else { continue }
             let title = (dict["vt"] as? String) ?? (dict["vth"] as? String) ?? thumb.lastPathComponent
             out.append(CollectCandidate(id: pageStr, kind: "video", title: title,
                                         thumbURL: thumb, fullURL: nil, pageURL: page,
-                                        duration: (dict["du"] as? String)))
+                                        duration: (dict["du"] as? String), videoURL: mediaURL))
         }
         return dedupe(out)
     }
