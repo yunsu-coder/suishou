@@ -293,3 +293,76 @@ final class CollectMediaFormatTests: XCTestCase {
         XCTAssertFalse(CollectCandidate.looksLikeMediaURL("https://x/watch?video=1"))
     }
 }
+
+/// 视频卡片解析（真实结构）+ 可播放直链解析
+final class CollectVideoPipelineTests: XCTestCase {
+
+    /// 真实 Bing 视频卡片：vrhm 结构化 JSON + data-src-hq 高清封面 + meta 行
+    func testParseRealBingVideoCard() {
+        let html = """
+        <div id="mc_vtvc_video_2" class="mc_vtvc b_canvas isv creator fbc" mmeta="{&quot;mid&quot;:&quot;D982&quot;,&quot;murl&quot;:&quot;https://www.bilibili.com/video/BV1cL411V7Nf/&quot;,&quot;pgurl&quot;:&quot;https://www.bilibili.com/video/BV1cL411V7Nf/&quot;,&quot;turl&quot;:&quot;https://ts4.mm.bing.net/th?id=OVP.aa&amp;pid=15.1&amp;W=160&amp;H=99&quot;,&quot;md5&quot;:&quot;6e25&quot;}">
+          <a aria-label="超高质量【城市夜景】来源: bilibili · 时长: 3 分钟34 秒 · 单击以播放。">
+            <img height="199" width="354" data-src-hq="https://ts1.tc.mm.bing.net/th/id/OVP.aa?w=354&amp;h=199&amp;qlt=70&amp;pid=2.1" alt="超高质量【城市夜景】" />
+            <div class="mc_bc_rc items">3:34</div>
+          </a>
+          <div class="mc_vtvc_title b_promtxt" title="超高质量【城市夜景】"><strong>超高质量【城市夜景】</strong></div>
+          <span class="meta_vc_content">已浏览 20.7万 次</span><span class="meta_pd_content">2021年10月20日</span>
+          <span>bilibili</span>
+          <div class="vrhdata" vrhm="{&quot;du&quot;:&quot;03:34&quot;,&quot;vt&quot;:&quot;超高质量【城市夜景】&quot;,&quot;purl&quot;:&quot;https://www.bilibili.com/video/BV1cL411V7Nf/&quot;,&quot;pgurl&quot;:&quot;https://www.bilibili.com/video/BV1cL411V7Nf/&quot;,&quot;thid&quot;:&quot;OVP.aa&quot;,&quot;mid&quot;:&quot;D982&quot;,&quot;bv&quot;:8}"></div>
+        </div>
+        """
+        let list = CollectorSearch.parseVideos(html)
+        XCTAssertEqual(list.count, 1)
+        let c = list[0]
+        XCTAssertEqual(c.title, "超高质量【城市夜景】", "标题要来自 vrhm.title")
+        XCTAssertEqual(c.duration, "03:34", "时长要来自 vrhm.du")
+        XCTAssertEqual(c.sourceLabel, "bilibili")
+        XCTAssertTrue(c.thumbURL.absoluteString.contains("w=354"), "要用高清封面 data-src-hq：\(c.thumbURL)")
+        XCTAssertEqual(c.pageURL?.host, "www.bilibili.com")
+        XCTAssertTrue(c.metaLine?.contains("20.7万") ?? false, "带播放量：\(c.metaLine ?? "")")
+        XCTAssertNil(c.videoURL, "B 站卡片没有直链")
+    }
+
+    func testVideoResolverExtractsPlayableURL() {
+        let base = URL(string: "https://example.com/watch/1")!
+        // og:video（property 在前）
+        XCTAssertEqual(
+            CollectorVideoResolver.playableURL(inHTML:
+                #"<meta property="og:video:secure_url" content="https://cdn.example.com/v.mp4">"#, base: base)?.absoluteString,
+            "https://cdn.example.com/v.mp4")
+        // og:video（content 在前）
+        XCTAssertEqual(
+            CollectorVideoResolver.playableURL(inHTML:
+                #"<meta content="https://cdn.example.com/x.webm" property="og:video">"#, base: base)?.absoluteString,
+            "https://cdn.example.com/x.webm")
+        // Twitter Player
+        XCTAssertEqual(
+            CollectorVideoResolver.playableURL(inHTML:
+                #"<meta name="twitter:player:stream" content="https://cdn.example.com/t.mp4">"#, base: base)?.absoluteString,
+            "https://cdn.example.com/t.mp4")
+        // JSON-LD contentUrl（相对地址要按页面补全）
+        XCTAssertEqual(
+            CollectorVideoResolver.playableURL(inHTML:
+                #"<script type="application/ld+json">{"contentUrl":"/media/a.mp4"}</script>"#, base: base)?.absoluteString,
+            "https://example.com/media/a.mp4")
+        // <video src>
+        XCTAssertEqual(
+            CollectorVideoResolver.playableURL(inHTML:
+                #"<video controls src="https://cdn.example.com/v2.mov"></video>"#, base: base)?.absoluteString,
+            "https://cdn.example.com/v2.mov")
+        // 不能把 data: / 网页 / 脚本当播放源
+        XCTAssertNil(CollectorVideoResolver.playableURL(inHTML:
+            #"<meta property="og:video" content="data:image/png;base64,AAAA">"#, base: base))
+        XCTAssertNil(CollectorVideoResolver.playableURL(inHTML:
+            #"<meta property="og:video" content="https://example.com/watch.html">"#, base: base))
+        XCTAssertNil(CollectorVideoResolver.playableURL(inHTML: "<p>没有视频</p>", base: base))
+    }
+
+    func testVideoExtensionAndSizeCap() {
+        XCTAssertEqual(NotesStore.videoExt(mime: "video/webm", url: URL(string: "https://x/a")!), "webm")
+        XCTAssertEqual(NotesStore.videoExt(mime: "video/quicktime", url: URL(string: "https://x/a")!), "mov")
+        XCTAssertEqual(NotesStore.videoExt(mime: "", url: URL(string: "https://x/a.MKV")!), "mkv")
+        XCTAssertEqual(NotesStore.videoExt(mime: "", url: URL(string: "https://x/a")!), "mp4")
+        XCTAssertEqual(NotesStore.maxCollectedVideoBytes, 300 * 1024 * 1024)
+    }
+}

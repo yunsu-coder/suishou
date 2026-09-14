@@ -487,6 +487,10 @@ struct CollectCandidate: Identifiable, Equatable {
     let duration: String?         // 视频时长（"03:24"）
     /// 视频直链（mp4/webm/m3u8…）：有就能在采集面板里直接播放
     var videoURL: URL? = nil
+    /// 来源站点（"bilibili" 等，视频卡片里带的）
+    var sourceLabel: String? = nil
+    /// 卡片上的补充信息（播放量 / 日期 / 上传者）
+    var metaLine: String? = nil
     var selected: Bool = false
 
     /// 媒体直链判定：后缀像视频文件、或本来就没有页面（murl 即媒体）
@@ -573,21 +577,59 @@ enum CollectorSearch {
     /// 视频：`mmeta="{&quot;murl&quot;:…,&quot;turl&quot;:…}"`（turl 缩略图 / murl 视频页 / vt 标题 / du 时长）
     static func parseVideos(_ html: String) -> [CollectCandidate] {
         var out: [CollectCandidate] = []
-        for raw in captures(pattern: #"mmeta="([^"]+)""#, in: html) {
-            guard let dict = jsonFromEscaped(raw),
-                  let turl = dict["turl"] as? String, let thumb = URL(string: turl) else { continue }
+        // 按卡片切块：Bing 视频卡片 = class="mc_vtvc …"，块里同时有
+        // vrhm（结构化 JSON：标题/时长/页面/封面 id）与 data-src-hq（高清封面）。
+        // 只读 mmeta 会丢掉标题、时长和清晰封面（这正是以前「只有一张糊首帧」的原因）。
+        // 卡片起点：class="mc_vtvc"（老结构）或 class="mc_vtvc xxx"（新结构）
+        let blocks = cardBlocks(html)
+        for block in blocks {
+            let dict = captures(pattern: #"vrhm="([^"]+)""#, in: block).first.flatMap(jsonFromEscaped)
+                ?? captures(pattern: #"mmeta="([^"]+)""#, in: block).first.flatMap(jsonFromEscaped)
+            guard let dict else { continue }
             let murl = dict["murl"] as? String
-            let pg = dict["pgurl"] as? String
-            // murl 是媒体直链时留着播放；页面优先 pgurl，其次才用 murl
-            let mediaURL = murl.flatMap { CollectCandidate.looksLikeMediaURL($0) ? URL(string: $0) : nil }
+            let pg = (dict["pgurl"] as? String) ?? (dict["purl"] as? String)
             let pageStr = pg ?? murl
             guard let pageStr, let page = URL(string: pageStr) else { continue }
-            let title = (dict["vt"] as? String) ?? (dict["vth"] as? String) ?? thumb.lastPathComponent
+            // 封面：优先高清 data-src-hq（354×199），退回 turl（160×99）
+            let hqThumb = captures(pattern: #"data-src-hq="([^"]+)""#, in: block).first.map(unescape)
+            let turl = (dict["turl"] as? String).map(unescape)
+            guard let thumbStr = hqThumb ?? turl, let thumb = URL(string: thumbStr) else { continue }
+            // murl 是媒体直链时留着播放；否则留待解析页面（og:video 等）
+            let mediaURL = murl.flatMap { CollectCandidate.looksLikeMediaURL($0) ? URL(string: $0) : nil }
+            let title = (dict["vt"] as? String)
+                ?? captures(pattern: #"class="mc_vtvc_title[^"]*"\s+title="([^"]*)""#, in: block).first.map(unescape)
+                ?? captures(pattern: #"<img[^>]+alt="([^"]*)""#, in: block).first.map(unescape)
+                ?? thumb.lastPathComponent
+            // 时长：优先 vrhm.du（"03:34"），退回卡片角标 "3:34"
+            let duration = (dict["du"] as? String)
+                ?? captures(pattern: #"class="mc_bc_rc items">([^<]+)<"#, in: block).first
+            // 来源 / 播放量 / 日期（卡片 meta 行，用于候选卡显示）
+            let source = captures(pattern: #"<span>([a-z0-9.\-]+)</span>"#, in: block).first
+            let views = captures(pattern: #"meta_vc_content">([^<]+)<"#, in: block).first.map(unescape)
+            let date = captures(pattern: #"meta_pd_content">([^<]+)<"#, in: block).first.map(unescape)
+            let metaLine = [views, date].compactMap { $0 }.joined(separator: " · ")
             out.append(CollectCandidate(id: pageStr, kind: "video", title: title,
                                         thumbURL: thumb, fullURL: nil, pageURL: page,
-                                        duration: (dict["du"] as? String), videoURL: mediaURL))
+                                        duration: duration?.trimmingCharacters(in: .whitespaces),
+                                        videoURL: mediaURL,
+                                        sourceLabel: source,
+                                        metaLine: metaLine.isEmpty ? nil : metaLine))
         }
         return dedupe(out)
+    }
+
+    /// 按「卡片起点」切 HTML：`class="mc_vtvc…"` 到下一个起点之间算一块
+    static func cardBlocks(_ html: String) -> [String] {
+        guard let re = try? NSRegularExpression(pattern: #"class="mc_vtvc(?:\s|")"#) else { return [] }
+        let ns = html as NSString
+        let starts = re.matches(in: html, range: NSRange(location: 0, length: ns.length)).map { $0.range.location }
+        guard !starts.isEmpty else { return [] }
+        var out: [String] = []
+        for (i, s) in starts.enumerated() {
+            let e = i + 1 < starts.count ? starts[i + 1] : ns.length
+            out.append(ns.substring(with: NSRange(location: s, length: max(0, e - s))))
+        }
+        return out
     }
 
     /// HTML 里 `&quot;` 转义过的 JSON 属性 → 字典
@@ -607,6 +649,11 @@ enum CollectorSearch {
     }
 
     private static func captures(pattern: String, in text: String) -> [String] {
+        capturesPublic(pattern: pattern, in: text)
+    }
+
+    /// 供 `CollectorVideoResolver` 复用（同一套正则抓取逻辑）
+    static func capturesPublic(pattern: String, in text: String) -> [String] {
         guard let re = try? NSRegularExpression(pattern: pattern) else { return [] }
         let ns = text as NSString
         return re.matches(in: text, range: NSRange(location: 0, length: ns.length)).compactMap {
@@ -617,6 +664,60 @@ enum CollectorSearch {
     private static func dedupe(_ list: [CollectCandidate]) -> [CollectCandidate] {
         var seen = Set<String>()
         return list.filter { seen.insert($0.id).inserted }
+    }
+}
+
+// MARK: - 视频可播放地址解析（页面 → 直链；通用做法，不针对单一站点）
+
+/// 采集到的视频往往只给「页面地址」（B 站/抖音等），面板里就播不了、也下不了。
+/// 这里按公开元数据（Open Graph / Twitter Player / JSON-LD / <video src>）通用地找直链：
+/// 找得到 → 可内嵌播放 + 可下载成真视频；找不到 → 明确标注「仅链接」，不糊弄。
+enum CollectorVideoResolver {
+
+    /// 纯函数：从页面 HTML 里提取可播放的媒体直链（供测试）
+    static func playableURL(inHTML html: String, base: URL) -> URL? {
+        func meta(_ prop: String) -> String? {
+            // property/name 与 content 两种顺序都试
+            let patterns = [
+                #"<meta[^>]+(?:property|name)\s*=\s*""# + prop + #""[^>]*content\s*=\s*"([^"]+)""#,
+                #"<meta[^>]+content\s*=\s*"([^"]+)"[^>]*(?:property|name)\s*=\s*""# + prop + #"""#,
+            ]
+            for p in patterns {
+                if let s = CollectorSearch.capturesPublic(pattern: p, in: html).first { return s }
+            }
+            return nil
+        }
+        var candidates: [String] = []
+        if let s = meta("og:video:secure_url") { candidates.append(s) }
+        if let s = meta("og:video:url") { candidates.append(s) }
+        if let s = meta("og:video") { candidates.append(s) }
+        if let s = meta("twitter:player:stream") { candidates.append(s) }
+        candidates.append(contentsOf: CollectorSearch.capturesPublic(
+            pattern: #""contentUrl"\s*:\s*"([^"]+)""#, in: html))
+        candidates.append(contentsOf: CollectorSearch.capturesPublic(
+            pattern: #""video_url"\s*:\s*"([^"]+)""#, in: html))
+        candidates.append(contentsOf: CollectorSearch.capturesPublic(
+            pattern: #"<(?:video|source)[^>]+src="([^"]+)""#, in: html))
+
+        for raw in candidates {
+            let s = raw.replacingOccurrences(of: "&amp;", with: "&")
+                .replacingOccurrences(of: "\\/", with: "/")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !s.isEmpty, !s.hasPrefix("data:") else { continue }
+            guard let url = URL(string: s, relativeTo: base)?.absoluteURL,
+                  let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { continue }
+            // 明显是网页/脚本的不要（og:video 偶尔会指到播放页）
+            let lower = url.absoluteString.lowercased()
+            if lower.hasSuffix(".html") || lower.hasSuffix(".htm") || lower.hasSuffix(".js") { continue }
+            return url
+        }
+        return nil
+    }
+
+    /// 抓页面并解析；失败返回 nil（调用方按「仅链接」处理）
+    static func resolve(pageURL: URL) async -> URL? {
+        guard let html = await CollectorSearch.fetch(pageURL) else { return nil }
+        return playableURL(inHTML: html, base: pageURL)
     }
 }
 

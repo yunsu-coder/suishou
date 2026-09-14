@@ -33,6 +33,8 @@ struct MediaPreviewSheet: View {
     var videoURL: URL?
     /// 原始页面（打开原图 / 看来源）
     var pageURL: URL?
+    /// 视频没有直链时，是否尝试从页面解析出可播放地址（采集候选用）
+    var resolvePlayableFromPage: Bool = false
     /// 额外操作按钮（例如采集里的「选中/取消」）
     var extra: AnyView?
 
@@ -41,6 +43,8 @@ struct MediaPreviewSheet: View {
     @State private var natural: CGSize?
     @State private var loaded: NSImage?
     @State private var fitScale: CGFloat = 1
+    @State private var resolvingPlayable = false
+    @State private var resolvedPlayable: URL?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -50,7 +54,18 @@ struct MediaPreviewSheet: View {
         }
         .frame(minWidth: 620, minHeight: 460)
         .background(Color(nsColor: appAppearance.editorBackground))
-        .task { await loadImage() }
+        .task {
+            await loadImage()
+            await resolvePlayableIfNeeded()
+        }
+    }
+
+    /// 视频候选只给页面地址时：抓页面找直链（og:video / JSON-LD / <video src>）
+    private func resolvePlayableIfNeeded() async {
+        guard resolvePlayableFromPage, videoURL == nil, let pageURL else { return }
+        resolvingPlayable = true
+        resolvedPlayable = await CollectorVideoResolver.resolve(pageURL: pageURL)
+        resolvingPlayable = false
     }
 
     private var header: some View {
@@ -96,10 +111,42 @@ struct MediaPreviewSheet: View {
 
     @ViewBuilder
     private var content: some View {
-        if let videoURL {
-            MediaPlayerBox(url: videoURL)
+        if let playable = videoURL ?? resolvedPlayable {
+            MediaPlayerBox(url: playable)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.black.opacity(0.92))
+        } else if resolvingPlayable {
+            VStack(spacing: 10) {
+                ProgressView().controlSize(.small)
+                Text(_L("正在解析可播放地址…", "Resolving playable source…"))
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if resolvePlayableFromPage, let loaded {
+            // 解析不到直链：给高清封面 + 一句实话（这类站点不提供直链，只能去原站看）
+            VStack(spacing: 0) {
+                ZStack {
+                    Color.black.opacity(0.92)
+                    Image(nsImage: loaded)
+                        .resizable()
+                        .scaledToFit()
+                        .padding(10)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                HStack(spacing: 8) {
+                    Image(systemName: "info.circle").foregroundStyle(.secondary)
+                    Text(_L("这个站点不提供可播放直链（只能去原站播放，也无法下载）；此处显示的是高清封面。",
+                            "This site gives no direct media URL — open the source to watch; only the cover can be shown."))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if let pageURL {
+                        Button(_L("去原站播放", "Open source")) { NSWorkspace.shared.open(pageURL) }
+                            .controlSize(.small)
+                    }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10)
+            }
         } else if let loaded {
             ZStack {
                 Color(nsColor: appAppearance.editorBackground)

@@ -58,6 +58,7 @@ struct CollectorView: View {
                                             : (c.fullURL ?? c.thumbURL),
                 videoURL: c.videoURL,
                 pageURL: c.pageURL ?? c.videoURL,
+                resolvePlayableFromPage: c.kind == "video",
                 extra: AnyView(
                     Button(c.selected ? _L("取消选中", "Deselect") : _L("选中这个", "Select")) {
                         if let i = candidates.firstIndex(where: { $0.id == c.id }) {
@@ -767,10 +768,32 @@ struct CollectorView: View {
                 .font(.system(size: 11))
                 .lineLimit(1)
                 .foregroundStyle(Color(nsColor: appAppearance.editorForeground))
-            Text(c.pageURL?.host ?? c.thumbURL.host ?? "")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
+            HStack(spacing: 5) {
+                if let src = c.sourceLabel, !src.isEmpty {
+                    Text(src)
+                        .font(.system(size: 9, weight: .medium))
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(Capsule().fill(appAppearance.accent.opacity(0.14)))
+                        .foregroundStyle(appAppearance.accent)
+                } else {
+                    Text(c.pageURL?.host ?? c.thumbURL.host ?? "")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+                if c.kind == "video", c.videoURL != nil {
+                    Text(_L("可播放", "Playable"))
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.green)
+                }
+                Spacer(minLength: 0)
+            }
+            .lineLimit(1)
+            if let meta = c.metaLine, !meta.isEmpty {
+                Text(meta)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
         }
         .overlay(RoundedRectangle(cornerRadius: 8)
             .stroke(c.selected ? appAppearance.accent : Color.clear, lineWidth: 2))
@@ -793,11 +816,19 @@ struct CollectorView: View {
                     importedURLs.insert(key)
                 }
             } else if c.kind == "video", let page = c.pageURL {
+                // 先试解析可播放直链：解析到就下载成真视频（source/mp4），否则只存「收藏条目」
+                var playURL = c.videoURL
+                if playURL == nil { playURL = await CollectorVideoResolver.resolve(pageURL: page) }
+                var localRel: String?
+                if let src = playURL {
+                    localRel = await store.downloadCollectedVideo(from: src, preferredName: name, referer: page)
+                }
                 var coverRel: String?
                 if let rel = await store.downloadCollectedImage(from: c.thumbURL, preferredName: name + "-封面", referer: nil) {
                     coverRel = rel
                 }
-                if store.appendVideoFavorite(title: c.title, pageURL: page, duration: c.duration, coverRel: coverRel) {
+                if store.appendVideoFavorite(title: c.title, pageURL: page, duration: c.duration,
+                                             coverRel: coverRel, localRel: localRel) {
                     importedCount += 1
                     importedURLs.insert(key)
                 }

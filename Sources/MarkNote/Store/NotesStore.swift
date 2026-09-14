@@ -916,8 +916,7 @@ final class NotesStore {
     func downloadCollectedImage(from url: URL, preferredName: String, referer: URL?) async -> String? {
         var req = URLRequest(url: url)
         req.timeoutInterval = 30
-        req.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
-                     + "(KHTML, like Gecko) Version/18.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+        req.setValue(Self.collectorUA, forHTTPHeaderField: "User-Agent")
         if let referer { req.setValue(referer.absoluteString, forHTTPHeaderField: "Referer") }
         guard let (data, resp) = try? await URLSession.shared.data(for: req),
               let http = resp as? HTTPURLResponse, http.statusCode == 200,
@@ -929,6 +928,44 @@ final class NotesStore {
         let ext = Self.sniffedImageFormat(data) ?? Self.imageExt(mime: mime, url: url)
         return saveImage(data, ext: ext, noteID: "", preferredName: preferredName)
     }
+
+    /// 采集下载：视频直链 → 入当前工作台 `source/mp4`（命名沿用「日期-描述」）。
+    /// 上限 300MB；太小的多半是错误页/占位，直接丢弃。返回相对路径（供笔记引用）。
+    func downloadCollectedVideo(from url: URL, preferredName: String, referer: URL?) async -> String? {
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 90
+        req.setValue(Self.collectorUA, forHTTPHeaderField: "User-Agent")
+        if let referer { req.setValue(referer.absoluteString, forHTTPHeaderField: "Referer") }
+        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+              let http = resp as? HTTPURLResponse, http.statusCode == 200,
+              data.count >= 64 * 1024,
+              data.count <= Self.maxCollectedVideoBytes else { return nil }
+        let mime = (http.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
+        let ext = Self.videoExt(mime: mime, url: url)
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("collect-\(UUID().uuidString).\(ext)")
+        guard (try? data.write(to: tmp)) != nil else { return nil }
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        // 走统一的素材入库（复制进 source/mp4 + 唯一命名），源临时文件随后删掉
+        if case .assetStored(let rel) = handleExternalDrop(tmp, category: nil) { return rel }
+        return nil
+    }
+
+    static let maxCollectedVideoBytes = 300 * 1024 * 1024
+
+    nonisolated static func videoExt(mime: String, url: URL) -> String {
+        if mime.contains("webm") { return "webm" }
+        if mime.contains("quicktime") { return "mov" }
+        if mime.contains("matroska") { return "mkv" }
+        if mime.contains("mp4") { return "mp4" }
+        let e = url.pathExtension.lowercased()
+        let known: Set<String> = ["mp4", "m4v", "mov", "webm", "mkv", "avi"]
+        return known.contains(e) ? e : "mp4"
+    }
+
+    /// 采集下载用的浏览器 UA（图站/视频站都会看）
+    static let collectorUA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
+        + "(KHTML, like Gecko) Version/18.0 Safari/605.1.15"
 
     /// Content-Type / URL 后缀 → 扩展名（默认 jpg）
     nonisolated static func imageExt(mime: String, url: URL) -> String {
@@ -946,14 +983,16 @@ final class NotesStore {
     /// 采集的视频 → 在工作台根维护一份「视频收藏.md」清单（标题 / 时长 / 链接 / 封面本地引用）。
     /// 不下载视频文件本体（平台直链多不可得）；封面图由调用方先行入库。
     @discardableResult
-    func appendVideoFavorite(title: String, pageURL: URL, duration: String?, coverRel: String?) -> Bool {
+    func appendVideoFavorite(title: String, pageURL: URL, duration: String?,
+                             coverRel: String?, localRel: String? = nil) -> Bool {
         let fileURL = notesDir.appendingPathComponent("视频收藏.md")
         let clean = title.replacingOccurrences(of: "|", with: "｜")
             .replacingOccurrences(of: "\n", with: " ")
             .trimmingCharacters(in: .whitespaces)
         let dur = (duration?.isEmpty == false) ? "（\(duration!)）" : ""
         let cover = coverRel.map { " · ![封面](\($0))" } ?? ""
-        let line = "- [\(clean)](\(pageURL.absoluteString))\(dur)\(cover)\n"
+        let local = localRel.map { " · 本地：`\($0)`" } ?? ""
+        let line = "- [\(clean)](\(pageURL.absoluteString))\(dur)\(cover)\(local)\n"
         do {
             if !FileManager.default.fileExists(atPath: fileURL.path) {
                 try "# 视频收藏\n\n> 由「素材采集」收录；点击标题跳转原站。\n\n".write(to: fileURL, atomically: true, encoding: .utf8)
