@@ -936,6 +936,13 @@ final class NotesStore {
         req.timeoutInterval = 90
         req.setValue(Self.collectorUA, forHTTPHeaderField: "User-Agent")
         if let referer { req.setValue(referer.absoluteString, forHTTPHeaderField: "Referer") }
+        // B 站直链带防盗链 + 与账号权限绑定：下载也要带上登录 cookie，否则 403/只有低清
+        if url.host?.lowercased().contains("bilivideo") == true
+            || (referer?.host?.lowercased().contains("bilibili.com") ?? false) {
+            if let cookie = CollectorPrefs.bilibiliCookie, !cookie.isEmpty {
+                req.setValue(cookie, forHTTPHeaderField: "Cookie")
+            }
+        }
         guard let (data, resp) = try? await URLSession.shared.data(for: req),
               let http = resp as? HTTPURLResponse, http.statusCode == 200,
               data.count >= 64 * 1024,

@@ -79,3 +79,4 @@ final class BilibiliLoginTests: XCTestCase {
         XCTAssertNil(CollectorPrefs.bilibiliCookie, "清空后应为 nil（不是空串）")
     }
 }
+
