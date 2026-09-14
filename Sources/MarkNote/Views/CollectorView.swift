@@ -810,8 +810,13 @@ struct CollectorView: View {
                 }
                 // 正在下载这一条：缩略图底部叠一条主题化细进度条（垫半透明底保证压得住图）
                 if c.id == downloadingCandidateID {
-                    ThemeProgressBar(value: downloadSample?.fraction, height: 4, showsPercent: false)
-                        .padding(.horizontal, 4).padding(.vertical, 4)
+                    HStack(spacing: 5) {
+                        ThemeProgressBar(value: downloadSample?.fraction, height: 4, showsPercent: false)
+                        Text(downloadSample?.fraction.map { "\(Int(($0 * 100).rounded()))%" } ?? "…")
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.white)
+                    }
+                        .padding(.horizontal, 6).padding(.vertical, 4)
                         .background(Capsule().fill(Color.black.opacity(0.45)))
                         .padding(.horizontal, 6).padding(.bottom, 6)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
