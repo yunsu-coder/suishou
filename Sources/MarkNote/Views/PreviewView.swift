@@ -84,6 +84,8 @@ struct PreviewView: NSViewRepresentable {
         config.userContentController.add(handler, name: "readerFocus")
 
         let web = WKWebView(frame: .zero, configuration: config)
+        // 现代 Safari UA：远程图片/链接会按浏览器版本做防盗链或降级处理
+        web.customUserAgent = NotesStore.collectorUA
         web.navigationDelegate = context.coordinator
         web.allowsMagnification = false
         context.coordinator.webRef = web

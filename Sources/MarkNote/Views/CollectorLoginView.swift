@@ -78,6 +78,10 @@ struct CollectorBilibiliLoginSheet: View {
 enum BilibiliLogin {
     static let cookieStore = WKWebsiteDataStore.default()
 
+    /// 现代 Safari 的 UA：WKWebView 默认 UA 没有 `Version/… Safari/…` 段，
+    /// B 站登录页会判定「浏览器版本过低」拒绝渲染登录控件。
+    static var userAgent: String { NotesStore.collectorUA }
+
     /// 把 cookie 列表拼成请求头：只取 bilibili 域名、只留非空值（纯函数，便于测试）
     static func cookieHeader(from cookies: [(name: String, value: String, domain: String)]) -> String? {
         let picked = cookies.filter { $0.domain.lowercased().contains("bilibili.com") && !$0.value.isEmpty }
@@ -106,8 +110,7 @@ enum BilibiliLogin {
         guard let cookie, let url = URL(string: "https://api.bilibili.com/x/web-interface/nav") else { return nil }
         var req = URLRequest(url: url)
         req.timeoutInterval = 15
-        req.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
-                     + "(KHTML, like Gecko) Version/18.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+        req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         req.setValue("https://www.bilibili.com", forHTTPHeaderField: "Referer")
         req.setValue(cookie, forHTTPHeaderField: "Cookie")
         guard let (data, _) = try? await URLSession.shared.data(for: req),
@@ -141,6 +144,8 @@ private struct BilibiliWebView: NSViewRepresentable {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = BilibiliLogin.cookieStore   // 与读取 cookie 用同一个 store
         let web = WKWebView(frame: .zero, configuration: config)
+        // 关键：默认 UA 会被 B 站判定为「浏览器版本过低」，登录控件直接不渲染
+        web.customUserAgent = BilibiliLogin.userAgent
         web.load(URLRequest(url: url))
         return web
     }
