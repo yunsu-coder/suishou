@@ -110,10 +110,10 @@ final class DownloadProgressTests: XCTestCase {
         let (store, dir) = try TestEnv.makeStore()
         defer { try? FileManager.default.removeItem(at: dir) }
         let samples = SampleSink()
-        let rel = await store.downloadCollectedVideo(from: url, preferredName: "夜景 视频/测试",
-                                                     referer: nil) { samples.append($0) }
+        let result = await store.downloadCollectedVideo(from: url, preferredName: "夜景 视频/测试",
+                                                        referer: nil) { samples.append($0) }
 
-        let relPath = try XCTUnwrap(rel, "≥64KB 的视频应能入库")
+        let relPath = try XCTUnwrap(result.path, "≥64KB 的视频应能入库（\(result.failureReason ?? "无原因")）")
         XCTAssertTrue(relPath.hasPrefix("source/mp4/"), "字节是 mp4（ftyp）就该进 source/mp4，实际 \(relPath)")
         XCTAssertTrue(relPath.hasSuffix(".mp4"), "扩展名按字节嗅探，实际 \(relPath)")
         XCTAssertTrue(FileManager.default.fileExists(atPath: dir.appendingPathComponent(relPath).path))

@@ -978,6 +978,23 @@ struct DownloadedFile: Equatable {
     let responseURL: URL?
 }
 
+/// 采集下载结果：成功给素材相对路径；失败**必须带人话原因**——
+/// 「选了 4 个只下来 2 个」这种账要当面算清楚，不能静默少几个。
+enum CollectDownloadResult: Equatable {
+    case saved(String)
+    case failed(String)
+
+    var path: String? {
+        if case .saved(let p) = self { return p }
+        return nil
+    }
+
+    var failureReason: String? {
+        if case .failed(let r) = self { return r }
+        return nil
+    }
+}
+
 /// 带进度的下载：`URLSessionDownloadTask` 直接写盘（几百 MB 的视频也不占内存），
 /// 体积超限立刻取消、HTTP 非 200 直接失败。
 /// 进度回调发生在**后台线程**，界面侧自行切主线程（节流已在内部做掉）。

@@ -911,30 +911,78 @@ final class NotesStore {
 
     // MARK: - 采集器：远程素材下载
 
-    /// 采集下载：从远程 URL 取图片 → 入当前工作台素材库（「日期-描述」命名；referer 用于防盗链）。
-    /// 返回相对引用路径（img/…），失败 nil。
-    func downloadCollectedImage(from url: URL, preferredName: String, referer: URL?) async -> String? {
-        var req = URLRequest(url: url)
-        req.timeoutInterval = 30
-        req.setValue(Self.collectorUA, forHTTPHeaderField: "User-Agent")
-        if let referer { req.setValue(referer.absoluteString, forHTTPHeaderField: "Referer") }
-        guard let (data, resp) = try? await URLSession.shared.data(for: req),
-              let http = resp as? HTTPURLResponse, http.statusCode == 200,
-              data.count >= 2_048 else { return nil }   // 过小多半是错误页/占位图
+    /// 采集下载：从远程 URL 取图片 → 入当前工作台素材库（「日期-描述」命名）。
+    /// 图站防盗链规则五花八门，因此按 `imageDownloadReferers` 逐个 Referer 重试；
+    /// 全失败时返回**人话原因**（HTTP 403 / 不是图片 / 太小 / 写盘失败）。
+    func downloadCollectedImage(from url: URL, preferredName: String,
+                                referer: URL?) async -> CollectDownloadResult {
+        var lastReason = "下载失败"
+        for attempt in Self.imageDownloadReferers(page: referer) {
+            var req = URLRequest(url: url)
+            req.timeoutInterval = 30
+            req.setValue(Self.collectorUA, forHTTPHeaderField: "User-Agent")
+            if let attempt { req.setValue(attempt, forHTTPHeaderField: "Referer") }
+            switch await Self.fetchImageData(req, url: url) {
+            case .failure(let why):
+                lastReason = why
+                continue                       // 换个 Referer 再试（多数失败只是防盗链）
+            case .success(let data, let ext):
+                guard let rel = saveImage(data, ext: ext, noteID: "", preferredName: preferredName) else {
+                    return .failed("写入素材库失败")
+                }
+                return .saved(rel)
+            }
+        }
+        return .failed(lastReason)
+    }
+
+    /// 图片下载的 Referer 尝试序列：来源页 → 站点根 → 不带 Referer。
+    /// （B 站只认站点页；微博等要根域；还有站点带 Referer 反而 403 —— 都试一遍最省事。）
+    nonisolated static func imageDownloadReferers(page: URL?) -> [String?] {
+        var list: [String?] = []
+        if let page {
+            list.append(page.absoluteString)
+            if let scheme = page.scheme, let host = page.host {
+                let root = "\(scheme)://\(host)/"
+                if root != page.absoluteString { list.append(root) }
+            }
+        }
+        list.append(nil)
+        return list
+    }
+
+    private enum ImageFetch {
+        case success(Data, String)
+        case failure(String)
+    }
+
+    /// 单次图片请求 + 校验（错误页 / HTML / 占位图一律不当作图片）
+    private nonisolated static func fetchImageData(_ req: URLRequest, url: URL) async -> ImageFetch {
+        guard let (data, resp) = try? await URLSession.shared.data(for: req) else {
+            return .failure("连不上 / 超时")   // 过小多半是错误页/占位图
+        }
+        guard let http = resp as? HTTPURLResponse else { return .failure("响应异常") }
+        guard http.statusCode == 200 else {
+            let hint = http.statusCode == 403 ? "（站点防盗链）" : ""
+            return .failure("HTTP \(http.statusCode)\(hint)")
+        }
+        guard data.count >= 2_048 else { return .failure("只有 \(data.count) 字节（疑似占位图）") }
         let mime = (http.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
-        // 错误页 / HTML 直接丢：以前会存成 .jpg，用户看到的就是「一张坏图」
-        guard Self.isProbablyImage(data: data, mime: mime) else { return nil }
+        guard Self.isProbablyImage(data: data, mime: mime) else {
+            return .failure(mime.isEmpty ? "不是图片（疑似网页错误页）" : "不是图片（\(mime)）")
+        }
         // 扩展名优先按**字节**判定（Content-Type/URL 后缀都可能是 jpg，实际却是 WebP/AVIF）
-        let ext = Self.sniffedImageFormat(data) ?? Self.imageExt(mime: mime, url: url)
-        return saveImage(data, ext: ext, noteID: "", preferredName: preferredName)
+        let ext = Self.sniffedImageFormat(data) ?? Self.imageExt(mime: mime, url: http.url ?? url)
+        return .success(data, ext)
     }
 
     /// 采集下载：视频直链 → 入当前工作台 `source/mp4`（命名沿用「日期-描述」）。
     /// 边下边写盘（几百 MB 也不占内存）并向界面汇报进度；上限 300MB；
-    /// 太小的多半是错误页/占位，直接丢弃。返回相对路径（供笔记引用）。
+    /// 太小的多半是错误页/占位，直接丢弃；失败时给人话原因（界面要如实显示）。
     /// `onProgress` 在后台线程回调（界面侧自行切主线程）。
     func downloadCollectedVideo(from url: URL, preferredName: String, referer: URL?,
-                                onProgress: ((DownloadProgressSample) -> Void)? = nil) async -> String? {
+                                onProgress: ((DownloadProgressSample) -> Void)? = nil
+    ) async -> CollectDownloadResult {
         var req = URLRequest(url: url)
         req.timeoutInterval = 90
         req.setValue(Self.collectorUA, forHTTPHeaderField: "User-Agent")
@@ -959,18 +1007,22 @@ final class NotesStore {
             file = try await ProgressDownload.run(req, to: part,
                                                   maxBytes: Int64(Self.maxCollectedVideoBytes),
                                                   onProgress: { onProgress?($0) })
+        } catch let failure as ProgressDownload.Failure {
+            return .failed(failure.errorDescription ?? "下载失败")
         } catch {
-            return nil
+            return .failed("下载失败：\(error.localizedDescription)")
         }
-        guard file.bytes >= 64 * 1024 else { return nil }
+        guard file.bytes >= 64 * 1024 else {
+            return .failed("只有 \(DownloadProgressSample.sizeText(file.bytes))（疑似错误页）")
+        }
         // 扩展名：先嗅探字节（ftyp / webm 头），再退回 Content-Type 与 URL 后缀
         let ext = Self.sniffedVideoFormat(url: part)
             ?? Self.videoExt(mime: file.mime, url: file.responseURL ?? url)
         let named = tmpDir.appendingPathComponent("\(safeName).\(ext)")
         try? FileManager.default.moveItem(at: part, to: named)
         // 走统一的素材入库（复制进 source/mp4 + 唯一命名），源临时文件随后删掉
-        if case .assetStored(let rel) = handleExternalDrop(named, category: nil) { return rel }
-        return nil
+        if case .assetStored(let rel) = handleExternalDrop(named, category: nil) { return .saved(rel) }
+        return .failed("写入素材库失败")
     }
 
     static let maxCollectedVideoBytes = 300 * 1024 * 1024

@@ -40,6 +40,9 @@ struct CollectorView: View {
     @State private var downloadItemName = ""
     @State private var downloadIndex = 0
     @State private var downloadTotal = 0
+    /// 本次没下下来的原因（逐条列出来，不让「选了 4 个只下来 2 个」变成糊涂账）
+    @State private var importFailures: [String] = []
+    @State private var showFailureAlert = false
 
     /// 供测试 / 预览直接进到某一步（默认从「一句话输入」开始）
     init(initialStage: Stage = .input, request: CollectRequest = CollectRequest()) {
@@ -62,6 +65,11 @@ struct CollectorView: View {
         }
         .frame(width: 820, height: 660)
         .background(Color(nsColor: appAppearance.editorBackground))
+        .alert(_L("有几条要跟你说清楚", "Some items need attention"), isPresented: $showFailureAlert) {
+            Button(_L("知道了", "OK"), role: .cancel) {}
+        } message: {
+            Text(importFailureMessage)
+        }
         .sheet(item: $previewCandidate) { c in
             MediaPreviewSheet(
                 title: c.title.isEmpty ? _L("未命名", "Untitled") : c.title,
@@ -677,10 +685,13 @@ struct CollectorView: View {
 
     /// 采集结束后把结果回填到这条历史（显示「已入库 N」）
     private func updateHistoryResult(_ count: Int) {
-        guard let id = currentEntryID,
-              let i = history.firstIndex(where: { $0.id == id }) else { return }
-        history[i].importedCount = count
-        CollectHistoryStore.save(history, workspace: store.notesDir)
+        guard let id = currentEntryID else { return }
+        // 以**磁盘上的**历史为准：面板状态可能已被重建/刷新过，内存里那份找不到就静默丢结果
+        var list = CollectHistoryStore.load(workspace: store.notesDir)
+        guard let i = list.firstIndex(where: { $0.id == id }) else { return }
+        list[i].importedCount = count
+        CollectHistoryStore.save(list, workspace: store.notesDir)
+        history = list
     }
 
     // MARK: - 第三步：候选网格（勾选才下载）
@@ -877,7 +888,9 @@ struct CollectorView: View {
         importing = true
         importedCount = 0
         statusText = nil
+        importFailures = []
         var skipped = 0
+        var failures: [String] = []
         let queue = candidates.filter(\.selected)
         downloadTotal = min(queue.count, max(1, request.maxImport))
         downloadIndex = 0
@@ -901,13 +914,33 @@ struct CollectorView: View {
                 skipped += 1
                 continue
             }
-            if importedCount >= max(1, request.maxImport) { break }
+            if importedCount >= max(1, request.maxImport) {
+                failures.append(_L("还有 \(queue.count - downloadIndex + 1) 个没下：本次入库上限是 \(request.maxImport) 个（可在需求卡里调大）",
+                                   "\(queue.count - downloadIndex + 1) left: import limit is \(request.maxImport)"))
+                break
+            }
             let name = downloadItemName
-            if c.kind == "image", let full = c.fullURL {
+            if c.kind == "image" {
                 downloadPhase = _L("正在下载图片", "Downloading image")
-                if await store.downloadCollectedImage(from: full, preferredName: name, referer: c.pageURL) != nil {
+                let src = c.fullURL ?? c.thumbURL
+                switch await store.downloadCollectedImage(from: src, preferredName: name, referer: c.pageURL) {
+                case .saved:
                     importedCount += 1
                     importedURLs.insert(key)
+                case .failed(let why):
+                    // 原图被防盗链/签名拦下 → 退到搜索缩略图（Bing 缓存一般能取到）：
+                    // 宁可小一档也别空手，但必须在账上写清楚
+                    if c.fullURL != nil, c.thumbURL != src,
+                       case .saved = await store.downloadCollectedImage(from: c.thumbURL,
+                                                                        preferredName: name + "-缩略图",
+                                                                        referer: nil) {
+                        importedCount += 1
+                        importedURLs.insert(key)
+                        failures.append(_L("\(name)：原图取不到（\(why)），已退到缩略图（分辨率低一档）",
+                                           "\(name): origin blocked (\(why)) — Bing thumbnail saved instead"))
+                    } else {
+                        failures.append("\(name)：\(why)")
+                    }
                 }
             } else if c.kind == "video", let page = c.pageURL {
                 // 先试解析可播放直链：解析到就下载成真视频（source/mp4），否则只存「收藏条目」
@@ -917,6 +950,7 @@ struct CollectorView: View {
                 if let direct = c.videoURL { resolved = .init(url: direct, quality: nil) }
                 else { resolved = await CollectorVideoResolver.resolve(pageURL: page) }
                 var localRel: String?
+                var videoNote: String?
                 if let r = resolved {
                     downloadPhase = _L("正在下载视频", "Downloading video")
                     // 你要的清晰度达不到时，如实说清楚（多半是没登录 / 账号权限不够）
@@ -927,20 +961,37 @@ struct CollectorView: View {
                     } else {
                         statusText = _L("正在下载视频…", "Downloading video…")
                     }
-                    localRel = await store.downloadCollectedVideo(from: r.url, preferredName: name,
-                                                                  referer: page, onProgress: sink)
+                    switch await store.downloadCollectedVideo(from: r.url, preferredName: name,
+                                                              referer: page, onProgress: sink) {
+                    case .saved(let rel):
+                        localRel = rel
+                    case .failed(let why):
+                        videoNote = why           // 文件没下来，但收藏条目照存（含链接/封面）
+                    }
+                } else {
+                    videoNote = _L("没解析出可下载直链", "no downloadable direct URL")
                 }
                 var coverRel: String?
                 downloadPhase = _L("正在下载封面", "Downloading cover")
                 downloadSample = nil
-                if let rel = await store.downloadCollectedImage(from: c.thumbURL, preferredName: name + "-封面", referer: nil) {
+                if case .saved(let rel) = await store.downloadCollectedImage(from: c.thumbURL,
+                                                                            preferredName: name + "-封面",
+                                                                            referer: nil) {
                     coverRel = rel
                 }
                 if store.appendVideoFavorite(title: c.title, pageURL: page, duration: c.duration,
                                              coverRel: coverRel, localRel: localRel) {
                     importedCount += 1
                     importedURLs.insert(key)
+                    if let videoNote {
+                        failures.append(_L("\(name)：视频没下下来（\(videoNote)），只存了收藏条目",
+                                           "\(name): video not downloaded (\(videoNote)) — entry saved"))
+                    }
+                } else {
+                    failures.append("\(name)：收藏条目写入失败")
                 }
+            } else {
+                failures.append(_L("\(name)：这条没有可下载的地址", "\(name): no downloadable URL"))
             }
         }
         importing = false
@@ -949,10 +1000,24 @@ struct CollectorView: View {
         downloadPhase = ""
         downloadItemName = ""
         NotificationCenter.default.post(name: .assetsChanged, object: nil)
+        // 失败如实汇总：弹窗列原因（候选保持勾选，可以再点一次重试）
+        importFailures = failures
+        if !failures.isEmpty { showFailureAlert = true }
         var note = _L("已入库 \(importedCount) 个", "\(importedCount) imported")
         if skipped > 0 { note += _L("（跳过重复 \(skipped)）", " (\(skipped) duplicates skipped)") }
+        if !failures.isEmpty { note += _L(" · 失败 \(failures.count) 个", " · \(failures.count) failed") }
         statusText = note
         updateHistoryResult(importedCount)
+    }
+
+    /// 失败弹窗正文：最多列 8 条（其余折叠成一句），并提示可以直接重试
+    private var importFailureMessage: String {
+        let head = _L("有 \(importFailures.count) 条没进库：", "\(importFailures.count) item(s) failed:")
+        let lines = importFailures.prefix(8).joined(separator: "\n")
+        let more = importFailures.count > 8 ? _L("\n…还有 \(importFailures.count - 8) 条", "\n…and \(importFailures.count - 8) more") : ""
+        let tail = _L("\n\n这些候选还保持勾选：可以直接再点一次「采集选中」重试（例如换个来源页 / 重新登录 B 站）。",
+                      "\n\nThey stay selected — click Collect again to retry.")
+        return "\(head)\n\(lines)\(more)\(tail)"
     }
 
     /// 候选标题 → 素材描述名（截断 + 去掉文件系统敏感字符；入库时还会加「日期-」前缀）

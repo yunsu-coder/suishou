@@ -19,11 +19,11 @@ final class CollectorVideoLiveTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         let lock = NSLock()
         var samples: [DownloadProgressSample] = []
-        let rel = await store.downloadCollectedVideo(from: r.url, preferredName: "城市夜景",
-                                                     referer: page) { s in
+        let result = await store.downloadCollectedVideo(from: r.url, preferredName: "城市夜景",
+                                                        referer: page) { s in
             lock.lock(); samples.append(s); lock.unlock()
         }
-        let relPath = try XCTUnwrap(rel, "应能下载到 source/mp4")
+        let relPath = try XCTUnwrap(result.path, "应能下载到 source/mp4（\(result.failureReason ?? "无原因")）")
         print("LIVE downloaded rel=\(relPath) quality=\(r.quality ?? "-")")
         lock.lock(); let got = samples; lock.unlock()
         print("LIVE progress samples=\(got.count) last=\(got.last.map { "\($0.written)/\($0.expected)" } ?? "-")")
