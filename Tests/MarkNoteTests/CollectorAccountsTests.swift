@@ -14,6 +14,50 @@ final class CollectorAccountsTests: XCTestCase {
 
     // MARK: - 域名归属
 
+    /// 站点表体检：新加站点最容易犯的错（域名写错 / 登录页不在自己域名下 / 分组漏填）一次性拦住
+    func testSiteTableIsWellFormed() {
+        var ids = Set<String>()
+        var domains = Set<String>()
+        for site in CollectAccounts.sites {
+            XCTAssertTrue(ids.insert(site.id).inserted, "站点 id 重复：\(site.id)")
+            XCTAssertFalse(site.name.isEmpty, "\(site.id) 缺名字")
+            XCTAssertFalse(site.hint.isEmpty, "\(site.id) 缺「登录收益」说明")
+            XCTAssertFalse(site.icon.isEmpty, "\(site.id) 缺图标")
+            XCTAssertFalse(site.domains.isEmpty, "\(site.id) 缺域名")
+            for d in site.domains {
+                XCTAssertFalse(d.contains("http"), "\(site.id) 的域名别带协议：\(d)")
+                XCTAssertTrue(domains.insert(d).inserted,
+                              "域名 \(d) 被两个站点共用 → cookie 会认错站")
+            }
+            // 登录页本身必须落在该站域名内（否则登录完读不到 cookie）
+            XCTAssertTrue(site.covers(site.loginURL),
+                          "\(site.id) 的登录页 \(site.loginURL.host ?? "?") 不在自己的域名里")
+            if case .cookie(let name) = site.check {
+                XCTAssertFalse(name.isEmpty, "\(site.id) 的 cookie 名不能为空")
+            }
+        }
+        // 每个分组都要有站点（面板分组标题不能是空的）
+        for group in SiteGroup.allCases {
+            XCTAssertFalse(CollectAccounts.sites(in: group).isEmpty, "分组 \(group.rawValue) 是空的")
+        }
+    }
+
+    func testQuickSitesFollowRequestKind() {
+        let none: (CollectSite) -> Bool = { _ in false }
+        let imageSites = CollectAccounts.sites(forKind: "image", signedIn: none).map(\.id)
+        XCTAssertTrue(imageSites.contains("pixiv"))
+        XCTAssertTrue(imageSites.contains("huaban"))
+        XCTAssertFalse(imageSites.contains("fanqie"), "图片采集不必列小说站")
+        let novelSites = CollectAccounts.sites(forKind: "novel", signedIn: none).map(\.id)
+        XCTAssertTrue(novelSites.contains("fanqie"))
+        XCTAssertTrue(novelSites.contains("qidian"))
+        XCTAssertFalse(novelSites.contains("pixiv"))
+        // 登录过的站点永远算相关，而且排在最前
+        let signedInFanqie: (CollectSite) -> Bool = { $0.id == "fanqie" }
+        let mixed = CollectAccounts.sites(forKind: "image", signedIn: signedInFanqie).map(\.id)
+        XCTAssertEqual(mixed.first, "fanqie", "自己登录过的站要顶到最前")
+    }
+
     func testSiteMatchingByDomain() throws {
         XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://m.weibo.com/u/1")!)?.id, "weibo")
         XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://weibo.com/x")!)?.id, "weibo")

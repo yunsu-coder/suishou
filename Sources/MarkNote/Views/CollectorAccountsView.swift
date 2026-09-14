@@ -39,9 +39,19 @@ struct CollectorAccountsSheet: View {
 
     /// 站点清单（单独抽出来：渲染检查用，ImageRenderer 画不了 ScrollView 内部）
     var sitesList: some View {
-        VStack(spacing: 8) {
-            ForEach(CollectAccounts.sites) { site in
-                row(site).id("\(site.id)-\(tick)")
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(SiteGroup.allCases, id: \.self) { group in
+                let list = CollectAccounts.sites(in: group)
+                if !list.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(group.title)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(appAppearance.accent)
+                        ForEach(list) { site in
+                            row(site).id("\(site.id)-\(tick)")
+                        }
+                    }
+                }
             }
         }
         .padding(14)

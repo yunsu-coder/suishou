@@ -774,7 +774,8 @@ struct CollectorView: View {
             labeled(_L("常用站点", "Quick sites")) {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 6)],
                           alignment: .leading, spacing: 6) {
-                    ForEach(CollectAccounts.sites) { site in
+                    // 只列与当前采集类型相关的站 + 自己登录过的站（登录过的一律排前面）
+                    ForEach(CollectAccounts.sites(forKind: request.kind, signedIn: signedIn)) { site in
                         let domain = site.domains.first ?? site.id
                         let on = (request.siteFilter ?? "").lowercased().contains(domain)
                         let signed = signedIn(site)
