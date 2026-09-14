@@ -24,7 +24,8 @@ struct CollectorAccountsSheet: View {
                         .font(.system(size: 13, weight: .semibold))
                     Text(_L("很多站点登录后才给全（微博原图、小红书笔记、知乎长文、花瓣原图…）。cookie 只存本机。",
                             "Many sites need a sign-in to give full results. Cookies stay on this Mac.")
-                         + _L("　共 \(allSites.count) 个站点", " · \(allSites.count) sites"))
+                         + _L("　只收一手优质来源，共 \(allSites.count) 个。",
+                              " · curated to first-party sources · \(allSites.count) sites."))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }

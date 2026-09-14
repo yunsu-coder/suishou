@@ -76,6 +76,30 @@ final class CollectorAccountsTests: XCTestCase {
         }
     }
 
+    /// 「只要优质网站」的可执行版本：被否掉的域名不许再出现在站点表里
+    func testRejectedDomainsAreNotInTable() {
+        XCTAssertFalse(CollectAccounts.rejected.isEmpty, "黑名单要有内容，否则这条规矩没约束力")
+        for (domain, why) in CollectAccounts.rejected {
+            XCTAssertFalse(why.isEmpty, "\(domain) 要写下被否的原因")
+            for site in CollectAccounts.sites {
+                XCTAssertFalse(site.domains.contains(domain),
+                               "\(site.id) 又加回了被否的 \(domain)：\(why)")
+                // 也不能用它的子域伪装（例：把 baidu.com 换成 image.baidu.com）
+                XCTAssertFalse(site.domains.contains { $0.hasSuffix("." + domain) },
+                               "\(site.id) 用子域绕过了 \(domain)：\(why)")
+            }
+            XCTAssertNil(CollectAccounts.site(for: URL(string: "https://\(domain)/x")!),
+                         "\(domain) 不该还能匹配到站点")
+        }
+    }
+
+    /// 每个站点都要能说清「登录后多拿到什么」——说不清的就是低价值站点
+    func testEverySiteStatesItsBenefit() {
+        for site in CollectAccounts.sites {
+            XCTAssertGreaterThan(site.hint.count, 8, "\(site.id) 的登录收益写得太含糊：\(site.hint)")
+        }
+    }
+
     /// 免登录来源预设：按采集类型给，域名不重复
     func testFreeSourcePresets() {
         let image = CollectPresets.sources(forKind: "image").map(\.domain)
