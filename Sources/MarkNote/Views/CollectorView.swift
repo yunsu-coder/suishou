@@ -20,9 +20,6 @@ struct CollectorView: View {
     @State private var candidates: [CollectCandidate] = []
     /// 正在放大查看的候选（点缩略图打开）
     @State private var previewCandidate: CollectCandidate?
-    @State private var showBilibiliLogin = false
-    /// B 站登录用户名（nil = 未登录；影响可下载画质）
-    @State private var bilibiliUser: String?
     @State private var importing = false
     @State private var importedCount = 0
     /// 提示词历史（手动输入的 + 选项总结的），按工作台存
@@ -58,6 +55,10 @@ struct CollectorView: View {
     @State private var clarifyBusy = false
     /// 已答过的追问（拼进后续解析的文本里，别让 AI 忘掉）
     @State private var clarifyTranscript = ""
+    /// 站点账号面板（登录后采集才拿得到原图/长文/1080P）
+    @State private var showAccounts = false
+    /// 登录态变化 → 刷新「已登录」显示
+    @State private var accountsTick = 0
 
     /// 供测试 / 预览直接进到某一步（默认从「一句话输入」开始）
     init(initialStage: Stage = .input, request: CollectRequest = CollectRequest(),
@@ -109,11 +110,12 @@ struct CollectorView: View {
         .task(id: store.notesDir.path) {
             history = CollectHistoryStore.load(workspace: store.notesDir)
         }
-        .task {
-            bilibiliUser = await BilibiliLogin.currentUserName()
+        .sheet(isPresented: $showAccounts) {
+            CollectorAccountsSheet()
         }
-        .sheet(isPresented: $showBilibiliLogin) {
-            CollectorBilibiliLoginSheet { user in bilibiliUser = user }
+        // 账号面板里登录/退出后，把「已登录」状态刷到界面上
+        .onReceive(NotificationCenter.default.publisher(for: .collectorAccountsChanged)) { _ in
+            accountsTick += 1
         }
     }
 
@@ -134,6 +136,21 @@ struct CollectorView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(appAppearance.accent)
             }
+            // 站点账号：一眼看到登了几个、点开就能登（大多数站点登录后才给全）
+            Button {
+                showAccounts = true
+            } label: {
+                let count = CollectAccountStore.standard.loggedInSites().count
+                HStack(spacing: 4) {
+                    Image(systemName: "person.2.badge.key")
+                    Text(count == 0 ? _L("账号", "Accounts") : "\(count)")
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(count == 0 ? Color.secondary : appAppearance.accent)
+            }
+            .buttonStyle(.plain)
+            .help(_L("站点账号：登录后采集才能拿到原图 / 长文 / 1080P",
+                     "Site accounts — sign in for originals, long posts, 1080p"))
             Button {
                 dismiss()
             } label: {
@@ -753,36 +770,59 @@ struct CollectorView: View {
                     placeholder: _L("域名，逗号分隔：unsplash.com, pexels.com", "domains, comma separated"))
             textRow(_L("排除站点", "Exclude"), text: optionalStringBinding(\.excludeSites), required: false,
                     placeholder: _L("域名，逗号分隔（可选）", "domains to exclude (optional)"))
-            // 平台账号：登录后采集才能下载 1080P（不登录只有 360P）
-            // 平台账号：登录后采集才能下载 1080P（不登录只有 360P）—— 文章 / 小说用不上
-            if !request.isTextKind {
-            labeled(_L("B站账号", "Bilibili")) {
-                HStack(spacing: 8) {
-                    if let user = bilibiliUser {
-                        Text(_L("已登录：\(user)", "Signed in: \(user)"))
-                            .font(.system(size: 11))
-                            .foregroundStyle(appAppearance.accent)
-                        Button(_L("退出", "Sign out")) {
-                            Task {
-                                await BilibiliLogin.logout()
-                                bilibiliUser = nil
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    } else {
-                        Text(_L("未登录（只能下 360P）", "Not signed in (360p only)"))
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                        Button(_L("登录 B 站…", "Sign in…")) { showBilibiliLogin = true }
-                            .controlSize(.small)
+            // 常用站点快捷键：点一下写进「只看站点」；登录过的打个勾
+            labeled(_L("常用站点", "Quick sites")) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 6)],
+                          alignment: .leading, spacing: 6) {
+                    ForEach(CollectAccounts.sites) { site in
+                        let domain = site.domains.first ?? site.id
+                        let on = (request.siteFilter ?? "").lowercased().contains(domain)
+                        let signed = signedIn(site)
+                        chip((signed ? "✓ " : "") + site.name, on: on) { toggleSiteFilter(domain) }
                     }
                 }
+                .id(accountsTick)
             }
+            labeled(_L("站点账号", "Accounts")) {
+                HStack(spacing: 8) {
+                    let names = CollectAccountStore.standard.loggedInSites().map(\.name)
+                    Text(names.isEmpty
+                         ? _L("都没登录（微博 / 小红书 / 知乎 / 花瓣 等常需要登录才给全）",
+                              "none signed in (Weibo / Xiaohongshu / Zhihu usually need it)")
+                         : _L("已登录：\(names.joined(separator: "、"))", "signed in: \(names.joined(separator: ", "))"))
+                        .font(.system(size: 11))
+                        .foregroundStyle(names.isEmpty ? .secondary : appAppearance.accent)
+                        .lineLimit(2)
+                    Button(_L("管理账号…", "Manage…")) { showAccounts = true }
+                        .controlSize(.small)
+                }
+                .id(accountsTick)
             }
             flagRow(_L("安全搜索", "Safe search"), isOn: $request.safeSearch)
         }
+    }
+
+    private func signedIn(_ site: CollectSite) -> Bool {
+        CollectAccounts.looksLoggedIn(site, cookieHeader: CollectAccountStore.standard.cookie(site.id))
+    }
+
+    /// 失败原因补一句「这站要登录」——大部分失败其实是没登录，直接指路比让人猜强
+    private func withLoginHint(_ reason: String, for url: URL?) -> String {
+        guard let url, let site = CollectAccounts.site(for: url), !signedIn(site) else { return reason }
+        return reason + _L("（登录「\(site.name)」通常就能拿到，见「站点账号」）",
+                           " (signing in to \(site.name) usually fixes this)")
+    }
+
+    /// 点站点 chip：把域名加进 / 移出「只看站点」
+    private func toggleSiteFilter(_ domain: String) {
+        var list = (request.siteFilter ?? "")
+            .split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        if let i = list.firstIndex(where: { $0.lowercased().contains(domain.lowercased()) }) {
+            list.remove(at: i)
+        } else {
+            list.append(domain)
+        }
+        request.siteFilter = list.isEmpty ? nil : list.joined(separator: ", ")
     }
 
     var archiveSection: some View {
@@ -1251,10 +1291,10 @@ struct CollectorView: View {
                                                                         referer: nil) {
                         importedCount += 1
                         importedURLs.insert(key)
-                        failures.append(_L("\(name)：原图取不到（\(why)），已退到缩略图（分辨率低一档）",
-                                           "\(name): origin blocked (\(why)) — Bing thumbnail saved instead"))
+                        failures.append(_L("\(name)：原图取不到（\(withLoginHint(why, for: src))），已退到缩略图（分辨率低一档）",
+                                           "\(name): origin blocked (\(withLoginHint(why, for: src))) — Bing thumbnail saved instead"))
                     } else {
-                        failures.append("\(name)：\(why)")
+                        failures.append("\(name)：\(withLoginHint(why, for: src))")
                     }
                 }
             } else if c.kind == "video", let page = c.pageURL {
@@ -1281,7 +1321,7 @@ struct CollectorView: View {
                     case .saved(let rel):
                         localRel = rel
                     case .failed(let why):
-                        videoNote = why           // 文件没下来，但收藏条目照存（含链接/封面）
+                        videoNote = withLoginHint(why, for: r.url)   // 文件没下来，但收藏条目照存（含链接/封面）
                     }
                 } else {
                     videoNote = _L("没解析出可下载直链", "no downloadable direct URL")
@@ -1347,8 +1387,10 @@ struct CollectorView: View {
             page = url
         }
         guard let html = await CollectorSearch.fetch(page) else {
-            return TextImport(ok: false, note: _L("打不开页面（反爬 / 需要登录 / 已失效）",
-                                                 "cannot open page (anti-bot / login / dead link)"))
+            return TextImport(ok: false,
+                              note: withLoginHint(_L("打不开页面（反爬 / 需要登录 / 已失效）",
+                                                     "cannot open page (anti-bot / login / dead link)"),
+                                                  for: page))
         }
         if c.kind == "novel" {
             return await importNovel(html: html, page: page, candidateID: c.id, fallbackTitle: c.title)

@@ -870,7 +870,12 @@ enum CollectorSearch {
         req.setValue(ua, forHTTPHeaderField: "User-Agent")
         req.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
         if let referer { req.setValue(referer, forHTTPHeaderField: "Referer") }
-        if let cookie, !cookie.isEmpty { req.setValue(cookie, forHTTPHeaderField: "Cookie") }
+        // 站点账号：登录过的站点自动带上 cookie（显式传入的优先）
+        let accountCookie = cookie ?? CollectAccounts.requestCookie(
+            for: url, referer: referer.flatMap(URL.init(string:)))
+        if let accountCookie, !accountCookie.isEmpty {
+            req.setValue(accountCookie, forHTTPHeaderField: "Cookie")
+        }
         guard let (data, _) = try? await URLSession.shared.data(for: req) else { return nil }
         return data
     }
@@ -1179,8 +1184,8 @@ enum CollectorVideoResolver {
         for (k, v) in playbackHeaders(for: url, referer: referer) {
             req.setValue(v, forHTTPHeaderField: k)
         }
-        if let cookie = CollectorPrefs.bilibiliCookie, !cookie.isEmpty,
-           url.host?.lowercased().contains("bilivideo") == true {
+        // 站点账号：预览本地化也要带 cookie（B 站高清、微博原图、小红书笔记图…）
+        if let cookie = CollectAccounts.requestCookie(for: url, referer: referer), !cookie.isEmpty {
             req.setValue(cookie, forHTTPHeaderField: "Cookie")
         }
         let ext = url.pathExtension.isEmpty ? "mp4" : url.pathExtension
@@ -1404,14 +1409,11 @@ final class ProgressDownload: NSObject, URLSessionDownloadDelegate {
     }
 }
 
-/// 采集器的小设置（目前只有 B 站 Cookie：填了才能下 1080P）
+/// 采集器的小设置（B 站 cookie 保留老接口，其余站点走 `CollectAccounts` 的账号表）
 enum CollectorPrefs {
     static var bilibiliCookie: String? {
-        get {
-            let s = UserDefaults.standard.string(forKey: "collectorBilibiliCookie") ?? ""
-            return s.isEmpty ? nil : s
-        }
-        set { UserDefaults.standard.set(newValue ?? "", forKey: "collectorBilibiliCookie") }
+        get { CollectAccountStore.standard.cookie("bilibili") }
+        set { CollectAccountStore.standard.setCookie(newValue, for: "bilibili") }
     }
 }
 

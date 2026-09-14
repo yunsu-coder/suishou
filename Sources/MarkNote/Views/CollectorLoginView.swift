@@ -1,29 +1,27 @@
 import SwiftUI
 import WebKit
 
-/// B 站登录：应用内打开官方登录页（扫码/账号密码都行），登录成功后把 WebView 里的
-/// bilibili cookie 拼成请求头交给采集器 —— 采集接口带着它就能拿到 1080P。
-/// cookie 只存本机（`CollectorPrefs`），不外传。
-struct CollectorBilibiliLoginSheet: View {
-    /// 完成回调：返回用户名（nil = 没登录成功）
+/// 通用站点登录（B 站 / 微博 / 小红书 / 知乎 / 抖音 / 花瓣 / 豆瓣…）：
+/// 应用内打开官方登录页，登录完把该站 cookie 存到本机，供采集抓正文与下载素材时携带。
+/// cookie 只存本机（`CollectAccountStore`），只在该站自己的域名上使用，点「退出」即清。
+struct CollectorSiteLoginSheet: View {
+    let site: CollectSite
+    /// 完成回调：返回登录态描述（nil = 没登录成功）
     let onDone: (String?) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var busy = false
     @State private var message = ""
 
-    private let loginURL = URL(string: "https://passport.bilibili.com/login")!
-
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                Image(systemName: "person.badge.key")
+                Image(systemName: site.icon)
                     .foregroundStyle(appAppearance.accent)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(_L("登录 B 站", "Sign in to Bilibili"))
+                    Text(_L("登录 \(site.name)", "Sign in to \(site.name)"))
                         .font(.system(size: 13, weight: .semibold))
-                    Text(_L("登录后采集才能下载 1080P；不登录只有 360P。cookie 只存本机。",
-                            "Sign in to download 1080p; otherwise only 360p. Cookies stay on this Mac."))
+                    Text(site.hint + _L("　cookie 只存本机。", " Cookies stay on this Mac."))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -50,69 +48,76 @@ struct CollectorBilibiliLoginSheet: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             Divider()
-            BilibiliWebView(url: loginURL)
+            SiteLoginWebView(url: site.loginURL)
         }
         .frame(width: 900, height: 640)
         .background(Color(nsColor: appAppearance.editorBackground))
     }
 
-    /// 读取 WebView 里的 bilibili cookie → 存起来 → 用 nav 接口核对是否真的登录
+    /// 读 WebView cookie → 存档 → 判定登录态
     private func finish() async {
         busy = true
         defer { busy = false }
-        let header = await BilibiliLogin.collectCookieHeader()
-        CollectorPrefs.bilibiliCookie = header
-        let user = await BilibiliLogin.currentUserName()
-        if let user {
-            message = _L("已登录：\(user)", "Signed in: \(user)")
+        let header = await CollectorSiteLogin.collectCookieHeader(for: site)
+        CollectAccountStore.standard.setCookie(header, for: site.id)
+        let name = await CollectorSiteLogin.displayName(for: site, cookieHeader: header)
+        if let name {
+            message = _L("已登录：\(name)", "Signed in: \(name)")
+            onDone(name)
+            dismiss()
         } else {
-            message = _L("还没有登录成功", "Not signed in yet")
+            message = _L("还没检测到登录，请在页面里完成登录后再点「完成」",
+                         "Not signed in yet — finish signing in, then press Done")
+            onDone(nil)
         }
-        onDone(user)
-        if user != nil { dismiss() }
     }
 }
 
-/// B 站登录相关的纯逻辑（cookie 拼接 / 登录态查询），便于测试与复用。
+/// 站点登录相关的纯逻辑（cookie 拼接 / 登录态查询），便于测试与复用。
 @MainActor
-enum BilibiliLogin {
+enum CollectorSiteLogin {
     static let cookieStore = WKWebsiteDataStore.default()
 
-    /// 现代 Safari 的 UA：WKWebView 默认 UA 没有 `Version/… Safari/…` 段，
-    /// B 站登录页会判定「浏览器版本过低」拒绝渲染登录控件。
+    /// 现代 Safari 的 UA：WKWebView 默认 UA 会被多数站点判成「浏览器版本过低」
     static var userAgent: String { NotesStore.collectorUA }
 
-    /// 把 cookie 列表拼成请求头：只取 bilibili 域名、只留非空值（纯函数，便于测试）
-    static func cookieHeader(from cookies: [(name: String, value: String, domain: String)]) -> String? {
-        let picked = cookies.filter { $0.domain.lowercased().contains("bilibili.com") && !$0.value.isEmpty }
-        guard !picked.isEmpty else { return nil }
-        // 同名 cookie 只留一条（域越具体越优先）
-        var byName: [String: String] = [:]
-        for c in picked.sorted(by: { $0.domain.count < $1.domain.count }) { byName[c.name] = c.value }
-        let header = byName.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: "; ")
-        return header.isEmpty ? nil : header
+    /// 把 cookie 列表拼成请求头（只取该站域名；纯函数，便于测试）
+    static func cookieHeader(from cookies: [(name: String, value: String, domain: String)],
+                             site: CollectSite) -> String? {
+        CollectAccounts.cookieHeader(from: cookies, domains: site.domains)
     }
 
-    /// 从 WebView 的 cookie store 里读出 bilibili cookie 并保存
-    static func collectCookieHeader() async -> String? {
+    /// 从 WebView 的 cookie store 里读出该站 cookie
+    static func collectCookieHeader(for site: CollectSite) async -> String? {
         await withCheckedContinuation { cont in
             cookieStore.httpCookieStore.getAllCookies { cookies in
                 let list = cookies.map { (name: $0.name, value: $0.value, domain: $0.domain) }
-                cont.resume(returning: cookieHeader(from: list))
+                cont.resume(returning: cookieHeader(from: list, site: site))
             }
         }
     }
 
-    /// 当前登录用户名（未登录返回 nil）：/x/web-interface/nav
-    static func currentUserName() async -> String? {
-        var cookie = CollectorPrefs.bilibiliCookie
-        if cookie == nil { cookie = await collectCookieHeader() }
-        guard let cookie, let url = URL(string: "https://api.bilibili.com/x/web-interface/nav") else { return nil }
+    /// 登录态显示名：能拿用户名就拿（B 站 nav），否则按关键 cookie 判「已登录」
+    static func displayName(for site: CollectSite, cookieHeader: String?) async -> String? {
+        guard let cookieHeader, !cookieHeader.isEmpty else { return nil }
+        switch site.check {
+        case .bilibiliNav:
+            return await bilibiliUserName(cookieHeader: cookieHeader)
+        case .cookie(let name):
+            return CollectAccounts.header(cookieHeader, containsCookie: name) ? site.name : nil
+        case .cookieOnly:
+            return site.name
+        }
+    }
+
+    /// B 站用户名：/x/web-interface/nav（未登录返回 nil）
+    static func bilibiliUserName(cookieHeader: String) async -> String? {
+        guard let url = URL(string: "https://api.bilibili.com/x/web-interface/nav") else { return nil }
         var req = URLRequest(url: url)
         req.timeoutInterval = 15
         req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         req.setValue("https://www.bilibili.com", forHTTPHeaderField: "Referer")
-        req.setValue(cookie, forHTTPHeaderField: "Cookie")
+        req.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
         guard let (data, _) = try? await URLSession.shared.data(for: req),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let dataObj = obj["data"] as? [String: Any],
@@ -121,14 +126,17 @@ enum BilibiliLogin {
         return name
     }
 
-    /// 退出登录：清掉 bilibili 的 WebView cookie 与本地快照
-    static func logout() async {
-        CollectorPrefs.bilibiliCookie = nil
+    /// 退出登录：清本地 cookie + 清 WebView 里该站的网站数据
+    static func logout(_ site: CollectSite) async {
+        CollectAccountStore.standard.clear(site.id)
         let types = WKWebsiteDataStore.allWebsiteDataTypes()
         let records: [WKWebsiteDataRecord] = await withCheckedContinuation { cont in
             cookieStore.fetchDataRecords(ofTypes: types) { cont.resume(returning: $0) }
         }
-        let targets = records.filter { $0.displayName.lowercased().contains("bilibili") }
+        let targets = records.filter { record in
+            let n = record.displayName.lowercased()
+            return site.domains.contains { n.contains($0.split(separator: ".").first.map(String.init) ?? $0) }
+        }
         guard !targets.isEmpty else { return }
         await withCheckedContinuation { cont in
             cookieStore.removeData(ofTypes: types, for: targets) { cont.resume() }
@@ -136,16 +144,45 @@ enum BilibiliLogin {
     }
 }
 
+// MARK: - 兼容层（B 站老接口，测试与老代码还在用）
+
+@MainActor
+enum BilibiliLogin {
+    static var userAgent: String { CollectorSiteLogin.userAgent }
+
+    static func cookieHeader(from cookies: [(name: String, value: String, domain: String)]) -> String? {
+        guard let site = CollectAccounts.site(id: "bilibili") else { return nil }
+        return CollectorSiteLogin.cookieHeader(from: cookies, site: site)
+    }
+
+    static func collectCookieHeader() async -> String? {
+        guard let site = CollectAccounts.site(id: "bilibili") else { return nil }
+        return await CollectorSiteLogin.collectCookieHeader(for: site)
+    }
+
+    static func currentUserName() async -> String? {
+        var cookie = CollectorPrefs.bilibiliCookie
+        if cookie == nil { cookie = await collectCookieHeader() }
+        guard let cookie else { return nil }
+        return await CollectorSiteLogin.bilibiliUserName(cookieHeader: cookie)
+    }
+
+    static func logout() async {
+        guard let site = CollectAccounts.site(id: "bilibili") else { return }
+        await CollectorSiteLogin.logout(site)
+    }
+}
+
 /// 登录页用的极简 WKWebView 宿主
-private struct BilibiliWebView: NSViewRepresentable {
+private struct SiteLoginWebView: NSViewRepresentable {
     let url: URL
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = BilibiliLogin.cookieStore   // 与读取 cookie 用同一个 store
+        config.websiteDataStore = CollectorSiteLogin.cookieStore   // 与读取 cookie 用同一个 store
         let web = WKWebView(frame: .zero, configuration: config)
-        // 关键：默认 UA 会被 B 站判定为「浏览器版本过低」，登录控件直接不渲染
-        web.customUserAgent = BilibiliLogin.userAgent
+        // 关键：默认 UA 会被不少站点判成「浏览器版本过低」，登录控件直接不渲染
+        web.customUserAgent = CollectorSiteLogin.userAgent
         web.load(URLRequest(url: url))
         return web
     }

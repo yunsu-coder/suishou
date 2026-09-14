@@ -99,4 +99,17 @@ final class CollectorFormTests: XCTestCase {
             .environment(store)
         _ = try render(body, to: "/tmp/marknote-collector-clarify.png")
     }
+
+    /// 站点账号面板：登录态一览 + 登录/退出入口
+    @MainActor
+    func testRenderAccountsSheet() throws {
+        let (store, _) = try TestEnv.makeStore()
+        // 只渲染清单（ImageRenderer 画不了 ScrollView 内部，完整面板会是空白）
+        let view = CollectorAccountsSheet()
+            .sitesList
+            .frame(width: 560)
+            .background(Color(nsColor: appAppearance.editorBackground))
+            .environment(store)
+        _ = try render(view, to: "/tmp/marknote-collector-accounts.png")
+    }
 }

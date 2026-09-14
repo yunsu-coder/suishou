@@ -922,7 +922,7 @@ final class NotesStore {
             req.timeoutInterval = 30
             req.setValue(Self.collectorUA, forHTTPHeaderField: "User-Agent")
             if let attempt { req.setValue(attempt, forHTTPHeaderField: "Referer") }
-            switch await Self.fetchImageData(req, url: url) {
+            switch await Self.fetchImageData(req, url: url, referer: referer) {
             case .failure(let why):
                 lastReason = why
                 continue                       // 换个 Referer 再试（多数失败只是防盗链）
@@ -957,7 +957,13 @@ final class NotesStore {
     }
 
     /// 单次图片请求 + 校验（错误页 / HTML / 占位图一律不当作图片）
-    private nonisolated static func fetchImageData(_ req: URLRequest, url: URL) async -> ImageFetch {
+    private nonisolated static func fetchImageData(_ request: URLRequest, url: URL,
+                                                   referer: URL?) async -> ImageFetch {
+        var req = request
+        // 站点账号：登录过的站点（微博/小红书/花瓣…）带上 cookie，才拿得到原图
+        if let cookie = CollectAccounts.requestCookie(for: url, referer: referer), !cookie.isEmpty {
+            req.setValue(cookie, forHTTPHeaderField: "Cookie")
+        }
         guard let (data, resp) = try? await URLSession.shared.data(for: req) else {
             return .failure("连不上 / 超时")   // 过小多半是错误页/占位图
         }
@@ -987,12 +993,9 @@ final class NotesStore {
         req.timeoutInterval = 90
         req.setValue(Self.collectorUA, forHTTPHeaderField: "User-Agent")
         if let referer { req.setValue(referer.absoluteString, forHTTPHeaderField: "Referer") }
-        // B 站直链带防盗链 + 与账号权限绑定：下载也要带上登录 cookie，否则 403/只有低清
-        if url.host?.lowercased().contains("bilivideo") == true
-            || (referer?.host?.lowercased().contains("bilibili.com") ?? false) {
-            if let cookie = CollectorPrefs.bilibiliCookie, !cookie.isEmpty {
-                req.setValue(cookie, forHTTPHeaderField: "Cookie")
-            }
+        // 站点账号：直链常带防盗链 + 与账号权限绑定（B 站高清、微博原图…），下载也要带 cookie
+        if let cookie = CollectAccounts.requestCookie(for: url, referer: referer), !cookie.isEmpty {
+            req.setValue(cookie, forHTTPHeaderField: "Cookie")
         }
         // 临时文件名**必须带上用户看得懂的名字**：入库命名直接取自这个文件名（「日期-描述」）。
         // 用 UUID 当文件名的话，库里就会出现「09-14-collect-98C1…」这种没法认的名字。
