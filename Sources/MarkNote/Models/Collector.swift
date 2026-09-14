@@ -880,9 +880,11 @@ enum CollectorVideoResolver {
         return headers
     }
 
-    /// 预览用小体积下载：≤ maxBytes 才下载（超大视频让用户走「入库」流程，避免久等）
+    /// 预览用小体积下载：≤ maxBytes 才下载（超大视频让用户走「入库」流程，避免久等）。
+    /// 边下边写盘并汇报进度（预览临时文件，调用方负责删除）。
     static func downloadForPreview(_ url: URL, referer: URL?,
-                                   maxBytes: Int = 120 * 1024 * 1024) async -> URL? {
+                                   maxBytes: Int = 120 * 1024 * 1024,
+                                   onProgress: ((DownloadProgressSample) -> Void)? = nil) async -> URL? {
         var req = URLRequest(url: url)
         req.timeoutInterval = 60
         for (k, v) in playbackHeaders(for: url, referer: referer) {
@@ -892,14 +894,207 @@ enum CollectorVideoResolver {
            url.host?.lowercased().contains("bilivideo") == true {
             req.setValue(cookie, forHTTPHeaderField: "Cookie")
         }
-        guard let (data, resp) = try? await URLSession.shared.data(for: req),
-              let http = resp as? HTTPURLResponse, http.statusCode == 200,
-              data.count <= maxBytes, data.count >= 32 * 1024 else { return nil }
         let ext = url.pathExtension.isEmpty ? "mp4" : url.pathExtension
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("preview-\(UUID().uuidString).\(ext)")
-        guard (try? data.write(to: tmp)) != nil else { return nil }
-        return tmp
+        do {
+            let file = try await ProgressDownload.run(req, to: tmp, maxBytes: Int64(maxBytes),
+                                                      onProgress: { onProgress?($0) })
+            guard file.bytes >= 32 * 1024 else {
+                try? FileManager.default.removeItem(at: tmp)
+                return nil
+            }
+            return tmp
+        } catch {
+            try? FileManager.default.removeItem(at: tmp)
+            return nil
+        }
+    }
+}
+
+// MARK: - 带进度的下载（大文件不整份进内存；进度条数据源）
+
+/// 一次下载的进度样本。`expected <= 0` = 服务端没给总长度 → 界面显示「不确定」流动条，不假装百分比。
+struct DownloadProgressSample: Equatable {
+    var written: Int64 = 0
+    var expected: Int64 = 0
+
+    /// 0…1；总长未知时 nil
+    var fraction: Double? {
+        guard expected > 0 else { return nil }
+        return min(1, max(0, Double(written) / Double(expected)))
+    }
+
+    /// 「12.4 MB / 86.1 MB」；总长未知时只有已下载量
+    var bytesText: String {
+        let w = Self.sizeText(written)
+        guard expected > 0 else { return w }
+        return "\(w) / \(Self.sizeText(expected))"
+    }
+
+    static func sizeText(_ n: Int64) -> String {
+        let mb = Double(max(n, 0)) / 1_048_576
+        if mb >= 100 { return String(format: "%.0f MB", mb) }
+        if mb >= 1 { return String(format: "%.1f MB", mb) }
+        return String(format: "%.0f KB", Double(max(n, 0)) / 1024)
+    }
+}
+
+/// 进度节流：下载回调每秒可达上百次，UI 不需要每次都刷。
+/// 默认「变化 ≥1% 或距上次 ≥80ms」才发一次；首个样本与完成时（100%）必发。
+struct DownloadProgressThrottle {
+    var minDelta: Double
+    var minInterval: TimeInterval
+    private var lastFraction: Double = -1
+    private var lastAt: Date = .distantPast
+
+    init(minDelta: Double = 0.01, minInterval: TimeInterval = 0.08) {
+        self.minDelta = minDelta
+        self.minInterval = minInterval
+    }
+
+    mutating func shouldEmit(_ sample: DownloadProgressSample, now: Date = Date()) -> Bool {
+        guard let f = sample.fraction else {
+            // 总长未知：只按时间节流，让「已下载字节」还能看着走
+            guard now.timeIntervalSince(lastAt) >= 0.4 else { return false }
+            lastAt = now
+            return true
+        }
+        if f >= 1 { lastFraction = 1; lastAt = now; return true }
+        if lastFraction < 0 { lastFraction = f; lastAt = now; return true }
+        if f - lastFraction >= minDelta || now.timeIntervalSince(lastAt) >= minInterval {
+            lastFraction = f
+            lastAt = now
+            return true
+        }
+        return false
+    }
+}
+
+/// 落盘结果（判扩展名 / 体积用）
+struct DownloadedFile: Equatable {
+    let bytes: Int64
+    let mime: String
+    let responseURL: URL?
+}
+
+/// 带进度的下载：`URLSessionDownloadTask` 直接写盘（几百 MB 的视频也不占内存），
+/// 体积超限立刻取消、HTTP 非 200 直接失败。
+/// 进度回调发生在**后台线程**，界面侧自行切主线程（节流已在内部做掉）。
+final class ProgressDownload: NSObject, URLSessionDownloadDelegate {
+    enum Failure: LocalizedError {
+        case http(Int)
+        case tooLarge(Int64)
+        case cancelled
+
+        var errorDescription: String? {
+            switch self {
+            case .http(let code): return "HTTP \(code)"
+            case .tooLarge(let max): return "超过体积上限（\(DownloadProgressSample.sizeText(max))）"
+            case .cancelled: return "下载被取消"
+            }
+        }
+    }
+
+    private let destination: URL
+    private let maxBytes: Int64
+    private let onProgress: (DownloadProgressSample) -> Void
+    private var throttle = DownloadProgressThrottle()
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<DownloadedFile, Error>?
+    private var session: URLSession?
+    private var landed: DownloadedFile?
+    private var cancelledForSize = false
+    private var finished = false
+
+    private init(destination: URL, maxBytes: Int64,
+                 onProgress: @escaping (DownloadProgressSample) -> Void) {
+        self.destination = destination
+        self.maxBytes = maxBytes
+        self.onProgress = onProgress
+        super.init()
+    }
+
+    /// 下载到 `destination`（自动建父目录、覆盖旧文件）。`maxBytes <= 0` = 不限。
+    @discardableResult
+    static func run(_ request: URLRequest, to destination: URL, maxBytes: Int64 = 0,
+                    onProgress: @escaping (DownloadProgressSample) -> Void = { _ in })
+        async throws -> DownloadedFile {
+        let download = ProgressDownload(destination: destination, maxBytes: maxBytes,
+                                        onProgress: onProgress)
+        return try await download.start(request)
+    }
+
+    private func start(_ request: URLRequest) async throws -> DownloadedFile {
+        try await withCheckedThrowingContinuation { cont in
+            lock.lock(); continuation = cont; lock.unlock()
+            let s = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+            lock.lock(); session = s; lock.unlock()
+            s.downloadTask(with: request).resume()
+        }
+    }
+
+    private func finish(_ result: Result<DownloadedFile, Error>) {
+        lock.lock()
+        if finished { lock.unlock(); return }
+        finished = true
+        let cont = continuation; continuation = nil
+        let s = session; session = nil
+        lock.unlock()
+        s?.finishTasksAndInvalidate()
+        cont?.resume(with: result)
+    }
+
+    // MARK: URLSessionDownloadDelegate
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        // 上限保护：预期就超标 → 立刻掐断，别等把 300MB+ 下完再后悔
+        if maxBytes > 0, totalBytesExpectedToWrite > maxBytes || totalBytesWritten > maxBytes {
+            cancelledForSize = true
+            downloadTask.cancel()
+            return
+        }
+        let sample = DownloadProgressSample(written: totalBytesWritten,
+                                            expected: max(totalBytesExpectedToWrite, 0))
+        if throttle.shouldEmit(sample) { onProgress(sample) }
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo location: URL) {
+        // 注意：必须在回调返回前把文件挪走（系统随后会删临时文件）
+        let http = downloadTask.response as? HTTPURLResponse
+        let status = http?.statusCode ?? 200
+        guard status == 200 else {
+            finish(.failure(Failure.http(status)))
+            return
+        }
+        do {
+            let fm = FileManager.default
+            try? fm.removeItem(at: destination)
+            try fm.createDirectory(at: destination.deletingLastPathComponent(),
+                                   withIntermediateDirectories: true)
+            try fm.moveItem(at: location, to: destination)
+            let attrs = try? fm.attributesOfItem(atPath: destination.path)
+            let bytes = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+            landed = DownloadedFile(bytes: bytes,
+                                    mime: (http?.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased(),
+                                    responseURL: http?.url)
+        } catch {
+            finish(.failure(error))
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error {
+            if cancelledForSize { finish(.failure(Failure.tooLarge(maxBytes))) }
+            else if (error as NSError).code == NSURLErrorCancelled { finish(.failure(Failure.cancelled)) }
+            else { finish(.failure(error)) }
+            return
+        }
+        guard let landed else { finish(.failure(Failure.cancelled)); return }
+        finish(.success(landed))
     }
 }
 

@@ -31,6 +31,15 @@ struct CollectorView: View {
     /// 本次会话已入库的来源链接（「跳过重复」用）
     @State private var importedURLs: Set<String> = []
     @State private var statusText: String?
+    /// 下载进度：当前文件的字节进度（nil = 总长未知，显示流动条）
+    @State private var downloadSample: DownloadProgressSample?
+    /// 正在下载的候选 id（候选卡片上叠加同款细进度条）
+    @State private var downloadingCandidateID: String?
+    /// 进度条说明：「阶段 · 条目名」+「第几个/共几个」
+    @State private var downloadPhase = ""
+    @State private var downloadItemName = ""
+    @State private var downloadIndex = 0
+    @State private var downloadTotal = 0
 
     /// 供测试 / 预览直接进到某一步（默认从「一句话输入」开始）
     init(initialStage: Stage = .input, request: CollectRequest = CollectRequest()) {
@@ -712,26 +721,44 @@ struct CollectorView: View {
                 .padding(16)
             }
             Divider()
-            HStack {
-                Button(_L("返回修改需求", "Back")) { stage = .review }
-                Spacer()
-                if !importingCountText.isEmpty {
-                    Text(importingCountText).font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-                Button {
-                    Task { await importSelected() }
-                } label: {
-                    if importing {
-                        HStack(spacing: 6) { ProgressView().controlSize(.small); Text(_L("下载中…", "Downloading…")) }
-                    } else {
-                        Text(_L("采集选中（\(selectedCount)）", "Collect selected (\(selectedCount))"))
+            VStack(alignment: .leading, spacing: 10) {
+                if importing { downloadBar }
+                HStack {
+                    Button(_L("返回修改需求", "Back")) { stage = .review }
+                        .disabled(importing)
+                    Spacer()
+                    if !importingCountText.isEmpty {
+                        Text(importingCountText).font(.system(size: 11)).foregroundStyle(.secondary)
                     }
+                    Button {
+                        Task { await importSelected() }
+                    } label: {
+                        if importing {
+                            HStack(spacing: 6) { ProgressView().controlSize(.small); Text(_L("下载中…", "Downloading…")) }
+                        } else {
+                            Text(_L("采集选中（\(selectedCount)）", "Collect selected (\(selectedCount))"))
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(selectedCount == 0 || importing)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(selectedCount == 0 || importing)
             }
             .padding(14)
         }
+    }
+
+    /// 下载进度条：说明（阶段 · 条目）+ 「第几个/共几个 · 已下/总长」+ 百分比（主题化样式）
+    private var downloadBar: some View {
+        let phase = downloadPhase.isEmpty ? _L("正在下载", "Downloading") : downloadPhase
+        let name = downloadItemName.isEmpty ? "" : " · \(downloadItemName)"
+        var detail = downloadTotal > 0 ? "\(downloadIndex)/\(downloadTotal)" : ""
+        if let s = downloadSample {
+            detail += detail.isEmpty ? s.bytesText : " · \(s.bytesText)"
+        }
+        return ThemeProgressBar(value: downloadSample?.fraction,
+                                label: phase + name,
+                                detail: detail,
+                                height: 6)
     }
 
     private var importingCountText: String {
@@ -780,6 +807,14 @@ struct CollectorView: View {
                         .background(Capsule().fill(Color.black.opacity(0.6)))
                         .padding(6)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                }
+                // 正在下载这一条：缩略图底部叠一条主题化细进度条（垫半透明底保证压得住图）
+                if c.id == downloadingCandidateID {
+                    ThemeProgressBar(value: downloadSample?.fraction, height: 4, showsPercent: false)
+                        .padding(.horizontal, 4).padding(.vertical, 4)
+                        .background(Capsule().fill(Color.black.opacity(0.45)))
+                        .padding(.horizontal, 6).padding(.bottom, 6)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 }
                 // 预览入口：图片=放大镜（可缩放看细节）；视频=播放（能直连就直接播放）
                 Button {
@@ -838,25 +873,47 @@ struct CollectorView: View {
         importedCount = 0
         statusText = nil
         var skipped = 0
-        for c in candidates where c.selected {
-            let name = Self.shortName(c.title)
+        let queue = candidates.filter(\.selected)
+        downloadTotal = min(queue.count, max(1, request.maxImport))
+        downloadIndex = 0
+        downloadSample = nil
+        downloadPhase = ""
+        downloadItemName = ""
+        // 下载回调在后台线程 → 切回主线程刷进度（@State 只能在主线程改）
+        let sink: (DownloadProgressSample) -> Void = { s in
+            Task { @MainActor in downloadSample = s }
+        }
+        for c in queue {
+            // 序号按「候选队列里的位置」走：跳过重复时也不会出现「5/7 就结束」
+            downloadIndex = min(downloadIndex + 1, max(downloadTotal, 1))
+            downloadItemName = Self.shortName(c.title)
+            downloadingCandidateID = c.id
+            downloadSample = nil
             // 跳过重复：同一条链接本次已入库过就不再下
             let key = (c.fullURL ?? c.pageURL)?.absoluteString ?? c.id
-            if request.skipDuplicates, importedURLs.contains(key) { skipped += 1; continue }
+            if request.skipDuplicates, importedURLs.contains(key) {
+                downloadPhase = _L("跳过重复", "Skipping duplicate")
+                skipped += 1
+                continue
+            }
             if importedCount >= max(1, request.maxImport) { break }
+            let name = downloadItemName
             if c.kind == "image", let full = c.fullURL {
+                downloadPhase = _L("正在下载图片", "Downloading image")
                 if await store.downloadCollectedImage(from: full, preferredName: name, referer: c.pageURL) != nil {
                     importedCount += 1
                     importedURLs.insert(key)
                 }
             } else if c.kind == "video", let page = c.pageURL {
                 // 先试解析可播放直链：解析到就下载成真视频（source/mp4），否则只存「收藏条目」
+                downloadPhase = _L("正在解析视频地址", "Resolving video source")
                 statusText = _L("正在解析视频地址…", "Resolving video source…")
                 var resolved: CollectorVideoResolver.ResolvedVideo?
                 if let direct = c.videoURL { resolved = .init(url: direct, quality: nil) }
                 else { resolved = await CollectorVideoResolver.resolve(pageURL: page) }
                 var localRel: String?
                 if let r = resolved {
+                    downloadPhase = _L("正在下载视频", "Downloading video")
                     // 你要的清晰度达不到时，如实说清楚（多半是没登录 / 账号权限不够）
                     let asked = CollectVideoResolution(rawValue: request.videoResolution) ?? .any
                     if asked != .any, CollectVideoResolution.rank(of: r.quality) < asked.requiredRank {
@@ -865,9 +922,12 @@ struct CollectorView: View {
                     } else {
                         statusText = _L("正在下载视频…", "Downloading video…")
                     }
-                    localRel = await store.downloadCollectedVideo(from: r.url, preferredName: name, referer: page)
+                    localRel = await store.downloadCollectedVideo(from: r.url, preferredName: name,
+                                                                  referer: page, onProgress: sink)
                 }
                 var coverRel: String?
+                downloadPhase = _L("正在下载封面", "Downloading cover")
+                downloadSample = nil
                 if let rel = await store.downloadCollectedImage(from: c.thumbURL, preferredName: name + "-封面", referer: nil) {
                     coverRel = rel
                 }
@@ -879,6 +939,10 @@ struct CollectorView: View {
             }
         }
         importing = false
+        downloadingCandidateID = nil
+        downloadSample = nil
+        downloadPhase = ""
+        downloadItemName = ""
         NotificationCenter.default.post(name: .assetsChanged, object: nil)
         var note = _L("已入库 \(importedCount) 个", "\(importedCount) imported")
         if skipped > 0 { note += _L("（跳过重复 \(skipped)）", " (\(skipped) duplicates skipped)") }

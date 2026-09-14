@@ -48,6 +48,8 @@ struct MediaPreviewSheet: View {
     /// 取到本地的预览播片（B 站直链要带 Referer，系统播放器不带 → 先下临时文件再播）
     @State private var localPlayback: URL?
     @State private var preparingPlayback = false
+    /// 本地化下载进度（nil = 总长未知 → 流动条）
+    @State private var playbackSample: DownloadProgressSample?
     @State private var resolvedQuality: String?
 
     var body: some View {
@@ -132,7 +134,11 @@ struct MediaPreviewSheet: View {
         guard let direct = videoURL ?? resolvedPlayable else { return }
         if direct.isFileURL { localPlayback = direct; return }
         preparingPlayback = true
-        localPlayback = await CollectorVideoResolver.downloadForPreview(direct, referer: pageURL)
+        playbackSample = nil
+        // 下载回调在后台线程 → 切回主线程刷进度条
+        localPlayback = await CollectorVideoResolver.downloadForPreview(direct, referer: pageURL) { s in
+            Task { @MainActor in playbackSample = s }
+        }
         preparingPlayback = false
     }
 
@@ -143,9 +149,14 @@ struct MediaPreviewSheet: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.black.opacity(0.92))
         } else if preparingPlayback {
-            VStack(spacing: 10) {
-                ProgressView().controlSize(.small)
-                Text(_L("正在准备播放（部分站点要先本地化才能播）…", "Preparing playback…"))
+            VStack(spacing: 12) {
+                ThemeProgressBar(value: playbackSample?.fraction,
+                                 label: _L("正在准备播放", "Preparing playback"),
+                                 detail: playbackSample?.bytesText,
+                                 height: 6)
+                    .frame(width: 280)
+                Text(_L("B 站等站点的直链要先本地化才能播（带防盗链请求头下载中）…",
+                        "Direct links (Bilibili etc.) must be cached locally before playback…"))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

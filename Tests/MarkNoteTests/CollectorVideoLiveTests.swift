@@ -17,9 +17,18 @@ final class CollectorVideoLiveTests: XCTestCase {
 
         let (store, dir) = try TestEnv.makeStore()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let rel = await store.downloadCollectedVideo(from: r.url, preferredName: "城市夜景", referer: page)
+        let lock = NSLock()
+        var samples: [DownloadProgressSample] = []
+        let rel = await store.downloadCollectedVideo(from: r.url, preferredName: "城市夜景",
+                                                     referer: page) { s in
+            lock.lock(); samples.append(s); lock.unlock()
+        }
         let relPath = try XCTUnwrap(rel, "应能下载到 source/mp4")
         print("LIVE downloaded rel=\(relPath) quality=\(r.quality ?? "-")")
+        lock.lock(); let got = samples; lock.unlock()
+        print("LIVE progress samples=\(got.count) last=\(got.last.map { "\($0.written)/\($0.expected)" } ?? "-")")
+        XCTAssertFalse(got.isEmpty, "下载过程中要汇报进度（界面进度条的数据源）")
+        XCTAssertEqual(got.map(\.written), got.map(\.written).sorted(), "已下载字节必须单调不减")
         let file = dir.appendingPathComponent(relPath)
         XCTAssertTrue(FileManager.default.fileExists(atPath: file.path), "本地视频文件要真的存在")
         let size = (try? FileManager.default.attributesOfItem(atPath: file.path)[.size] as? Int) ?? 0

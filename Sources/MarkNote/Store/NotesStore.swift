@@ -930,8 +930,11 @@ final class NotesStore {
     }
 
     /// 采集下载：视频直链 → 入当前工作台 `source/mp4`（命名沿用「日期-描述」）。
-    /// 上限 300MB；太小的多半是错误页/占位，直接丢弃。返回相对路径（供笔记引用）。
-    func downloadCollectedVideo(from url: URL, preferredName: String, referer: URL?) async -> String? {
+    /// 边下边写盘（几百 MB 也不占内存）并向界面汇报进度；上限 300MB；
+    /// 太小的多半是错误页/占位，直接丢弃。返回相对路径（供笔记引用）。
+    /// `onProgress` 在后台线程回调（界面侧自行切主线程）。
+    func downloadCollectedVideo(from url: URL, preferredName: String, referer: URL?,
+                                onProgress: ((DownloadProgressSample) -> Void)? = nil) async -> String? {
         var req = URLRequest(url: url)
         req.timeoutInterval = 90
         req.setValue(Self.collectorUA, forHTTPHeaderField: "User-Agent")
@@ -943,27 +946,48 @@ final class NotesStore {
                 req.setValue(cookie, forHTTPHeaderField: "Cookie")
             }
         }
-        guard let (data, resp) = try? await URLSession.shared.data(for: req),
-              let http = resp as? HTTPURLResponse, http.statusCode == 200,
-              data.count >= 64 * 1024,
-              data.count <= Self.maxCollectedVideoBytes else { return nil }
-        let mime = (http.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
-        let ext = Self.videoExt(mime: mime, url: url)
         // 临时文件名**必须带上用户看得懂的名字**：入库命名直接取自这个文件名（「日期-描述」）。
         // 用 UUID 当文件名的话，库里就会出现「09-14-collect-98C1…」这种没法认的名字。
         let safeName = Self.materialStem(preferredName)
         let tmpDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("collect-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
-        let tmp = tmpDir.appendingPathComponent("\(safeName).\(ext)")
-        guard (try? data.write(to: tmp)) != nil else { return nil }
         defer { try? FileManager.default.removeItem(at: tmpDir) }
+        let part = tmpDir.appendingPathComponent("\(safeName).part")
+        let file: DownloadedFile
+        do {
+            file = try await ProgressDownload.run(req, to: part,
+                                                  maxBytes: Int64(Self.maxCollectedVideoBytes),
+                                                  onProgress: { onProgress?($0) })
+        } catch {
+            return nil
+        }
+        guard file.bytes >= 64 * 1024 else { return nil }
+        // 扩展名：先嗅探字节（ftyp / webm 头），再退回 Content-Type 与 URL 后缀
+        let ext = Self.sniffedVideoFormat(url: part)
+            ?? Self.videoExt(mime: file.mime, url: file.responseURL ?? url)
+        let named = tmpDir.appendingPathComponent("\(safeName).\(ext)")
+        try? FileManager.default.moveItem(at: part, to: named)
         // 走统一的素材入库（复制进 source/mp4 + 唯一命名），源临时文件随后删掉
-        if case .assetStored(let rel) = handleExternalDrop(tmp, category: nil) { return rel }
+        if case .assetStored(let rel) = handleExternalDrop(named, category: nil) { return rel }
         return nil
     }
 
     static let maxCollectedVideoBytes = 300 * 1024 * 1024
+
+    /// 视频字节嗅探：mp4/mov 的 `ftyp`、webm/mkv 的 EBML 头（防「直链后缀骗人」）。
+    nonisolated static func sniffedVideoFormat(url: URL) -> String? {
+        guard let fh = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? fh.close() }
+        guard let head = try? fh.read(upToCount: 16), head.count >= 8 else { return nil }
+        if head.range(of: Data("ftyp".utf8)) != nil {
+            return url.pathExtension.lowercased() == "mov" ? "mov" : "mp4"
+        }
+        if head.prefix(4) == Data([0x1A, 0x45, 0xDF, 0xA3]) {
+            return url.pathExtension.lowercased() == "mkv" ? "mkv" : "webm"
+        }
+        return nil
+    }
 
     nonisolated static func videoExt(mime: String, url: URL) -> String {
         if mime.contains("webm") { return "webm" }
