@@ -104,8 +104,12 @@ final class CollectorFormTests: XCTestCase {
     @MainActor
     func testRenderAccountsSheet() throws {
         let (store, _) = try TestEnv.makeStore()
-        // 只渲染清单（ImageRenderer 画不了 ScrollView 内部，完整面板会是空白）
-        let view = CollectorAccountsSheet()
+        // 只渲染清单（ImageRenderer 画不了 ScrollView 内部，完整面板会是空白）；
+        // 站点表 70 个 → 文档用图渲染代表性样本，别做成几千像素高的长图
+        let sample = ["bilibili", "weibo", "xiaohongshu", "pixiv", "pinterest", "huaban",
+                      "zhihu", "fanqie", "juejin", "baidu"]
+            .compactMap { CollectAccounts.site(id: $0) }
+        let view = CollectorAccountsSheet(sitesOverride: sample)
             .sitesList
             .frame(width: 560)
             .background(Color(nsColor: appAppearance.editorBackground))

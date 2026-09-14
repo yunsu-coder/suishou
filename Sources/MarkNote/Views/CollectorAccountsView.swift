@@ -4,9 +4,15 @@ import SwiftUI
 /// 登录只影响**采集**（抓正文、下素材时带上 cookie），不碰系统浏览器。
 struct CollectorAccountsSheet: View {
     @Environment(\.dismiss) private var dismiss
+    /// 可注入站点表（默认用内置全表；测试 / 预览渲染小样本时用）
+    var sitesOverride: [CollectSite]?
     /// 登录/退出后用于刷新列表
     @State private var tick = 0
     @State private var loginSite: CollectSite?
+    /// 站点多了要能搜（按名字 / 域名）
+    @State private var query = ""
+
+    private var allSites: [CollectSite] { sitesOverride ?? CollectAccounts.sites }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,7 +23,8 @@ struct CollectorAccountsSheet: View {
                     Text(_L("站点账号", "Site accounts"))
                         .font(.system(size: 13, weight: .semibold))
                     Text(_L("很多站点登录后才给全（微博原图、小红书笔记、知乎长文、花瓣原图…）。cookie 只存本机。",
-                            "Many sites need a sign-in to give full results. Cookies stay on this Mac."))
+                            "Many sites need a sign-in to give full results. Cookies stay on this Mac.")
+                         + _L("　共 \(allSites.count) 个站点", " · \(allSites.count) sites"))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -27,6 +34,22 @@ struct CollectorAccountsSheet: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.tertiary)
+                TextField(_L("搜站点（名字或域名）", "Search sites"), text: $query)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                if !query.isEmpty {
+                    Button {
+                        query = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 8)
             Divider()
             ScrollView { sitesList }
         }
@@ -41,10 +64,10 @@ struct CollectorAccountsSheet: View {
     var sitesList: some View {
         VStack(alignment: .leading, spacing: 14) {
             ForEach(SiteGroup.allCases, id: \.self) { group in
-                let list = CollectAccounts.sites(in: group)
+                let list = allSites.filter { $0.group == group }.filter(matches)
                 if !list.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(group.title)
+                        Text(group.title + "（\(list.count)）")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(appAppearance.accent)
                         ForEach(list) { site in
@@ -53,9 +76,23 @@ struct CollectorAccountsSheet: View {
                     }
                 }
             }
+            if allSites.allSatisfy({ !matches($0) }) {
+                Text(_L("没搜到这个站点。想要的话把域名给我，我加进去。",
+                        "No such site yet — tell me the domain and I'll add it."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 搜索匹配：名字 / 域名 / id 任一命中
+    private func matches(_ site: CollectSite) -> Bool {
+        let q = query.trimmed.lowercased()
+        guard !q.isEmpty else { return true }
+        if site.name.lowercased().contains(q) || site.id.lowercased().contains(q) { return true }
+        return site.domains.contains { $0.lowercased().contains(q) }
     }
 
     private func row(_ site: CollectSite) -> some View {

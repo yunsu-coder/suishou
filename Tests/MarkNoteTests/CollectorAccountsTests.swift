@@ -58,6 +58,42 @@ final class CollectorAccountsTests: XCTestCase {
         XCTAssertEqual(mixed.first, "fanqie", "自己登录过的站要顶到最前")
     }
 
+    /// 母域与子域同表时，取更具体的那个（否则 cookie 会认错站）；顺序无关
+    func testMostSpecificDomainWins() throws {
+        let adobeGeneral = CollectSite(id: "adobe", name: "Adobe", icon: "a.square",
+                                       loginURL: URL(string: "https://www.adobe.com/login")!,
+                                       domains: ["adobe.com"], hint: "x", check: .cookieOnly)
+        let adobeStock = CollectSite(id: "adobestock", name: "Adobe Stock", icon: "a.square",
+                                     loginURL: URL(string: "https://stock.adobe.com/login")!,
+                                     domains: ["stock.adobe.com"], hint: "x", check: .cookieOnly)
+        for list in [[adobeGeneral, adobeStock], [adobeStock, adobeGeneral]] {
+            XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://stock.adobe.com/x")!,
+                                                in: list)?.id,
+                           "adobestock", "子域更具体 → 归它")
+            XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://www.adobe.com/x")!,
+                                                in: list)?.id,
+                           "adobe", "母域仍归母站")
+        }
+    }
+
+    /// 免登录来源预设：按采集类型给，域名不重复
+    func testFreeSourcePresets() {
+        let image = CollectPresets.sources(forKind: "image").map(\.domain)
+        XCTAssertTrue(image.contains("unsplash.com"))
+        XCTAssertTrue(image.contains("wikimedia.org"))
+        XCTAssertFalse(image.contains("mixkit.co"), "图片不该带纯视频站")
+        let video = CollectPresets.sources(forKind: "video").map(\.domain)
+        XCTAssertTrue(video.contains("mixkit.co"))
+        XCTAssertTrue(video.contains("pexels.com"), "Pexels 图 + 视频都有")
+        XCTAssertFalse(video.contains("unsplash.com"))
+        XCTAssertTrue(CollectPresets.sources(forKind: "novel").isEmpty, "小说用不上免登录图库")
+        var seen = Set<String>()
+        for p in CollectPresets.sources {
+            XCTAssertTrue(seen.insert(p.domain).inserted, "预设域名重复：\(p.domain)")
+            XCTAssertFalse(p.domain.contains("http"), "预设域名别带协议：\(p.domain)")
+        }
+    }
+
     func testSiteMatchingByDomain() throws {
         XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://m.weibo.com/u/1")!)?.id, "weibo")
         XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://weibo.com/x")!)?.id, "weibo")

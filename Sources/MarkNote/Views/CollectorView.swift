@@ -784,6 +784,19 @@ struct CollectorView: View {
                 }
                 .id(accountsTick)
             }
+            // 免登录的优质来源：点一下只看这些站（做素材优先从这里搜）
+            let presets = CollectPresets.sources(forKind: request.kind)
+            if !presets.isEmpty {
+                labeled(_L("免登录来源", "No-login sources")) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 6)],
+                              alignment: .leading, spacing: 6) {
+                        ForEach(presets) { preset in
+                            let on = (request.siteFilter ?? "").lowercased().contains(preset.domain)
+                            chip(preset.name, on: on) { toggleSiteFilter(preset.domain) }
+                        }
+                    }
+                }
+            }
             labeled(_L("站点账号", "Accounts")) {
                 HStack(spacing: 8) {
                     let names = CollectAccountStore.standard.loggedInSites().map(\.name)
