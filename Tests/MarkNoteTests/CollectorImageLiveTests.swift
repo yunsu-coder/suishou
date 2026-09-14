@@ -21,7 +21,7 @@ final class CollectorImageLiveTests: XCTestCase {
         var failed: [String] = []
         for (i, c) in candidates.prefix(6).enumerated() {
             let name = "诊断\(i + 1)"
-            let result = await store.downloadCollectedImage(from: c.fullURL ?? c.thumbURL,
+            let result = await store.downloadCollectedImage(from: c.fullURL ?? c.thumbURL ?? c.pageURL!,
                                                             preferredName: name, referer: c.pageURL)
             switch result {
             case .saved(let rel):

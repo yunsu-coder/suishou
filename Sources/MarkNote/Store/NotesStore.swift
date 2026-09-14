@@ -1068,6 +1068,50 @@ final class NotesStore {
         return "jpg"
     }
 
+    // MARK: - 采集：文章 / 小说 → Markdown 笔记
+
+    /// 采集的正文（文章 / 小说）→ 工作台里的 .md 笔记（文件名 = 标题，重名自动加序号）。
+    /// `folder` 有值时放进同名文件夹（小说「一章一文件」用）。返回写进工作台的相对路径。
+    @discardableResult
+    func saveCollectedMarkdown(_ body: String, title: String, folder: String? = nil) -> String? {
+        let folderRaw = (folder ?? "").trimmed
+        let folderName = folderRaw.isEmpty ? nil : Self.noteStem(folderRaw)
+        let dir = folderName.map { notesDir.appendingPathComponent($0, isDirectory: true) } ?? notesDir
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let name = Workspace.uniqueName(in: dir, fileName: "\(Self.noteStem(title)).md")
+            try body.write(to: dir.appendingPathComponent(name), atomically: true, encoding: .utf8)
+            reloadIndex()
+            return folderName.map { "\($0)/\(name)" } ?? name
+        } catch {
+            return nil
+        }
+    }
+
+    /// 笔记文件名：汉字 / 字母 / 数字照留，常见标点保留（笔记名不参与 Markdown 引用，不必压成「-」）
+    nonisolated static func noteStem(_ raw: String) -> String {
+        // 冒号在 macOS 文件名里会被 Finder 显示成「/」，一并压掉
+        let keep = CharacterSet(charactersIn: "-_·—~!！?？.,，;；'\"《》()（）[]【】 ")
+        var s = ""
+        for ch in raw {
+            if ch.isLetter || ch.isNumber || keep.contains(ch.unicodeScalars.first!) {
+                s.append(ch)
+            } else {
+                s.append("-")
+            }
+        }
+        // 「第一部: 测试」→ 冒号压成「-」后会留下「- 」，并成空格（别在名字里留个孤零零的连字符）
+        s = s.replacingOccurrences(of: #"-+\s+"#, with: " ", options: .regularExpression)
+        s = s.replacingOccurrences(of: #"\s+-+"#, with: " ", options: .regularExpression)
+        s = s.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        s = s.replacingOccurrences(of: #"-{2,}"#, with: "-", options: .regularExpression)
+        s = s.trimmingCharacters(in: CharacterSet(charactersIn: "-_.· "))
+        if s.count > 80 {
+            s = String(s.prefix(80)).trimmingCharacters(in: CharacterSet(charactersIn: "-_.· "))
+        }
+        return s.isEmpty ? _L("采集笔记", "collected") : s
+    }
+
     /// 采集的视频 → 在工作台根维护一份「视频收藏.md」清单（标题 / 时长 / 链接 / 封面本地引用）。
     /// 不下载视频文件本体（平台直链多不可得）；封面图由调用方先行入库。
     @discardableResult

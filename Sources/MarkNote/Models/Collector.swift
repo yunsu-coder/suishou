@@ -205,7 +205,7 @@ enum CollectKeywordLang: String, CaseIterable { case both, zh, en
 /// 选项分五组：基本 / 风格 / 画面 / 来源与筛选 / 入库（另加图片、视频专属项）。
 struct CollectRequest: Codable, Equatable {
     // —— 基本 ——
-    var kind: String?                      // "image" / "video"，必填
+    var kind: String?                      // "image" / "video" / "article" / "novel"，必填
     var subject: String?                   // 主题，必填
     var usage: String?                     // 用途
     var count: Int = 8                     // 想要的数量 1...60
@@ -249,9 +249,68 @@ struct CollectRequest: Codable, Equatable {
     var videoAudio: String = CollectVideoAudio.any.rawValue
     var videoSubtitle: String = CollectVideoSubtitle.any.rawValue
 
+    // —— 文章 / 小说专属 ——
+    /// 小说：最多抓多少章（1...500）
+    var chapterLimit: Int = 30
+    /// 小说：合并成一个 .md（关掉则一章一个文件，放进同名文件夹）
+    var mergeChapters = true
+
     // —— 入库（命名/目录沿用工作台约定：source/image 下「日期-描述」）——
     var skipDuplicates = true              // 本次采集里同链接跳过
     var maxImport: Int = 20                // 本次最多入库
+
+    init() {}
+
+    /// 类型：图片 / 视频 / 文章 / 小说
+    static let textKinds: Set<String> = ["article", "novel"]
+    var isTextKind: Bool { Self.textKinds.contains(kind ?? "") }
+
+    /// 容错解码：历史 JSON 里没有的新字段一律回落到默认值（旧记录不会因为加字段而读不出来）
+    init(from decoder: Decoder) throws {
+        let d = try decoder.container(keyedBy: CodingKeys.self)
+        func opt<T: Decodable>(_ key: CodingKeys) -> T? {
+            (try? d.decodeIfPresent(T.self, forKey: key)) ?? nil
+        }
+        func val<T: Decodable>(_ key: CodingKeys, _ fallback: T) -> T { opt(key) ?? fallback }
+
+        kind = opt(.kind)
+        subject = opt(.subject)
+        usage = opt(.usage)
+        count = val(.count, 8)
+        avoid = opt(.avoid)
+        queries = val(.queries, [])
+        keywordLang = val(.keywordLang, CollectKeywordLang.both.rawValue)
+        styles = val(.styles, [])
+        styleNote = opt(.styleNote)
+        orientation = val(.orientation, CollectOrientation.any.rawValue)
+        aspect = val(.aspect, CollectAspect.any.rawValue)
+        minSize = val(.minSize, CollectMinSize.any.rawValue)
+        tones = val(.tones, [])
+        palette = val(.palette, [])
+        moods = val(.moods, [])
+        compositions = val(.compositions, [])
+        contentFlags = val(.contentFlags, [])
+        needTextSpace = val(.needTextSpace, false)
+        noWatermark = val(.noWatermark, true)
+        transparent = val(.transparent, false)
+        strictness = val(.strictness, CollectStrictness.balanced.rawValue)
+        recency = val(.recency, CollectRecency.any.rawValue)
+        license = val(.license, CollectLicense.any.rawValue)
+        siteFilter = opt(.siteFilter)
+        excludeSites = opt(.excludeSites)
+        safeSearch = val(.safeSearch, true)
+        platforms = val(.platforms, [])
+        imageFormat = val(.imageFormat, CollectImageFormat.any.rawValue)
+        imageType = val(.imageType, CollectImageType.any.rawValue)
+        videoDuration = val(.videoDuration, CollectVideoDuration.any.rawValue)
+        videoResolution = val(.videoResolution, CollectVideoResolution.any.rawValue)
+        videoAudio = val(.videoAudio, CollectVideoAudio.any.rawValue)
+        videoSubtitle = val(.videoSubtitle, CollectVideoSubtitle.any.rawValue)
+        chapterLimit = max(1, min(500, val(.chapterLimit, 30)))
+        mergeChapters = val(.mergeChapters, true)
+        skipDuplicates = val(.skipDuplicates, true)
+        maxImport = val(.maxImport, 20)
+    }
 
     /// 必填但还缺的字段（卡片据此高亮追问）。
     var missing: [String] {
@@ -283,6 +342,12 @@ struct CollectRequest: Codable, Equatable {
         if aspect != CollectAspect.any.rawValue { parts.append(aspect) }
         if let usage, !usage.isEmpty { parts.append(usage) }
         if noWatermark { parts.append("无水印") }
+        // 文章 / 小说：搜索词要带体裁，否则搜出来全是图片和视频
+        switch kind {
+        case "article": parts.append("文章")
+        case "novel": parts.append("小说 在线阅读 目录")
+        default: break
+        }
         return parts.joined(separator: " ")
     }
 
@@ -305,6 +370,11 @@ struct CollectRequest: Codable, Equatable {
         if let usage, !usage.isEmpty { parts.append(usage) }
         if needTextSpace { parts.append("copy space") }
         if noWatermark { parts.append("no watermark") }
+        switch kind {
+        case "article": parts.append("article")
+        case "novel": parts.append("novel online reading chapters")
+        default: break
+        }
         if kind == "video" {
             let r = CollectVideoResolution(rawValue: videoResolution) ?? .any
             if !r.keyword.isEmpty { parts.append(r.keyword) }
@@ -379,33 +449,52 @@ struct CollectRequest: Codable, Equatable {
 
     /// 「选项总结出来的提示词」：把卡片上的选择用人话拼成一句，便于回看/复用/分享。
     func promptSummary() -> String {
-        let kindText = kind == "video" ? _L("视频", "video") : _L("图片", "images")
+        let kindText: String
+        switch kind {
+        case "video": kindText = _L("视频", "videos")
+        case "article": kindText = _L("文章", "articles")
+        case "novel": kindText = _L("小说", "novels")
+        default: kindText = _L("图片", "images")
+        }
         var head = _L("找 \(count) 个\(kindText)", "Find \(count) \(kindText)")
+        if kind == "novel" {
+            head = _L("抓 \(count) 本\(kindText)（每本最多 \(chapterLimit) 章，直接存成 Markdown）",
+                      "Fetch \(count) \(kindText) (up to \(chapterLimit) chapters each → Markdown)")
+        } else if kind == "article" {
+            head = _L("找 \(count) 篇\(kindText)（正文转成 Markdown 笔记）",
+                      "Find \(count) \(kindText) (body → Markdown note)")
+        }
         if let subject, !subject.isEmpty { head += "：" + subject }
         var details: [String] = []
         if let usage, !usage.isEmpty { details.append(_L("用途", "usage") + " " + usage) }
         if !styles.isEmpty { details.append(styles.joined(separator: "/")) }
         if let styleNote, !styleNote.isEmpty { details.append(styleNote) }
-        let o = CollectOrientation(rawValue: orientation) ?? .any
-        if o != .any { details.append(o.label) }
-        if aspect != CollectAspect.any.rawValue { details.append(aspect) }
-        let size = CollectMinSize(rawValue: minSize) ?? .any
-        if !size.keywordZh.isEmpty { details.append("≥" + size.keywordZh) }
-        if !tones.isEmpty { details.append(_L("色调", "tone") + " " + tones.joined(separator: "/")) }
-        if !palette.isEmpty { details.append(_L("主色", "color") + " " + palette.joined(separator: "/")) }
-        if !moods.isEmpty { details.append(_L("氛围", "mood") + " " + moods.joined(separator: "/")) }
-        if !compositions.isEmpty { details.append(_L("构图", "composition") + " " + compositions.joined(separator: "/")) }
-        if !contentFlags.isEmpty { details.append(contentFlags.joined(separator: "/")) }
-        if needTextSpace { details.append(_L("要留白", "copy space")) }
-        if noWatermark { details.append(_L("无水印", "no watermark")) }
-        if transparent { details.append(_L("透明底", "transparent")) }
+        // 画面/风格那套只对图片、视频有意义
+        if !isTextKind {
+            let o = CollectOrientation(rawValue: orientation) ?? .any
+            if o != .any { details.append(o.label) }
+            if aspect != CollectAspect.any.rawValue { details.append(aspect) }
+            let size = CollectMinSize(rawValue: minSize) ?? .any
+            if !size.keywordZh.isEmpty { details.append("≥" + size.keywordZh) }
+            if !tones.isEmpty { details.append(_L("色调", "tone") + " " + tones.joined(separator: "/")) }
+            if !palette.isEmpty { details.append(_L("主色", "color") + " " + palette.joined(separator: "/")) }
+            if !moods.isEmpty { details.append(_L("氛围", "mood") + " " + moods.joined(separator: "/")) }
+            if !compositions.isEmpty { details.append(_L("构图", "composition") + " " + compositions.joined(separator: "/")) }
+            if !contentFlags.isEmpty { details.append(contentFlags.joined(separator: "/")) }
+            if needTextSpace { details.append(_L("要留白", "copy space")) }
+            if noWatermark { details.append(_L("无水印", "no watermark")) }
+            if transparent { details.append(_L("透明底", "transparent")) }
+        }
         if kind == "video" {
             if let d = CollectVideoDuration(rawValue: videoDuration), d != .any { details.append(d.label) }
             if let r = CollectVideoResolution(rawValue: videoResolution), r != .any { details.append(r.label) }
             if let a = CollectVideoAudio(rawValue: videoAudio), a != .any { details.append(a.label) }
             if let s = CollectVideoSubtitle(rawValue: videoSubtitle), s != .any { details.append(s.label) }
             if !platforms.isEmpty { details.append(platforms.joined(separator: "/")) }
-        } else {
+        } else if kind == "novel" {
+            details.append(_L("每本最多 \(chapterLimit) 章", "up to \(chapterLimit) chapters"))
+            if !mergeChapters { details.append(_L("一章一文件", "one file per chapter")) }
+        } else if kind == "image" || kind == nil {
             if let f = CollectImageFormat(rawValue: imageFormat), f != .any { details.append(f.label) }
             if let t = CollectImageType(rawValue: imageType), t != .any { details.append(t.label) }
         }
@@ -445,7 +534,12 @@ struct CollectHistoryEntry: Codable, Equatable, Identifiable {
     }
 
     var kindBadge: String {
-        request.kind == "video" ? _L("视频", "Video") : _L("图片", "Image")
+        switch request.kind {
+        case "video": return _L("视频", "Video")
+        case "article": return _L("文章", "Article")
+        case "novel": return _L("小说", "Novel")
+        default: return _L("图片", "Image")
+        }
     }
 }
 
@@ -501,11 +595,11 @@ enum CollectHistoryStore {
 
 struct CollectCandidate: Identifiable, Equatable {
     let id: String
-    let kind: String              // "image" / "video"
+    var kind: String              // "image" / "video" / "article" / "novel"
     let title: String
-    let thumbURL: URL
-    let fullURL: URL?             // 图片原图
-    let pageURL: URL?             // 来源页
+    var thumbURL: URL?            // 文章 / 小说候选没有缩略图
+    var fullURL: URL?             // 图片原图
+    var pageURL: URL?             // 来源页
     let duration: String?         // 视频时长（"03:24"）
     /// 视频直链（mp4/webm/m3u8…）：有就能在采集面板里直接播放
     var videoURL: URL? = nil
@@ -513,6 +607,8 @@ struct CollectCandidate: Identifiable, Equatable {
     var sourceLabel: String? = nil
     /// 卡片上的补充信息（播放量 / 日期 / 上传者）
     var metaLine: String? = nil
+    /// 文章 / 小说：搜索结果摘要（正文抓回来后再补字数）
+    var excerpt: String? = nil
     var selected: Bool = false
 
     /// 媒体直链判定：后缀像视频文件、或本来就没有页面（murl 即媒体）
@@ -569,8 +665,201 @@ enum CollectorSearch {
         return parseVideos(html)
     }
 
+    /// 网页搜索（**文章 / 小说**）：360 → 搜狗 → Bing，谁先给结果用谁。
+    /// 注：Bing 网页端在国内网络下常只按**首个词**给结果（图片/视频接口不受影响），所以不做主用；
+    /// 搜狗连续请求几次就会弹验证，故排在 360 之后。
+    static func searchWeb(query: String, count: Int = 20, safeSearch: Bool = true) async -> [CollectCandidate] {
+        let so360 = await search360(query: query, count: count)
+        if !so360.isEmpty { return so360 }
+        let sogou = await searchSogou(query: query, count: count)
+        if !sogou.isEmpty { return sogou }
+        return await searchBingWeb(query: query, count: count, safeSearch: safeSearch)
+    }
+
+    /// 360 搜索：`<h3 class="res-title">` 结果块；链接是 `so.com/link?m=…` 跳转，需要解一层
+    static func search360(query: String, count: Int = 20) async -> [CollectCandidate] {
+        guard var comp = URLComponents(string: "https://www.so.com/s") else { return [] }
+        comp.queryItems = [.init(name: "q", value: query), .init(name: "pn", value: "1")]
+        guard let url = comp.url, let html = await fetch(url) else { return [] }
+        let list = parse360Results(html)
+        guard !list.isEmpty else { return [] }
+        return await resolveRedirectLinks(list, referer: url)
+    }
+
+    /// 360 结果块 → 候选（pageURL 此时还是 so.com 跳转）
+    static func parse360Results(_ html: String) -> [CollectCandidate] {
+        var out: [CollectCandidate] = []
+        for block in blocks(html, marker: "class=\"res-title") {
+            guard let href = HTMLToMarkdown.firstRegexGroup(block, pattern: #"(?is)<a[^>]+href="([^"]+)""#),
+                  let titleHTML = HTMLToMarkdown.firstRegexGroup(block, pattern: #"(?is)<a[^>]*>(.*?)</a>"#)
+            else { continue }
+            let title = HTMLToMarkdown.fragmentText(titleHTML)
+            guard !title.isEmpty, !title.hasPrefix("其他人还搜") else { continue }
+            let snippet = HTMLToMarkdown.fragmentText(HTMLToMarkdown.firstRegexGroup(
+                block, pattern: #"(?is)class="res-desc[^"]*"[^>]*>(.*?)</(?:p|div)>"#) ?? "")
+            let link = href.hasPrefix("//") ? "https:" + href : href
+            guard let url = URL(string: link) else { continue }
+            var c = CollectCandidate(id: link,
+                                     kind: looksLikeNovelIndex(title: title, url: url, snippet: snippet)
+                                         ? "novel" : "article",
+                                     title: title, thumbURL: nil, fullURL: nil, pageURL: url, duration: nil)
+            c.excerpt = snippet
+            c.sourceLabel = "360"
+            out.append(c)
+        }
+        return dedupe(out)
+    }
+
+    /// 搜狗：结果块 `<h3 class="vr-title">`，链接是 `/link?url=…` 跳转，需要再解一层拿真实地址
+    static func searchSogou(query: String, count: Int = 20) async -> [CollectCandidate] {
+        guard var comp = URLComponents(string: "https://www.sogou.com/web") else { return [] }
+        comp.queryItems = [.init(name: "query", value: query),
+                           .init(name: "num", value: "\(max(8, count))")]
+        guard let url = comp.url, let html = await fetch(url) else { return [] }
+        let list = parseSogouResults(html)
+        guard !list.isEmpty else { return [] }
+        return await resolveRedirectLinks(list, referer: url)
+    }
+
+    /// 搜狗结果块 → 候选（此时 pageURL 还是搜狗跳转）
+    static func parseSogouResults(_ html: String) -> [CollectCandidate] {
+        var out: [CollectCandidate] = []
+        for block in blocks(html, marker: "<h3 class=\"vr-title") {
+            guard let href = HTMLToMarkdown.firstRegexGroup(block, pattern: #"(?is)<a[^>]+href="([^"]+)""#),
+                  let titleHTML = HTMLToMarkdown.firstRegexGroup(block, pattern: #"(?is)<a[^>]*>(.*?)</a>"#)
+            else { continue }
+            let title = HTMLToMarkdown.fragmentText(titleHTML)
+            let snippet = HTMLToMarkdown.fragmentText(HTMLToMarkdown.firstRegexGroup(
+                block, pattern: #"(?is)<div[^>]*class="[^"]*(?:space-txt|text-layout|fz-mid)[^"]*"[^>]*>(.*?)</div>"#) ?? "")
+            let link = href.hasPrefix("//") ? "https:" + href
+                : (href.hasPrefix("/") ? "https://www.sogou.com" + href : href)
+            guard let url = URL(string: link) else { continue }
+            var c = CollectCandidate(id: link,
+                                     kind: looksLikeNovelIndex(title: title, url: url, snippet: snippet)
+                                         ? "novel" : "article",
+                                     title: title.isEmpty ? link : title,
+                                     thumbURL: nil, fullURL: nil, pageURL: url, duration: nil)
+            c.excerpt = snippet
+            c.sourceLabel = "搜狗"
+            out.append(c)
+        }
+        return dedupe(out)
+    }
+
+    /// 跳转页 → 目标地址（360 / 搜狗都用同一套：`window.location.replace("…")` / meta refresh）
+    static func redirectTarget(inHTML html: String) -> String? {
+        if let u = HTMLToMarkdown.firstRegexGroup(html, pattern: #"location\.replace\("([^"]+)""#) {
+            return u
+        }
+        if let u = HTMLToMarkdown.firstRegexGroup(html, pattern: #"(?i)URL='([^']+)'"#) { return u }
+        if let u = HTMLToMarkdown.firstRegexGroup(html, pattern: #"(?i)URL=([^"'>\s]+)"#) { return u }
+        return nil
+    }
+
+    /// 并发把搜索引擎跳转换成真实地址（失败保留跳转链接：点开也能到）
+    static func resolveRedirectLinks(_ list: [CollectCandidate], referer: URL) async -> [CollectCandidate] {
+        var fixed = list
+        await withTaskGroup(of: (Int, URL?, String?).self) { group in
+            for (i, c) in list.enumerated() {
+                guard let link = c.pageURL, let host = link.host?.lowercased(),
+                      host.contains("so.com") || host.contains("sogou.com") else { continue }
+                group.addTask {
+                    guard let html = await fetch(link, referer: referer.absoluteString),
+                          let real = redirectTarget(inHTML: html),
+                          let url = URL(string: real) else { return (i, nil, nil) }
+                    return (i, url, url.host)
+                }
+            }
+            for await (i, url, host) in group {
+                guard let url else { continue }
+                fixed[i].pageURL = url
+                fixed[i].sourceLabel = host
+            }
+        }
+        return fixed
+    }
+
+    /// Bing 网页搜索（备用）：`li.b_algo` → 标题 + 摘要 + 真实链接
+    static func searchBingWeb(query: String, count: Int = 20, safeSearch: Bool = true) async -> [CollectCandidate] {
+        guard var comp = URLComponents(string: "https://cn.bing.com/search") else { return [] }
+        var items: [URLQueryItem] = [
+            .init(name: "q", value: query),
+            .init(name: "count", value: "\(max(8, count))"),
+            .init(name: "first", value: "1"),
+            .init(name: "FORM", value: "PERE"),
+        ]
+        if safeSearch { items.append(.init(name: "adlt", value: "strict")) }
+        comp.queryItems = items
+        guard let url = comp.url, let html = await fetch(url) else { return [] }
+        return parseWebResults(html)
+    }
+
+    /// 网页结果 → 候选（正文抓取发生在入库时；这里只拿标题/摘要/链接）
+    static func parseWebResults(_ html: String) -> [CollectCandidate] {
+        var out: [CollectCandidate] = []
+        for block in blocks(html, marker: "<li class=\"b_algo\"") {
+            guard let hrefRaw = HTMLToMarkdown.firstRegexGroup(
+                    block, pattern: #"(?is)<h2[^>]*>\s*<a[^>]+href="([^"]+)""#),
+                  let titleRaw = HTMLToMarkdown.firstRegexGroup(
+                    block, pattern: #"(?is)<h2[^>]*>\s*<a[^>]*>(.*?)</a>"#) else { continue }
+            let href = bingRealURL(HTMLToMarkdown.decodeEntities(hrefRaw))
+            guard let page = URL(string: href), let scheme = page.scheme?.lowercased(),
+                  scheme == "http" || scheme == "https" else { continue }
+            let title = HTMLToMarkdown.fragmentText(titleRaw)
+            let snippet = HTMLToMarkdown.fragmentText(
+                HTMLToMarkdown.firstRegexGroup(block, pattern: #"(?is)<p[^>]*>(.*?)</p>"#) ?? "")
+            let kind = looksLikeNovelIndex(title: title, url: page, snippet: snippet) ? "novel" : "article"
+            var c = CollectCandidate(id: href, kind: kind,
+                                     title: title.isEmpty ? (page.host ?? href) : title,
+                                     thumbURL: nil, fullURL: nil, pageURL: page, duration: nil)
+            c.excerpt = snippet
+            c.sourceLabel = page.host
+            out.append(c)
+        }
+        return dedupe(out)
+    }
+
+    /// 判断一条网页结果更像「小说目录页」（书名 + 章节目录/在线阅读这类字眼）
+    static func looksLikeNovelIndex(title: String, url: URL, snippet: String) -> Bool {
+        let hay = (title + " " + snippet + " " + url.absoluteString).lowercased()
+        let markers = ["小说", "章节", "目录", "全文阅读", "在线阅读", "txt", "novel", "chapter",
+                       "第1章", "第一章", "book"]
+        let hits = markers.filter { hay.contains($0.lowercased()) }.count
+        return hits >= 2
+    }
+
+    /// 按标记切块（Bing 的结果列表是重复的 `<li class="b_algo">`）
+    static func blocks(_ html: String, marker: String) -> [String] {
+        var out: [String] = []
+        var rest = Substring(html)
+        while let r = rest.range(of: marker) {
+            rest = rest[r.upperBound...]
+            out.append(String(rest))
+        }
+        return out
+    }
+
+    /// Bing 跳转链接 → 真实地址（`/ck/a?...&u=a1<base64url>`）
+    static func bingRealURL(_ href: String) -> String {
+        guard href.contains("/ck/a"), let comp = URLComponents(string: href),
+              let u = comp.queryItems?.first(where: { $0.name == "u" })?.value else { return href }
+        var s = u
+        if s.hasPrefix("a1") { s.removeFirst(2) }
+        s = s.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while s.count % 4 != 0 { s += "=" }
+        guard let data = Data(base64Encoded: s), let text = String(data: data, encoding: .utf8),
+              text.hasPrefix("http") else { return href }
+        return text
+    }
+
     static func fetch(_ url: URL) async -> String? {
         guard let data = await fetchData(url) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    /// 带 Referer 的抓取（搜狗跳转页 / 防盗链页面需要）
+    static func fetch(_ url: URL, referer: String?) async -> String? {
+        guard let data = await fetchData(url, referer: referer) else { return nil }
         return String(data: data, encoding: .utf8)
     }
 
@@ -1134,7 +1423,7 @@ enum CollectorIntent {
         guard LLM.configured else { return nil }
         let system = """
         你是素材采集需求解析器。把用户的话解析成 JSON（只输出 JSON，不要解释）：
-        {"kind":"image|video 或 null","subject":"主题（具体名词，如 赛博朋克霓虹街道；无法确定给 null）",
+        {"kind":"image|video|article|novel 或 null","subject":"主题（具体名词；找文章给题材，找小说给书名或题材；无法确定给 null）",
          "usage":"用途（封面/配图/视频素材/参考；不确定给 null）",
          "styleNote":"风格自由补充（如 雨夜霓虹反射；不确定 null）",
          "styles":["从这些里选：\(CollectOptions.styles.map(\.zh).joined(separator: " / "))"],
@@ -1151,7 +1440,7 @@ enum CollectorIntent {
          "videoAudio":"any|with|without","videoSubtitle":"any|with|without",
          "recency":"any|week|month|year","strictness":"strict|balanced|loose",
          "needTextSpace":true/false,"noWatermark":true/false,"transparent":true/false,
-         "count":数字或null,"avoid":"明确不要的东西或null",
+         "count":数字或null,"chapterLimit":小说最多抓多少章（数字或null）,"avoid":"明确不要的东西或null",
          "queries":["2-3 条搜索关键词，中英文各一条"]}
         规则：
         1. subject 必须贴近用户实际意图，不要泛化；
@@ -1159,7 +1448,9 @@ enum CollectorIntent {
         3. 多选字段只能从上面给的候选里挑（中文原样），挑不到就不放；
         4. 用户说「横图/竖图/方图」→ orientation；说「4K/高清」→ minSize 或 videoResolution；
            说「无水印」→ noWatermark=true；说「要放标题的位置」→ needTextSpace=true；
-           说「最近一个月内」→ recency=month；说「可商用」→ license=commercial。
+           说「最近一个月内」→ recency=month；说「可商用」→ license=commercial；
+           说「文章 / 长文 / 教程 / 报道 / 论文」→ kind=article；说「小说 / 全书 / 章节 / 连载」→ kind=novel
+           （小说要尽量给出 chapterLimit）。
         """
         let user = "用户输入：\(text)\n（已有需求：\(describe(current))）"
         guard let reply = try? await LLM.complete(system: system, user: user) else { return nil }
@@ -1167,7 +1458,8 @@ enum CollectorIntent {
         guard let data = jsonText.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
         var r = current
-        if let k = obj["kind"] as? String, k == "image" || k == "video" { r.kind = k }
+        if let k = obj["kind"] as? String, ["image", "video", "article", "novel"].contains(k) { r.kind = k }
+        if let n = obj["chapterLimit"] as? Int, n > 0 { r.chapterLimit = max(1, min(500, n)) }
         if let s = obj["subject"] as? String, !s.isEmpty, s.lowercased() != "null" { r.subject = s }
         if let u = obj["usage"] as? String, !u.isEmpty, u.lowercased() != "null" { r.usage = u }
         if let st = obj["styleNote"] as? String, !st.isEmpty, st.lowercased() != "null" { r.styleNote = st }

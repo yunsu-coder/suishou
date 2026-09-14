@@ -43,6 +43,12 @@ struct CollectorView: View {
     /// 本次没下下来的原因（逐条列出来，不让「选了 4 个只下来 2 个」变成糊涂账）
     @State private var importFailures: [String] = []
     @State private var showFailureAlert = false
+    /// 小说抓章节的进度（章节数比条目数更有信息量）
+    @State private var crawlBook = ""
+    @State private var crawlIndex = 0
+    @State private var crawlTotal = 0
+    /// 本次入库的 Markdown 笔记（相对路径；用来「打开第一篇」）
+    @State private var savedNotes: [String] = []
 
     /// 供测试 / 预览直接进到某一步（默认从「一句话输入」开始）
     init(initialStage: Stage = .input, request: CollectRequest = CollectRequest()) {
@@ -73,7 +79,7 @@ struct CollectorView: View {
         .sheet(item: $previewCandidate) { c in
             MediaPreviewSheet(
                 title: c.title.isEmpty ? _L("未命名", "Untitled") : c.title,
-                subtitle: c.pageURL?.host ?? c.thumbURL.host ?? "",
+                subtitle: c.pageURL?.host ?? c.thumbURL?.host ?? "",
                 imageURL: c.kind == "video" ? (c.videoURL == nil ? c.thumbURL : nil)
                                             : (c.fullURL ?? c.thumbURL),
                 videoURL: c.videoURL,
@@ -301,9 +307,13 @@ struct CollectorView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     basicsSection
-                    styleSection
-                    visualSection
-                    if request.kind == "video" { videoSection } else { imageSection }
+                    if request.isTextKind {
+                        textSection
+                    } else {
+                        styleSection
+                        visualSection
+                        if request.kind == "video" { videoSection } else { imageSection }
+                    }
                     sourceSection
                     archiveSection
                     queryPreview
@@ -450,11 +460,17 @@ struct CollectorView: View {
                 HStack(spacing: 6) {
                     chip(_L("图片", "Images"), on: request.kind == "image") { request.kind = "image" }
                     chip(_L("视频", "Videos"), on: request.kind == "video") { request.kind = "video" }
+                    chip(_L("文章", "Articles"), on: request.kind == "article") { request.kind = "article" }
+                    chip(_L("小说", "Novels"), on: request.kind == "novel") { request.kind = "novel" }
                 }
             }
-            textRow(_L("主题", "Subject"), text: optionalStringBinding(\.subject),
+            textRow(request.isTextKind ? _L("题材", "Topic") : _L("主题", "Subject"),
+                    text: optionalStringBinding(\.subject),
                     required: (request.subject ?? "").isEmpty,
-                    placeholder: _L("例如：赛博朋克霓虹街道", "e.g. cyberpunk neon street"))
+                    placeholder: request.kind == "novel"
+                        ? _L("例如：三体（写好书名，目录会在入库时自己找）", "e.g. a book title")
+                        : _L("例如：赛博朋克霓虹街道 / 城市更新长文",
+                             "e.g. cyberpunk neon street / long-form article"))
             textRow(_L("用途", "Usage"), text: optionalStringBinding(\.usage), required: false,
                     placeholder: _L("封面 / 配图 / 视频素材 / 参考", "cover / illustration / footage / reference"))
             textRow(_L("不要", "Avoid"), text: optionalStringBinding(\.avoid), required: false,
@@ -465,7 +481,10 @@ struct CollectorView: View {
                         Text("\(request.count)").font(.system(size: 12)).monospacedDigit()
                     }
                     .frame(width: 120)
-                    Text(_L("个候选", "candidates")).font(.system(size: 11)).foregroundStyle(.tertiary)
+                    Text(request.kind == "novel" ? _L("本（候选书）", "books (candidates)")
+                                                 : (request.kind == "article" ? _L("篇候选", "articles")
+                                                                              : _L("个候选", "candidates")))
+                        .font(.system(size: 11)).foregroundStyle(.tertiary)
                 }
             }
             singleChips(_L("关键词语言", "Keywords"),
@@ -535,6 +554,35 @@ struct CollectorView: View {
         }
     }
 
+    /// 文章 / 小说专属：直接转成工作台里的 .md 笔记
+    var textSection: some View {
+        section(request.kind == "novel" ? _L("小说专属", "Novels") : _L("文章专属", "Articles")) {
+            Text(_L("正文会**直接转成 Markdown 笔记**存进当前工作台（不进 source 素材库）：标题成 # 一级标题，来源与采集时间写在开头。",
+                    "The body is converted straight into a Markdown note in this workspace."))
+                .font(.system(size: 11)).foregroundStyle(.tertiary)
+            if request.kind == "novel" {
+                labeled(_L("章节数", "Chapters")) {
+                    HStack(spacing: 8) {
+                        Stepper(value: $request.chapterLimit, in: 1...500, step: 5) {
+                            Text("\(request.chapterLimit)").font(.system(size: 12)).monospacedDigit()
+                        }
+                        .frame(width: 120)
+                        Text(_L("最多抓多少章（从第一章开始）", "how many chapters to fetch"))
+                            .font(.system(size: 11)).foregroundStyle(.tertiary)
+                    }
+                }
+                flagRow(_L("合并成一个文件", "Merge into one file"), isOn: $request.mergeChapters)
+                Text(_L("关掉则一章一个 .md，统一放进以书名为名的文件夹。",
+                        "Turn off to save one .md per chapter in a folder named after the book."))
+                    .font(.system(size: 11)).foregroundStyle(.tertiary)
+            } else {
+                Text(_L("每篇一个 .md；正文提取用「容器启发式」（article / 正文 id-class 优先），广告、导航、页脚会清掉。",
+                        "One .md per article; ads, nav and footers are stripped."))
+                    .font(.system(size: 11)).foregroundStyle(.tertiary)
+            }
+        }
+    }
+
     var sourceSection: some View {
         section(_L("来源与筛选", "Sources & Filtering")) {
             singleChips(_L("时效", "Freshness"),
@@ -551,6 +599,8 @@ struct CollectorView: View {
             textRow(_L("排除站点", "Exclude"), text: optionalStringBinding(\.excludeSites), required: false,
                     placeholder: _L("域名，逗号分隔（可选）", "domains to exclude (optional)"))
             // 平台账号：登录后采集才能下载 1080P（不登录只有 360P）
+            // 平台账号：登录后采集才能下载 1080P（不登录只有 360P）—— 文章 / 小说用不上
+            if !request.isTextKind {
             labeled(_L("B站账号", "Bilibili")) {
                 HStack(spacing: 8) {
                     if let user = bilibiliUser {
@@ -574,6 +624,7 @@ struct CollectorView: View {
                             .controlSize(.small)
                     }
                 }
+            }
             }
             flagRow(_L("安全搜索", "Safe search"), isOn: $request.safeSearch)
         }
@@ -615,7 +666,8 @@ struct CollectorView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            let filters = request.kind == "video" ? request.videoFilterParams() : request.imageFilterParams()
+            let filters = request.isTextKind ? []
+                : (request.kind == "video" ? request.videoFilterParams() : request.imageFilterParams())
             if !filters.isEmpty {
                 Text(_L("站点筛选：", "Filters: ") + filters.joined(separator: " · "))
                     .font(.system(size: 11)).foregroundStyle(.tertiary)
@@ -644,13 +696,23 @@ struct CollectorView: View {
         statusText = nil
         candidates = []
         let kind = request.kind ?? "image"
-        let filters = kind == "video" ? request.videoFilterParams() : request.imageFilterParams()
+        let filters = request.isTextKind ? []
+            : (kind == "video" ? request.videoFilterParams() : request.imageFilterParams())
         var all: [CollectCandidate] = []
         for q in request.searchQueries().prefix(3) {
             if kind == "video" {
                 all += await CollectorSearch.searchVideos(query: q, count: request.count,
                                                           filters: filters,
                                                           safeSearch: request.safeSearch)
+            } else if request.isTextKind {
+                var found = await CollectorSearch.searchWeb(query: q, count: max(request.count, 12),
+                                                            safeSearch: request.safeSearch)
+                if kind == "novel" {
+                    // 小说：把「像目录页」的排前面（判定在解析阶段已经做过），并统一按小说入库
+                    found.sort { ($0.kind == "novel" ? 0 : 1) < ($1.kind == "novel" ? 0 : 1) }
+                }
+                for i in found.indices { found[i].kind = kind }
+                all += found
             } else {
                 all += await CollectorSearch.searchImages(query: q, count: request.count,
                                                           filters: filters,
@@ -703,7 +765,7 @@ struct CollectorView: View {
             HStack(spacing: 10) {
                 Text(_L("\(candidates.count) 个候选", "\(candidates.count) candidates"))
                     .font(.system(size: 12, weight: .medium))
-                Text(request.kind == "video" ? _L("视频", "Video") : _L("图片", "Images"))
+                Text(kindBadgeText)
                     .font(.system(size: 10))
                     .padding(.horizontal, 6).padding(.vertical, 2)
                     .background(Capsule().fill(appAppearance.accent.opacity(0.14)))
@@ -722,14 +784,24 @@ struct CollectorView: View {
             .padding(.horizontal, 16).padding(.vertical, 10)
             Divider()
             ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 10)], spacing: 10) {
-                ForEach($candidates) { $c in
-                    candidateCard(c)
-                        .onTapGesture { c.selected.toggle() }
-                        .simultaneousGesture(TapGesture(count: 2).onEnded { previewCandidate = c })
+                if request.isTextKind {
+                    LazyVStack(spacing: 8) {
+                        ForEach($candidates) { $c in
+                            candidateRow(c)
+                                .onTapGesture { c.selected.toggle() }
+                        }
+                    }
+                    .padding(16)
+                } else {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 10)], spacing: 10) {
+                    ForEach($candidates) { $c in
+                        candidateCard(c)
+                            .onTapGesture { c.selected.toggle() }
+                            .simultaneousGesture(TapGesture(count: 2).onEnded { previewCandidate = c })
+                    }
+                    }
+                    .padding(16)
                 }
-                }
-                .padding(16)
             }
             Divider()
             VStack(alignment: .leading, spacing: 10) {
@@ -740,6 +812,13 @@ struct CollectorView: View {
                     Spacer()
                     if !importingCountText.isEmpty {
                         Text(importingCountText).font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
+                    if !importing, let first = savedNotes.first {
+                        Button(_L("打开刚采集的笔记", "Open collected note")) {
+                            store.openNote(first)
+                            dismiss()
+                        }
+                        .controlSize(.small)
                     }
                     Button {
                         Task { await importSelected() }
@@ -760,6 +839,13 @@ struct CollectorView: View {
 
     /// 下载进度条：说明（阶段 · 条目）+ 「第几个/共几个 · 已下/总长」+ 百分比（主题化样式）
     private var downloadBar: some View {
+        // 小说：进度按「第几章 / 共几章」走，比「第几个候选」有用得多
+        if crawlTotal > 0 {
+            return ThemeProgressBar(value: Double(crawlIndex) / Double(max(crawlTotal, 1)),
+                                    label: _L("正在抓章节 · \(crawlBook)", "Fetching chapters · \(crawlBook)"),
+                                    detail: "\(crawlIndex)/\(crawlTotal)",
+                                    height: 6)
+        }
         let phase = downloadPhase.isEmpty ? _L("正在下载", "Downloading") : downloadPhase
         let name = downloadItemName.isEmpty ? "" : " · \(downloadItemName)"
         var detail = downloadTotal > 0 ? "\(downloadIndex)/\(downloadTotal)" : ""
@@ -774,6 +860,67 @@ struct CollectorView: View {
 
     private var importingCountText: String {
         importedCount > 0 ? _L("已入库 \(importedCount) 个", "\(importedCount) imported") : ""
+    }
+
+    private var kindBadgeText: String {
+        switch request.kind {
+        case "video": return _L("视频", "Video")
+        case "article": return _L("文章", "Article")
+        case "novel": return _L("小说", "Novel")
+        default: return _L("图片", "Images")
+        }
+    }
+
+    /// 文章 / 小说候选：一行一条（标题 + 摘要 + 来源），点一下勾选
+    private func candidateRow(_ c: CollectCandidate) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: c.selected ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 15))
+                .foregroundStyle(c.selected ? appAppearance.accent
+                                            : Color(nsColor: appAppearance.editorForeground.withAlphaComponent(0.35)))
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(c.title.isEmpty ? _L("未命名", "Untitled") : c.title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Color(nsColor: appAppearance.editorForeground))
+                    .lineLimit(2)
+                if let e = c.excerpt, !e.isEmpty {
+                    Text(e)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color(nsColor: appAppearance.editorForeground).opacity(0.72))
+                        .lineLimit(2)
+                }
+                HStack(spacing: 6) {
+                    if let src = c.sourceLabel ?? c.pageURL?.host, !src.isEmpty {
+                        Text(src)
+                            .font(.system(size: 9, weight: .medium))
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(Capsule().fill(appAppearance.accent.opacity(0.14)))
+                            .foregroundStyle(appAppearance.accent)
+                            .lineLimit(1)
+                    }
+                    if let meta = c.metaLine, !meta.isEmpty {
+                        Text(meta).font(.system(size: 9)).foregroundStyle(.tertiary).lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                    if let page = c.pageURL {
+                        Button(_L("打开来源", "Open source")) { NSWorkspace.shared.open(page) }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 10))
+                            .foregroundStyle(appAppearance.accent)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8)
+            .fill(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground)))
+        .overlay(RoundedRectangle(cornerRadius: 8)
+            .stroke(c.selected ? appAppearance.accent
+                               : Color(nsColor: appAppearance.editorForeground.withAlphaComponent(0.08)),
+                    lineWidth: c.selected ? 1.5 : 1))
+        .contentShape(Rectangle())
     }
 
     private func setAll(_ on: Bool) {
@@ -861,7 +1008,7 @@ struct CollectorView: View {
                         .background(Capsule().fill(appAppearance.accent.opacity(0.14)))
                         .foregroundStyle(appAppearance.accent)
                 } else {
-                    Text(c.pageURL?.host ?? c.thumbURL.host ?? "")
+                    Text(c.pageURL?.host ?? c.thumbURL?.host ?? "")
                         .font(.system(size: 10))
                         .foregroundStyle(.tertiary)
                 }
@@ -920,9 +1067,22 @@ struct CollectorView: View {
                 break
             }
             let name = downloadItemName
-            if c.kind == "image" {
+            if c.kind == "article" || c.kind == "novel" {
+                // 文章 / 小说：抓正文 → 转 Markdown → 存成工作台里的 .md 笔记
+                downloadPhase = c.kind == "novel" ? _L("正在抓小说", "Fetching novel")
+                                                  : _L("正在抓正文", "Fetching article")
+                let outcome = await importTextCandidate(c)
+                if outcome.ok {
+                    importedCount += 1
+                    importedURLs.insert(key)
+                }
+                if let note = outcome.note { failures.append("\(name)：\(note)") }
+            } else if c.kind == "image" {
                 downloadPhase = _L("正在下载图片", "Downloading image")
-                let src = c.fullURL ?? c.thumbURL
+                guard let src = c.fullURL ?? c.thumbURL else {
+                    failures.append(_L("\(name)：这条没有图片地址", "\(name): no image URL"))
+                    continue
+                }
                 switch await store.downloadCollectedImage(from: src, preferredName: name, referer: c.pageURL) {
                 case .saved:
                     importedCount += 1
@@ -930,8 +1090,8 @@ struct CollectorView: View {
                 case .failed(let why):
                     // 原图被防盗链/签名拦下 → 退到搜索缩略图（Bing 缓存一般能取到）：
                     // 宁可小一档也别空手，但必须在账上写清楚
-                    if c.fullURL != nil, c.thumbURL != src,
-                       case .saved = await store.downloadCollectedImage(from: c.thumbURL,
+                    if let thumb = c.thumbURL, c.fullURL != nil, thumb != src,
+                       case .saved = await store.downloadCollectedImage(from: thumb,
                                                                         preferredName: name + "-缩略图",
                                                                         referer: nil) {
                         importedCount += 1
@@ -974,7 +1134,8 @@ struct CollectorView: View {
                 var coverRel: String?
                 downloadPhase = _L("正在下载封面", "Downloading cover")
                 downloadSample = nil
-                if case .saved(let rel) = await store.downloadCollectedImage(from: c.thumbURL,
+                if let thumb = c.thumbURL,
+                   case .saved(let rel) = await store.downloadCollectedImage(from: thumb,
                                                                             preferredName: name + "-封面",
                                                                             referer: nil) {
                     coverRel = rel
@@ -999,6 +1160,9 @@ struct CollectorView: View {
         downloadSample = nil
         downloadPhase = ""
         downloadItemName = ""
+        crawlTotal = 0
+        crawlIndex = 0
+        crawlBook = ""
         NotificationCenter.default.post(name: .assetsChanged, object: nil)
         // 失败如实汇总：弹窗列原因（候选保持勾选，可以再点一次重试）
         importFailures = failures
@@ -1008,6 +1172,120 @@ struct CollectorView: View {
         if !failures.isEmpty { note += _L(" · 失败 \(failures.count) 个", " · \(failures.count) failed") }
         statusText = note
         updateHistoryResult(importedCount)
+    }
+
+    // MARK: - 文章 / 小说入库（正文 → Markdown 笔记）
+
+    private struct TextImport {
+        var ok: Bool
+        /// 非致命说明（例：第 3 章没抓到 / 原图被拦）；nil = 一切顺利
+        var note: String?
+    }
+
+    private func importTextCandidate(_ c: CollectCandidate) async -> TextImport {
+        guard var page = c.pageURL else { return TextImport(ok: false, note: _L("没有来源链接", "no source URL")) }
+        // 搜索引擎跳转没解开（或解失败）时，入库前再解一次
+        if let host = page.host?.lowercased(), host.contains("so.com") || host.contains("sogou.com"),
+           let jump = await CollectorSearch.fetch(page),
+           let real = CollectorSearch.redirectTarget(inHTML: jump),
+           let url = URL(string: real) {
+            page = url
+        }
+        guard let html = await CollectorSearch.fetch(page) else {
+            return TextImport(ok: false, note: _L("打不开页面（反爬 / 需要登录 / 已失效）",
+                                                 "cannot open page (anti-bot / login / dead link)"))
+        }
+        if c.kind == "novel" {
+            return await importNovel(html: html, page: page, candidateID: c.id, fallbackTitle: c.title)
+        }
+        let body = HTMLToMarkdown.convert(html, baseURL: page)
+        let words = HTMLToMarkdown.wordCount(body)
+        guard words >= 200 else {
+            return TextImport(ok: false, note: _L("正文只有 \(words) 字（多半是列表页 / 反爬页）",
+                                                  "body only \(words) chars (list page / blocked)"))
+        }
+        let linkRatio = HTMLToMarkdown.linkTextRatio(body)
+        guard linkRatio <= 0.5 else {
+            return TextImport(ok: false,
+                              note: _L("这页的「正文」\(Int(linkRatio * 100))% 是链接文字（导航/评论页，正文多半是动态加载的）",
+                                       "page is \(Int(linkRatio * 100))% link text (nav/comment page)"))
+        }
+        let title = HTMLToMarkdown.pageTitle(inHTML: html) ?? c.title
+        let note = NovelCollector.articleNote(title: title, source: page, markdown: body)
+        guard let rel = store.saveCollectedMarkdown(note, title: title) else {
+            return TextImport(ok: false, note: _L("写入笔记失败", "failed to write note"))
+        }
+        savedNotes.append(rel)
+        if let i = candidates.firstIndex(where: { $0.id == c.id }) {
+            candidates[i].metaLine = _L("\(words) 字 → \(rel)", "\(words) chars → \(rel)")
+        }
+        return TextImport(ok: true, note: nil)
+    }
+
+    private func importNovel(html: String, page: URL, candidateID: String,
+                             fallbackTitle: String) async -> TextImport {
+        let bookTitle = HTMLToMarkdown.pageTitle(inHTML: html) ?? fallbackTitle
+        var chapters = NovelCollector.chapters(inHTML: html, base: page)
+        guard !chapters.isEmpty else {
+            return TextImport(ok: false,
+                              note: _L("这页没有章节目录（可能要先打开「目录」页，或该站要求登录）",
+                                       "no chapter list on this page (try the index/catalog page)"))
+        }
+        let total = chapters.count
+        if chapters.count > max(1, request.chapterLimit) {
+            chapters = Array(chapters.prefix(request.chapterLimit))
+        }
+        crawlBook = bookTitle
+        crawlTotal = chapters.count
+        crawlIndex = 0
+        var collected: [(title: String, markdown: String)] = []
+        var failed = 0
+        for ch in chapters {
+            crawlIndex += 1
+            guard let chHTML = await CollectorSearch.fetch(ch.url) else { failed += 1; continue }
+            let body = HTMLToMarkdown.convert(chHTML, baseURL: ch.url)
+            guard HTMLToMarkdown.wordCount(body) >= 100,
+                  HTMLToMarkdown.linkTextRatio(body) <= 0.5 else { failed += 1; continue }
+            collected.append((ch.title, body))
+        }
+        crawlTotal = 0
+        crawlIndex = 0
+        guard !collected.isEmpty else {
+            return TextImport(ok: false, note: _L("章节正文一页都没抓到（反爬 / 需要登录）",
+                                                  "no chapter text could be fetched"))
+        }
+        let words = collected.reduce(0) { $0 + HTMLToMarkdown.wordCount($1.markdown) }
+        var notes: [String] = []
+        if request.mergeChapters {
+            let note = NovelCollector.bookNote(bookTitle: bookTitle, source: page, chapters: collected)
+            if let rel = store.saveCollectedMarkdown(note, title: bookTitle) { notes.append(rel) }
+        } else {
+            for ch in collected {
+                let note = NovelCollector.articleNote(title: ch.title, source: page, markdown: ch.markdown)
+                if let rel = store.saveCollectedMarkdown(note, title: ch.title, folder: bookTitle) {
+                    notes.append(rel)
+                }
+            }
+        }
+        guard !notes.isEmpty else {
+            return TextImport(ok: false, note: _L("写入笔记失败", "failed to write note"))
+        }
+        savedNotes.append(contentsOf: notes)
+        if let i = candidates.firstIndex(where: { $0.id == candidateID }) {
+            let done = collected.count
+            candidates[i].metaLine = _L("\(done)/\(total) 章 · \(words) 字 → \(notes.first ?? "")",
+                                        "\(done)/\(total) chapters · \(words) chars → \(notes.first ?? "")")
+        }
+        var note: String?
+        if failed > 0 {
+            note = _L("有 \(failed) 章没抓到（其余已存好）", "\(failed) chapters failed (rest saved)")
+        }
+        if chapters.count < total {
+            let rest = _L("按设定只抓了前 \(chapters.count) 章（共 \(total) 章）",
+                          "fetched first \(chapters.count) of \(total) chapters per setting")
+            note = note.map { "\($0)；\(rest)" } ?? rest
+        }
+        return TextImport(ok: true, note: note)
     }
 
     /// 失败弹窗正文：最多列 8 条（其余折叠成一句），并提示可以直接重试

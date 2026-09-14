@@ -133,7 +133,7 @@ final class CollectorTests: XCTestCase {
         XCTAssertEqual(list[0].title, "赛博朋克霓虹街道")
         XCTAssertEqual(list[0].fullURL?.absoluteString, "https://example.com/pic/neon.jpg")
         XCTAssertEqual(list[0].pageURL?.host, "example.com")
-        XCTAssertEqual(list[1].thumbURL.absoluteString, "https://tse1.mm.bing.net/th?id=O2")
+        XCTAssertEqual(list[1].thumbURL?.absoluteString, "https://tse1.mm.bing.net/th?id=O2")
     }
 
     func testParseVideoCandidates() throws {
@@ -148,7 +148,7 @@ final class CollectorTests: XCTestCase {
         XCTAssertEqual(list[0].duration, "03:24")
         XCTAssertNil(list[0].fullURL, "视频不下载文件本体")
         XCTAssertEqual(list[0].pageURL?.absoluteString, "https://www.douyin.com/shipin/729752")
-        XCTAssertTrue(list[0].thumbURL.absoluteString.contains("pid=15.1"), "转义 &amp; 必须还原")
+        XCTAssertTrue(list[0].thumbURL?.absoluteString.contains("pid=15.1") == true, "转义 &amp; 必须还原")
     }
 
     func testImageExtensionFromMimeAndURL() {
@@ -317,7 +317,7 @@ final class CollectVideoPipelineTests: XCTestCase {
         XCTAssertEqual(c.title, "超高质量【城市夜景】", "标题要来自 vrhm.title")
         XCTAssertEqual(c.duration, "03:34", "时长要来自 vrhm.du")
         XCTAssertEqual(c.sourceLabel, "bilibili")
-        XCTAssertTrue(c.thumbURL.absoluteString.contains("w=354"), "要用高清封面 data-src-hq：\(c.thumbURL)")
+        XCTAssertTrue(c.thumbURL?.absoluteString.contains("w=354") == true, "要用高清封面 data-src-hq：\(c.thumbURL?.absoluteString ?? "-")")
         XCTAssertEqual(c.pageURL?.host, "www.bilibili.com")
         XCTAssertTrue(c.metaLine?.contains("20.7万") ?? false, "带播放量：\(c.metaLine ?? "")")
         XCTAssertNil(c.videoURL, "B 站卡片没有直链")
