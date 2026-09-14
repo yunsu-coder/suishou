@@ -1400,7 +1400,7 @@ struct CollectorView: View {
            let url = URL(string: real) {
             page = url
         }
-        guard let html = await CollectorSearch.fetch(page) else {
+        guard let html = await fetchPageHTML(page) else {
             return TextImport(ok: false,
                               note: withLoginHint(_L("打不开页面（反爬 / 需要登录 / 已失效）",
                                                      "cannot open page (anti-bot / login / dead link)"),
@@ -1453,7 +1453,7 @@ struct CollectorView: View {
         var failed = 0
         for ch in chapters {
             crawlIndex += 1
-            guard let chHTML = await CollectorSearch.fetch(ch.url) else { failed += 1; continue }
+            guard let chHTML = await fetchPageHTML(ch.url) else { failed += 1; continue }
             let body = HTMLToMarkdown.convert(chHTML, baseURL: ch.url)
             guard HTMLToMarkdown.wordCount(body) >= 100,
                   HTMLToMarkdown.linkTextRatio(body) <= 0.5 else { failed += 1; continue }
@@ -1497,6 +1497,19 @@ struct CollectorView: View {
             note = note.map { "\($0)；\(rest)" } ?? rest
         }
         return TextImport(ok: true, note: note)
+    }
+
+    /// 抓正文用 HTML：先普通 HTTP；太薄（JS 渲染 / 登录墙）就改用应用内浏览器跑一遍。
+    /// 浏览器复用站点账号的 cookie store，所以登录过的站渲染出来就是登录后的页面。
+    private func fetchPageHTML(_ page: URL) async -> String? {
+        let plain = await CollectorSearch.fetch(page)
+        let plainWords = plain.map { HTMLToMarkdown.wordCount(HTMLToMarkdown.convert($0, baseURL: page)) } ?? 0
+        if plainWords >= 200 { return plain }
+        if let rendered = await CollectorWebRender.render(page) {
+            let words = HTMLToMarkdown.wordCount(HTMLToMarkdown.convert(rendered, baseURL: page))
+            if words > plainWords { return rendered }
+        }
+        return plain
     }
 
     /// 失败弹窗正文：最多列 8 条（其余折叠成一句），并提示可以直接重试
