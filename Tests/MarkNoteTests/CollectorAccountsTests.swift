@@ -50,7 +50,8 @@ final class CollectorAccountsTests: XCTestCase {
         XCTAssertFalse(imageSites.contains("fanqie"), "图片采集不必列小说站")
         let novelSites = CollectAccounts.sites(forKind: "novel", signedIn: none).map(\.id)
         XCTAssertTrue(novelSites.contains("fanqie"))
-        XCTAssertTrue(novelSites.contains("qidian"))
+        XCTAssertTrue(novelSites.contains("zongheng"))
+        XCTAssertTrue(novelSites.contains("weread"))
         XCTAssertFalse(novelSites.contains("pixiv"))
         // 登录过的站点永远算相关，而且排在最前
         let signedInFanqie: (CollectSite) -> Bool = { $0.id == "fanqie" }
@@ -119,15 +120,17 @@ final class CollectorAccountsTests: XCTestCase {
     }
 
     func testSiteMatchingByDomain() throws {
-        XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://m.weibo.com/u/1")!)?.id, "weibo")
-        XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://weibo.com/x")!)?.id, "weibo")
+        XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://m.xiaohongshu.com/x")!)?.id,
+                       "xiaohongshu")
+        XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://www.xiaohongshu.com/x")!)?.id,
+                       "xiaohongshu")
         XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://i0.hdslb.com/a.jpg")!)?.id, "bilibili",
                        "B 站图床也要算 B 站")
-        XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://www.xiaohongshu.com/explore/1")!)?.id,
-                       "xiaohongshu")
+        XCTAssertEqual(CollectAccounts.site(for: URL(string: "https://sns-img.xhscdn.com/a.jpg")!)?.id,
+                       "xiaohongshu", "小红书图床同理")
         XCTAssertNil(CollectAccounts.site(for: URL(string: "https://example.com/a")!))
         // 后缀必须落在域名边界上，不能把伪装域名当成站点
-        XCTAssertNil(CollectAccounts.site(for: URL(string: "https://weibo.com.evil.example/x")!))
+        XCTAssertNil(CollectAccounts.site(for: URL(string: "https://xiaohongshu.com.evil.example/x")!))
     }
 
     // MARK: - cookie 拼接
@@ -162,11 +165,15 @@ final class CollectorAccountsTests: XCTestCase {
     }
 
     func testLooksLoggedInPerSite() {
-        let weibo = CollectAccounts.site(id: "weibo")!
-        XCTAssertTrue(CollectAccounts.looksLoggedIn(weibo, cookieHeader: "SUB=abc"))
-        XCTAssertFalse(CollectAccounts.looksLoggedIn(weibo, cookieHeader: "SUBP=abc"))
+        let zhihu = CollectAccounts.site(id: "zhihu")!
+        XCTAssertTrue(CollectAccounts.looksLoggedIn(zhihu, cookieHeader: "z_c0=abc"))
+        XCTAssertFalse(CollectAccounts.looksLoggedIn(zhihu, cookieHeader: "z_c0x=abc"))
         let xhs = CollectAccounts.site(id: "xiaohongshu")!
         XCTAssertTrue(CollectAccounts.looksLoggedIn(xhs, cookieHeader: "web_session=xyz"))
+        let bilibili = CollectAccounts.site(id: "bilibili")!
+        XCTAssertTrue(CollectAccounts.looksLoggedIn(bilibili, cookieHeader: "SESSDATA=abc"))
+        XCTAssertFalse(CollectAccounts.looksLoggedIn(bilibili, cookieHeader: "buvid3=abc"),
+                       "B 站要看 SESSDATA，游客 cookie 不算")
         let huaban = CollectAccounts.site(id: "huaban")!
         XCTAssertTrue(CollectAccounts.looksLoggedIn(huaban, cookieHeader: "anything=1"),
                       "花瓣这类看不出名字的：有 cookie 就算已保存登录")
@@ -177,12 +184,12 @@ final class CollectorAccountsTests: XCTestCase {
 
     func testStoreRoundTripAndClear() {
         let (store, _) = makeStore()
-        XCTAssertNil(store.cookie("weibo"))
-        store.setCookie("SUB=abc", for: "weibo")
-        XCTAssertEqual(store.cookie("weibo"), "SUB=abc")
-        XCTAssertEqual(store.loggedInSites().map(\.id), ["weibo"])
-        store.clear("weibo")
-        XCTAssertNil(store.cookie("weibo"))
+        XCTAssertNil(store.cookie("zhihu"))
+        store.setCookie("z_c0=abc", for: "zhihu")
+        XCTAssertEqual(store.cookie("zhihu"), "z_c0=abc")
+        XCTAssertEqual(store.loggedInSites().map(\.id), ["zhihu"])
+        store.clear("zhihu")
+        XCTAssertNil(store.cookie("zhihu"))
         XCTAssertTrue(store.loggedInSites().isEmpty)
     }
 
@@ -204,14 +211,17 @@ final class CollectorAccountsTests: XCTestCase {
     func testCookieForURLAndReferer() {
         let (store, _) = makeStore()
         store.setCookie("SESSDATA=bili", for: "bilibili")
-        store.setCookie("SUB=weibo", for: "weibo")
+        store.setCookie("web_session=xhs", for: "xiaohongshu")
         // 图床（hdslb）→ 用 B 站的 cookie
         XCTAssertEqual(CollectAccounts.cookieHeader(
             for: URL(string: "https://i0.hdslb.com/bfs/a.jpg")!, store: store), "SESSDATA=bili")
-        // 直链不认识的域名，但 referer 是微博 → 借微博的 cookie
+        // 小红书 CDN 域名 → 用小红书的 cookie
+        XCTAssertEqual(CollectAccounts.cookieHeader(
+            for: URL(string: "https://sns-img.xhscdn.com/a.jpg")!, store: store), "web_session=xhs")
+        // 不认识的第三方域名，但 referer 是小红书 → 借它的 cookie
         XCTAssertEqual(CollectAccounts.requestCookie(
-            for: URL(string: "https://wx1.sinaimg.cn/a.jpg")!,
-            referer: URL(string: "https://weibo.com/u/1")!, store: store), "SUB=weibo")
+            for: URL(string: "https://third-party.example/a.jpg")!,
+            referer: URL(string: "https://www.xiaohongshu.com/explore/1")!, store: store), "web_session=xhs")
         // 都不认识 → nil（不加任何 cookie）
         XCTAssertNil(CollectAccounts.requestCookie(
             for: URL(string: "https://example.com/a.jpg")!, referer: nil, store: store))

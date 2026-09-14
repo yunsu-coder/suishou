@@ -106,8 +106,8 @@ final class CollectorFormTests: XCTestCase {
         let (store, _) = try TestEnv.makeStore()
         // 只渲染清单（ImageRenderer 画不了 ScrollView 内部，完整面板会是空白）；
         // 站点表 70 个 → 文档用图渲染代表性样本，别做成几千像素高的长图
-        let sample = ["bilibili", "weibo", "xiaohongshu", "pixiv", "pinterest", "huaban",
-                      "zhihu", "fanqie", "juejin", "baidu"]
+        let sample = ["bilibili", "xiaohongshu", "huaban", "pixiv", "tuchong", "tumblr",
+                      "zhihu", "weread", "juejin", "fanqie"]
             .compactMap { CollectAccounts.site(id: $0) }
         let view = CollectorAccountsSheet(sitesOverride: sample)
             .sitesList
