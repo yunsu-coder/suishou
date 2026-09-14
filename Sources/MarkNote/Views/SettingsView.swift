@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(NotesStore.self) private var store
     @AppStorage("editorFontSize") private var editorFontSize = 13.0
     @AppStorage("previewFontScale") private var previewFontScale = 1.0
+    @AppStorage("previewImageCaptions") private var previewImageCaptions = true
     @State private var appearanceToken = "-"
 
     var body: some View {
@@ -12,7 +13,8 @@ struct SettingsView: View {
             GeneralSettingsTab()
                 .environment(store)
                 .tabItem { Label(_LL("通用", "General"), systemImage: "gear") }
-            EditorSettingsTab(editorFontSize: $editorFontSize, previewFontScale: $previewFontScale)
+            EditorSettingsTab(editorFontSize: $editorFontSize, previewFontScale: $previewFontScale,
+                              previewImageCaptions: $previewImageCaptions)
                 .tabItem { Label(_LL("编辑", "Editor"), systemImage: "textformat.size") }
             PluginsSettingsTab()
                 .tabItem { Label(_LL("插件", "Plugins"), systemImage: "puzzlepiece.extension") }
@@ -220,6 +222,7 @@ private struct GeneralSettingsTab: View {
 private struct EditorSettingsTab: View {
     @Binding var editorFontSize: Double
     @Binding var previewFontScale: Double
+    @Binding var previewImageCaptions: Bool
 
     var body: some View {
         Form {
@@ -254,6 +257,11 @@ private struct EditorSettingsTab: View {
                     }
                     Slider(value: $previewFontScale, in: 0.6...2.0)
                 }
+                Toggle(_L("图片下方显示图注", "Show image captions"), isOn: $previewImageCaptions)
+                Text(_L("图注只认显式写的说明：![图](路径 \"图注\") 或 {caption=图注}；关掉后图片本身不受影响。",
+                        "Captions come from an explicit title or {caption=…} only."))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
                 Text(_L("预览字体由当前主题提供：\(appAppearance.uiFontFamily ?? "系统字体")",
                         "Preview font is provided by the active theme: \(appAppearance.uiFontFamily ?? "System")"))
                     .font(.caption)

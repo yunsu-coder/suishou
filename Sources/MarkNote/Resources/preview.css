@@ -531,6 +531,9 @@ html { scroll-behavior: smooth; }
 .markdown-body .task-list-item input[type="checkbox"] { accent-color: var(--accent); }
 .markdown-body figcaption { color: var(--text-secondary); }
 
+/* 图注开关：不想看图片下面那行说明时一键隐藏（保留图片本身） */
+html.no-figcaption .markdown-body figcaption { display: none !important; }
+
 /* 多彩钩子：主题可以用 --h1/--h2/--h3/--strong/--em 给不同层级的文字分配色相。
    不声明时回落到正文色 —— 所以老主题不受影响，多彩主题能一眼看出层级。 */
 .markdown-body h1 { color: var(--h1, var(--text)); }

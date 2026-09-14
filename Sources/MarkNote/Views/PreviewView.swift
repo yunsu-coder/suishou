@@ -50,6 +50,8 @@ struct PreviewView: NSViewRepresentable {
     var theme: String?
     /// 预览内图片点击（载荷：原始相对路径 / file:// URL / http(s) URL，由宿主解析）
     var onOpenImage: (String) -> Void
+    /// 图片下方是否显示图注（preview.css 的 no-figcaption 开关）
+    var showImageCaptions: Bool = true
     /// 预览内附件链接点击（相对路径已解析为 file URL）
     var onOpenFile: (URL) -> Void
     /// 滚动跟随：光标所在标题（含同名出现序号）；nil = 光标前无标题
@@ -266,6 +268,7 @@ struct PreviewView: NSViewRepresentable {
               } else {
                 window.renderMd(\(mdJSON), \(baseJSON), { dark: \(dark), resetScroll: \(resetScroll) });
               }
+              if (window.__setImageCaptions) window.__setImageCaptions(\(parent.showImageCaptions));
               document.documentElement.style.colorScheme = \(dark) ? 'dark' : 'light';
               document.body.style.fontSize = \(String(format: "%.3f", scale * 16)) + 'px';
               document.body.style.fontFamily = \(fontJS); // 空串 = 清除内联覆盖（还原系统默认）

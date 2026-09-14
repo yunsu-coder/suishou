@@ -278,3 +278,94 @@ final class MarkdownRenderSmokeTests: XCTestCase {
         return try XCTUnwrap(result as? String)
     }
 }
+
+/// 图片：点击回传原始路径（不能把 data URL 当路径）、图注只认显式说明、图注可隐藏
+final class PreviewImageBehaviorTests: XCTestCase {
+
+    private func loadPreviewWeb() throws -> WKWebView {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let resources = root.appendingPathComponent(".build/arm64-apple-macosx/debug/MarkNote_MarkNote.bundle/Resources")
+        let html = resources.appendingPathComponent("preview.html")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: html.path))
+        let web = WKWebView(frame: NSRect(x: -5000, y: -5000, width: 800, height: 600))
+        web.loadFileURL(html, allowingReadAccessTo: resources)
+        for _ in 0..<60 {
+            var value: Any?
+            let e = XCTestExpectation(description: "ready")
+            web.evaluateJavaScript("typeof window.renderMd") { r, _ in value = r; e.fulfill() }
+            wait(for: [e], timeout: 2)
+            if (value as? String) == "function" { return web }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+        XCTFail("预览渲染管线未就绪")
+        return web
+    }
+
+    private func evaluate(_ web: WKWebView, _ script: String) throws -> String {
+        let done = XCTestExpectation(description: "evaluate")
+        var out = ""
+        var err: Error?
+        web.evaluateJavaScript(script) { value, error in
+            out = (value as? String) ?? String(describing: value ?? "")
+            err = error
+            done.fulfill()
+        }
+        wait(for: [done], timeout: 5)
+        if let err { throw err }
+        return out
+    }
+
+    /// 内联图（注册表命中 → data URL）必须带 data-img-path，点击才回传原始相对路径
+    func testInlineImageCarriesOriginalPath() throws {
+        let web = try loadPreviewWeb()
+        let out = try evaluate(web, """
+        window.__setEntry('img/图 片 (2).jpg', 'data:image/png;base64,iVBORw0KGgo=');
+        window.renderMd('![说明](img/图 片 (2).jpg)', 'file:///tmp/', { dark: false, resetScroll: true });
+        (function () {
+          var img = document.querySelector('.markdown-body img');
+          if (!img) return 'no-img';
+          return (img.getAttribute('src') || '').indexOf('data:') === 0
+            ? (img.getAttribute('data-img-path') || 'no-marker')
+            : 'not-inlined';
+        })();
+        """)
+        // markdown-it 会把非 ASCII 目标编码（图→%E5%9B%BE）；这正是「原始引用路径」的规范形式，
+        // 宿主侧 resolvedImageURL 会先解码再找文件 —— 关键是**不是 data: URL**
+        XCTAssertFalse(out.hasPrefix("data:"), "不能把 data URL 当路径回传：\(out)")
+        let decoded = out.removingPercentEncoding ?? out
+        XCTAssertEqual(decoded, "img/图 片 (2).jpg", "解码后应回到原始相对路径，实际：\(out)")
+    }
+
+    /// 图注只认显式 title；只有 alt（文件名）时不生成 figcaption
+    func testCaptionOnlyFromExplicitTitle() throws {
+        let web = try loadPreviewWeb()
+        let out = try evaluate(web, """
+        window.renderMd('![09-13-很长的一串文件名.jpg](source/image/a.jpg)\\n\\n![图注文字](source/image/b.jpg "图注文字")', 'file:///tmp/', { dark: false, resetScroll: true });
+        JSON.stringify({
+          figures: document.querySelectorAll('.md-figure').length,
+          captions: Array.prototype.map.call(document.querySelectorAll('.md-figure figcaption'), function (n) { return n.textContent; })
+        });
+        """)
+        XCTAssertTrue(out.contains("\"figures\":2"), "两张图都要有相框：\(out)")
+        XCTAssertTrue(out.contains("图注文字"), "显式图注要显示：\(out)")
+        XCTAssertFalse(out.contains("很长的一串文件名"), "alt 不该再当图注：\(out)")
+    }
+
+    /// 一键隐藏图注：加 html.no-figcaption，图片本身不受影响
+    func testCaptionsCanBeHidden() throws {
+        let web = try loadPreviewWeb()
+        let out = try evaluate(web, """
+        window.renderMd('![图注](source/image/b.jpg "图注")', 'file:///tmp/', { dark: false, resetScroll: true });
+        window.__setImageCaptions(false);
+        (function () {
+          var cap = document.querySelector('.md-figure figcaption');
+          var img = document.querySelector('.md-figure img');
+          var hidden = cap ? getComputedStyle(cap).display : 'no-caption';
+          return JSON.stringify({ hidden: hidden, imgVisible: !!img && getComputedStyle(img).display !== 'none' });
+        })();
+        """)
+        XCTAssertTrue(out.contains("\"hidden\":\"none\""), "关掉后图注应隐藏：\(out)")
+        XCTAssertTrue(out.contains("\"imgVisible\":true"), "图片本身要留着：\(out)")
+    }
+}

@@ -99,12 +99,11 @@ window.__registerRenderPlugin({
     for (var i = imgs.length - 1; i >= 0; i--) {
       var im = imgs[i];
       if (inExistingFigure(im.start)) continue;
+      // 图注只认**显式**写的：Markdown 的 title（![图](src "图注")）或 {caption=…}（见 applyImageAttrs）。
+      // 不再拿 alt 当图注 —— alt 就是文件名时（采集入库的图尤其长）会在图片下面挂一行没用的字。
       var caption = attr(im.tag, 'title');
+      if (caption && /^img:/.test(caption)) caption = null;   // 兼容历史标记，别把路径当图注
       var newTag = im.tag;
-      if (!caption) {
-        var alt = attr(im.tag, 'alt');
-        if (alt && alt.trim() !== '') { caption = alt; newTag = stripAttr(newTag, 'alt'); }
-      }
       var fig = '<figure class="md-figure">' + newTag
         + (caption ? '<figcaption>' + caption + '</figcaption>' : '')
         + '</figure>';

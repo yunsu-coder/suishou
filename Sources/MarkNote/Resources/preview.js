@@ -303,14 +303,53 @@ if (typeof katex !== 'undefined') {
     return html.replace(/(<img[^>]*src=")([^"]+)(")/g, function (m, pre, src, post) {
       if (/^(https?:|data:|file:)/.test(src)) return m;
       var key = src.replace(/^\.?\//, '');
+      // 点击图片时要回传**原始路径**：把它钉在 data-img-path 上（以前靠 title 标记，
+      // 但 title 还要兼作图注，两个语义打架；这里独立开）
+      function marked(tagPre, replacement) {
+        var attr = ' data-img-path="' + src.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"';
+        return tagPre.replace(/<img/, '<img' + attr) + replacement + post;
+      }
       // 插入时对空格/括号做了百分号编码 → 解回来再查注册表（双键查找，原样键优先）
       var keyDecoded = key;
       try { keyDecoded = decodeURIComponent(key); } catch (e) {}
-      if (IMG_REG[key]) { return pre + IMG_REG[key] + post; }   // 注册表命中：data URL 直出
-      if (IMG_REG[keyDecoded]) { return pre + IMG_REG[keyDecoded] + post; }
+      if (IMG_REG[key]) { return marked(pre, IMG_REG[key]); }   // 注册表命中：data URL 直出
+      if (IMG_REG[keyDecoded]) { return marked(pre, IMG_REG[keyDecoded]); }
       if (baseDir) return pre + baseDir + key + post;
       return m;
     });
+  }
+
+  // ===== 图片图注开关（有些图注不想看时一键隐藏）=====
+  window.__setImageCaptions = function (on) {
+    document.documentElement.classList.toggle('no-figcaption', !on);
+  };
+
+  // ===== 老引用容错：`![alt](img/我的 图 (2).jpg)` =====
+  // 文件名带空格又没编码时，markdown-it 解析不出 <img>（图直接不渲染）。
+  // 这里在解析前把「本地图片/附件目标」里的空格与括号补上编码，标题（"..."）保持不动。
+  function fixLegacyAssetTargets(md) {
+    // 逐行处理：`](` 之后取到**行尾最后一个** `)`（路径里可能自带括号，如「我的 图 (2).jpg」）
+    return md.split('\n').map(function (line) {
+      var open = line.indexOf('](');
+      if (open < 0) return line;
+      var close = line.lastIndexOf(')');
+      if (close <= open + 1) return line;
+      var dest = line.slice(open + 2, close);
+      var title = '';
+      var mm = /^([^"]*?)\s+("[^"]*")\s*$/.exec(dest);
+      if (mm) { dest = mm[1]; title = ' ' + mm[2]; }
+      if (/^(https?:|data:|file:|mailto:|#)/.test(dest.trim())) return line;
+      if (!/\.(png|jpe?g|gif|webp|avif|heic|bmp|tiff?|svg|mp4|mov|m4v|webm|mkv|mp3|m4a|wav|flac|pdf|zip)\s*$/i.test(dest.trim())) {
+        return line;
+      }
+      if (!/[\s()（）「」]/.test(dest)) return line;   // 没有需要补编码的字符
+      var fixed = dest
+        .replace(/[(]/g, '%28').replace(/[)]/g, '%29')
+        .replace(/[（]/g, '%EF%BC%88').replace(/[）]/g, '%EF%BC%89')
+        .replace(/[「]/g, '%E3%80%8C').replace(/[」]/g, '%E3%80%8D')
+        .replace(/ /g, '%20');
+      return line.slice(0, open + 2) + fixed + title + line.slice(close);
+    }).join('\n');
   }
 
   // ===== 图片卡片语法：![alt](src){width=300 / width=60% / height=200 / caption=图注} =====
@@ -520,7 +559,9 @@ if (typeof katex !== 'undefined') {
     });
   }
 
-  // ===== 外部链接交给宿主（NSWorkspace.open）+ 图片点击查看大图 =====
+  // ===== 点击分发（唯一入口）：文档锚点 / 外链 / 附件 / 图片看大图 =====
+  // 注意：以前这里挂了两份 click 监听，附件会被 openFile 发两次；
+  // 现在只留这一份，顺序：锚点 → http(s) → 附件/文件 → 图片。
   document.addEventListener('click', function (e) {
     var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
     if (a) {
@@ -534,56 +575,32 @@ if (typeof katex !== 'undefined') {
         if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
         return;
       }
+      var handlers = window.webkit && window.webkit.messageHandlers;
       if (/^https?:/.test(href)) {
-        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openURL) {
-          window.webkit.messageHandlers.openURL.postMessage(href);
-        } else {
-          window.open(href, '_blank');
-        }
-      } else if (/^(attachments|images)\//.test(href)) {
-        // 附件链接 → 宿主解析打开（相对路径原样送出）
-        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openFile) {
-          window.webkit.messageHandlers.openFile.postMessage(href);
-        }
+        if (handlers && handlers.openURL) { handlers.openURL.postMessage(href); }
+        else { window.open(href, '_blank'); }
+      } else if (handlers && handlers.openFile) {
+        handlers.openFile.postMessage(href);
       }
       return;
     }
     var img = e.target && e.target.closest ? e.target.closest('img') : null;
     if (img && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openImage) {
       e.preventDefault();
-      // 内联图（data URL）/ 远程图：Swift 侧把原始路径写入 title="img:<path>"，
-      // 点击回传原始路径由宿主解析原图（修复：data URL 直接回传被宿主拒绝，C-06）。
-      // 无标记时回退 img src（file:// 绝对路径或 http(s) URL）。
-      var marker = img.getAttribute('title') || '';
-      var m = /^img:(.*)$/.exec(marker);
-      var payload = m ? m[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"') : (img.getAttribute('src') || '');
-      window.webkit.messageHandlers.openImage.postMessage(payload);
-    }
-  });
-
-  // ===== 点击分发：外链（openURL）/ 图片（openImage，标签载荷优先）/ 附件（openFile） =====
-  document.addEventListener('click', function (e) {
-    var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
-    if (a) {
-      e.preventDefault();
-      var href = a.getAttribute('href') || '';
-      var hasHandlers = window.webkit && window.webkit.messageHandlers;
-      if (hasHandlers) {
-        if (/^https?:/.test(href) && window.webkit.messageHandlers.openURL) {
-          window.webkit.messageHandlers.openURL.postMessage(href);
-        } else if (window.webkit.messageHandlers.openFile) {
-          window.webkit.messageHandlers.openFile.postMessage(href);
-        }
+      // 回传**原始引用路径**：data-img-path（内联图，见 resolveImages）
+      // → title="img:<path>"（历史写法）→ src（file:// / http(s)）。
+      // 绝不把 data: URL 当路径交给宿主，否则系统弹「无法打开」错误。
+      var payload = img.getAttribute('data-img-path') || '';
+      if (!payload) {
+        var marker = img.getAttribute('title') || '';
+        var m = /^img:(.*)$/.exec(marker);
+        if (m) payload = m[1];
       }
-      return;
-    }
-    var img = e.target && e.target.closest ? e.target.closest('img') : null;
-    if (img && window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.openImage) {
-      // C-06：内联图的 title="img:<原始相对路径>" 保留原始引用 → 回传宿主
-      var payload = img.getAttribute('title') || '';
-      if (payload.indexOf('img:') === 0) payload = payload.slice(4);
-      if (!payload) payload = img.getAttribute('src') || '';
-      window.webkit.messageHandlers.openImage.postMessage(payload);
+      if (!payload) {
+        var src = img.getAttribute('src') || '';
+        if (src.indexOf('data:') !== 0) payload = src;
+      }
+      if (payload) window.webkit.messageHandlers.openImage.postMessage(payload);
     }
   });
 
@@ -709,7 +726,7 @@ window.renderMd = function (md, baseDir, opts) {
     var scrollRatio = 0;
     var availBefore = document.documentElement.scrollHeight - window.innerHeight;
     if (availBefore > 0) { scrollRatio = window.pageYOffset / availBefore; }
-    var html = renderMedia(resolveImages(md2html(md), baseDir || null));
+    var html = renderMedia(resolveImages(md2html(fixLegacyAssetTargets(md)), baseDir || null));
     // 标题锚点（anchor）与 [TOC] 目录（toc）独立开关
     if (isMod('anchor') || isMod('toc')) {
       html = anchorize(html);

@@ -36,6 +36,7 @@ struct EditorView: View {
     // （store.editorFontSize 这类经 store 计算的属性不追踪 UserDefaults —— 设置窗口改完主窗口不动）
     @AppStorage("editorFontSize") private var editorFontSize = 13.0
     @AppStorage("previewFontScale") private var previewFontScale = 1.0
+    @AppStorage("previewImageCaptions") private var previewImageCaptions = true
 
     struct ZoomTarget: Identifiable {
         let url: URL
@@ -309,8 +310,15 @@ struct EditorView: View {
                     } else {
                         NSWorkspace.shared.open(url)
                     }
+                } else if raw.hasPrefix("data:") {
+                    // 防御：万一还有把 data URL 当路径传来的情况，别去调系统打开（会弹错误）
+                    store.showHint(_L("这张图是内联渲染的，已无法定位原文件", "This image is inlined; original file not found"))
+                } else {
+                    store.showHint(_L("找不到这张图（可能已被移动或删除）：\(raw)",
+                                      "Image not found (moved or deleted?): \(raw)"))
                 }
             },
+            showImageCaptions: previewImageCaptions,
             onOpenFile: { url in
                 NSWorkspace.shared.open(url)
             },
