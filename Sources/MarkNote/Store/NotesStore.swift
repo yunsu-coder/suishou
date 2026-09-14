@@ -942,10 +942,15 @@ final class NotesStore {
               data.count <= Self.maxCollectedVideoBytes else { return nil }
         let mime = (http.value(forHTTPHeaderField: "Content-Type") ?? "").lowercased()
         let ext = Self.videoExt(mime: mime, url: url)
-        let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("collect-\(UUID().uuidString).\(ext)")
+        // 临时文件名**必须带上用户看得懂的名字**：入库命名直接取自这个文件名（「日期-描述」）。
+        // 用 UUID 当文件名的话，库里就会出现「09-14-collect-98C1…」这种没法认的名字。
+        let safeName = Self.materialStem(preferredName)
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("collect-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+        let tmp = tmpDir.appendingPathComponent("\(safeName).\(ext)")
         guard (try? data.write(to: tmp)) != nil else { return nil }
-        defer { try? FileManager.default.removeItem(at: tmp) }
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
         // 走统一的素材入库（复制进 source/mp4 + 唯一命名），源临时文件随后删掉
         if case .assetStored(let rel) = handleExternalDrop(tmp, category: nil) { return rel }
         return nil

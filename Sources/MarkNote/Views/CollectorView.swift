@@ -19,6 +19,9 @@ struct CollectorView: View {
     @State private var candidates: [CollectCandidate] = []
     /// 正在放大查看的候选（点缩略图打开）
     @State private var previewCandidate: CollectCandidate?
+    @State private var showBilibiliLogin = false
+    /// B 站登录用户名（nil = 未登录；影响可下载画质）
+    @State private var bilibiliUser: String?
     @State private var importing = false
     @State private var importedCount = 0
     /// 提示词历史（手动输入的 + 选项总结的），按工作台存
@@ -70,6 +73,12 @@ struct CollectorView: View {
         }
         .task(id: store.notesDir.path) {
             history = CollectHistoryStore.load(workspace: store.notesDir)
+        }
+        .task {
+            bilibiliUser = await BilibiliLogin.currentUserName()
+        }
+        .sheet(isPresented: $showBilibiliLogin) {
+            CollectorBilibiliLoginSheet { user in bilibiliUser = user }
         }
     }
 
@@ -524,6 +533,31 @@ struct CollectorView: View {
                     placeholder: _L("域名，逗号分隔：unsplash.com, pexels.com", "domains, comma separated"))
             textRow(_L("排除站点", "Exclude"), text: optionalStringBinding(\.excludeSites), required: false,
                     placeholder: _L("域名，逗号分隔（可选）", "domains to exclude (optional)"))
+            // 平台账号：登录后采集才能下载 1080P（不登录只有 360P）
+            labeled(_L("B站账号", "Bilibili")) {
+                HStack(spacing: 8) {
+                    if let user = bilibiliUser {
+                        Text(_L("已登录：\(user)", "Signed in: \(user)"))
+                            .font(.system(size: 11))
+                            .foregroundStyle(appAppearance.accent)
+                        Button(_L("退出", "Sign out")) {
+                            Task {
+                                await BilibiliLogin.logout()
+                                bilibiliUser = nil
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    } else {
+                        Text(_L("未登录（只能下 360P）", "Not signed in (360p only)"))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        Button(_L("登录 B 站…", "Sign in…")) { showBilibiliLogin = true }
+                            .controlSize(.small)
+                    }
+                }
+            }
             flagRow(_L("安全搜索", "Safe search"), isOn: $request.safeSearch)
         }
     }
@@ -817,11 +851,14 @@ struct CollectorView: View {
                 }
             } else if c.kind == "video", let page = c.pageURL {
                 // 先试解析可播放直链：解析到就下载成真视频（source/mp4），否则只存「收藏条目」
-                var playURL = c.videoURL
-                if playURL == nil { playURL = await CollectorVideoResolver.resolve(pageURL: page) }
+                statusText = _L("正在解析视频地址…", "Resolving video source…")
+                var resolved: CollectorVideoResolver.ResolvedVideo?
+                if let direct = c.videoURL { resolved = .init(url: direct, quality: nil) }
+                else { resolved = await CollectorVideoResolver.resolve(pageURL: page) }
                 var localRel: String?
-                if let src = playURL {
-                    localRel = await store.downloadCollectedVideo(from: src, preferredName: name, referer: page)
+                if let r = resolved {
+                    statusText = _L("正在下载视频…", "Downloading video…")
+                    localRel = await store.downloadCollectedVideo(from: r.url, preferredName: name, referer: page)
                 }
                 var coverRel: String?
                 if let rel = await store.downloadCollectedImage(from: c.thumbURL, preferredName: name + "-封面", referer: nil) {

@@ -548,12 +548,20 @@ enum CollectorSearch {
     }
 
     static func fetch(_ url: URL) async -> String? {
+        guard let data = await fetchData(url) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    /// 取原始字节（视频接口返回 JSON；采集下载也复用这里的 UA / Cookie 约定）
+    static func fetchData(_ url: URL, referer: String? = nil, cookie: String? = nil) async -> Data? {
         var req = URLRequest(url: url)
         req.timeoutInterval = 20
         req.setValue(ua, forHTTPHeaderField: "User-Agent")
         req.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
+        if let referer { req.setValue(referer, forHTTPHeaderField: "Referer") }
+        if let cookie, !cookie.isEmpty { req.setValue(cookie, forHTTPHeaderField: "Cookie") }
         guard let (data, _) = try? await URLSession.shared.data(for: req) else { return nil }
-        return String(data: data, encoding: .utf8)
+        return data
     }
 
     // MARK: 解析（独立出来便于离线测试）
@@ -674,6 +682,26 @@ enum CollectorSearch {
 /// 找得到 → 可内嵌播放 + 可下载成真视频；找不到 → 明确标注「仅链接」，不糊弄。
 enum CollectorVideoResolver {
 
+    /// 解析结果：直链 + 画质说明（画质受平台限制，界面要如实显示）
+    struct ResolvedVideo: Equatable {
+        var url: URL
+        var quality: String?
+    }
+
+    /// B 站画质代码 → 人话（无登录时通常只有 16=360P）
+    static func qualityLabel(_ q: Int?) -> String? {
+        switch q {
+        case 116: return "1080P60"
+        case 112: return "1080P+"
+        case 80: return "1080P"
+        case 74: return "720P60"
+        case 64: return "720P"
+        case 32: return "480P"
+        case 16: return "360P"
+        default: return nil
+        }
+    }
+
     /// 纯函数：从页面 HTML 里提取可播放的媒体直链（供测试）
     static func playableURL(inHTML html: String, base: URL) -> URL? {
         func meta(_ prop: String) -> String? {
@@ -714,10 +742,112 @@ enum CollectorVideoResolver {
         return nil
     }
 
-    /// 抓页面并解析；失败返回 nil（调用方按「仅链接」处理）
-    static func resolve(pageURL: URL) async -> URL? {
+    /// 解析可播放直链：先按站点走专用接口（B 站/抖音），再退回通用元数据；
+    /// 都没有就返回 nil（调用方按「仅链接」处理，并如实告知）。
+    static func resolve(pageURL: URL) async -> ResolvedVideo? {
+        let host = pageURL.host?.lowercased() ?? ""
+        if host.contains("bilibili.com") || host.contains("b23.tv") {
+            if let r = await resolveBilibili(pageURL) { return r }
+        }
+        if host.contains("douyin.com") || host.contains("iesdouyin.com") {
+            if let r = await resolveDouyin(pageURL) { return r }
+        }
+        guard let html = await CollectorSearch.fetch(pageURL),
+              let u = playableURL(inHTML: html, base: pageURL) else { return nil }
+        return ResolvedVideo(url: u, quality: nil)
+    }
+
+    // MARK: 哔哩哔哩（公开接口：view → playurl；fnval=1 取单文件流，免拼接）
+
+    /// 从 view 接口 JSON 取 cid（纯函数，便于测试）
+    static func bilibiliCID(fromViewJSON data: Data) -> (cid: Int, title: String?)? {
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let dataObj = obj["data"] as? [String: Any],
+              let cid = dataObj["cid"] as? Int else { return nil }
+        return (cid, dataObj["title"] as? String)
+    }
+
+    /// 从 playurl 接口 JSON 取直链与画质（纯函数，便于测试）
+    static func bilibiliPlayURL(fromPlayJSON data: Data) -> (url: URL, quality: Int?)? {
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let dataObj = obj["data"] as? [String: Any],
+              let durl = dataObj["durl"] as? [[String: Any]],
+              let first = durl.first,
+              let s = first["url"] as? String, let url = URL(string: s) else { return nil }
+        return (url, dataObj["quality"] as? Int)
+    }
+
+    /// 视频 id：/video/BVxxxx 或 /video/av123
+    static func bilibiliVideoID(from url: URL) -> String? {
+        let s = url.absoluteString
+        if let r = s.range(of: "BV[0-9A-Za-z]{10}", options: .regularExpression) {
+            return String(s[r])
+        }
+        if let r = s.range(of: "av[0-9]+", options: .regularExpression) {
+            return String(s[r])
+        }
+        return nil
+    }
+
+    static func resolveBilibili(_ pageURL: URL) async -> ResolvedVideo? {
+        guard let vid = bilibiliVideoID(from: pageURL) else { return nil }
+        let cookie = CollectorPrefs.bilibiliCookie
+        let idKey = vid.hasPrefix("BV") ? "bvid" : "aid"
+        let aidValue = vid.hasPrefix("BV") ? vid : String(vid.dropFirst(2))
+        guard var viewComp = URLComponents(string: "https://api.bilibili.com/x/web-interface/view") else { return nil }
+        viewComp.queryItems = [URLQueryItem(name: idKey, value: aidValue)]
+        guard let viewURL = viewComp.url,
+              let viewData = await CollectorSearch.fetchData(viewURL, referer: "https://www.bilibili.com",
+                                                             cookie: cookie),
+              let info = bilibiliCID(fromViewJSON: viewData) else { return nil }
+        guard var playComp = URLComponents(string: "https://api.bilibili.com/x/player/playurl") else { return nil }
+        playComp.queryItems = [
+            URLQueryItem(name: idKey, value: aidValue),
+            URLQueryItem(name: "cid", value: "\(info.cid)"),
+            URLQueryItem(name: "qn", value: "116"),      // 请求最高画质，服务端按登录状态给可用的
+            URLQueryItem(name: "fnval", value: "1"),     // 1 = 单文件 flv/mp4（免拼接）
+            URLQueryItem(name: "fnver", value: "0"),
+            URLQueryItem(name: "fourk", value: "1"),
+        ]
+        guard let playURL = playComp.url,
+              let playData = await CollectorSearch.fetchData(playURL, referer: "https://www.bilibili.com",
+                                                             cookie: cookie),
+              let result = bilibiliPlayURL(fromPlayJSON: playData) else { return nil }
+        return ResolvedVideo(url: result.url, quality: qualityLabel(result.quality))
+    }
+
+    // MARK: 抖音（分享页里的 _ROUTER_DATA → play_addr.url_list，尽力而为）
+
+    /// 从页面 HTML 里挖出 play_addr.url_list 的第一条（纯函数，便于测试）
+    static func douyinPlayURL(fromPageHTML html: String) -> URL? {
+        // 页面把 JSON 放在 window._ROUTER_DATA = {...}; 里（可能被转义）
+        let unescaped = html.replacingOccurrences(of: "\\/", with: "/")
+        for pattern in [#""play_addr"\s*:\s*\{[^}]*?"url_list"\s*:\s*\[\s*"([^"]+)""#,
+                        #""playApi"\s*:\s*"([^"]+)""#,
+                        #""download_addr"\s*:\s*\{[^}]*?"url_list"\s*:\s*\[\s*"([^"]+)""#] {
+            if let s = CollectorSearch.capturesPublic(pattern: pattern, in: unescaped).first,
+               let u = URL(string: s.replacingOccurrences(of: "&amp;", with: "&")) {
+                return u
+            }
+        }
+        return nil
+    }
+
+    static func resolveDouyin(_ pageURL: URL) async -> ResolvedVideo? {
         guard let html = await CollectorSearch.fetch(pageURL) else { return nil }
-        return playableURL(inHTML: html, base: pageURL)
+        guard let u = douyinPlayURL(fromPageHTML: html) else { return nil }
+        return ResolvedVideo(url: u, quality: nil)
+    }
+}
+
+/// 采集器的小设置（目前只有 B 站 Cookie：填了才能下 1080P）
+enum CollectorPrefs {
+    static var bilibiliCookie: String? {
+        get {
+            let s = UserDefaults.standard.string(forKey: "collectorBilibiliCookie") ?? ""
+            return s.isEmpty ? nil : s
+        }
+        set { UserDefaults.standard.set(newValue ?? "", forKey: "collectorBilibiliCookie") }
     }
 }
 

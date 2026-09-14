@@ -45,6 +45,7 @@ struct MediaPreviewSheet: View {
     @State private var fitScale: CGFloat = 1
     @State private var resolvingPlayable = false
     @State private var resolvedPlayable: URL?
+    @State private var resolvedQuality: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -64,7 +65,10 @@ struct MediaPreviewSheet: View {
     private func resolvePlayableIfNeeded() async {
         guard resolvePlayableFromPage, videoURL == nil, let pageURL else { return }
         resolvingPlayable = true
-        resolvedPlayable = await CollectorVideoResolver.resolve(pageURL: pageURL)
+        if let r = await CollectorVideoResolver.resolve(pageURL: pageURL) {
+            resolvedPlayable = r.url
+            resolvedQuality = r.quality
+        }
         resolvingPlayable = false
     }
 
@@ -82,6 +86,13 @@ struct MediaPreviewSheet: View {
                 }
             }
             Spacer()
+            if let resolvedQuality, videoURL == nil {
+                Text(resolvedQuality)
+                    .font(.system(size: 10).monospacedDigit())
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Capsule().fill(appAppearance.accent.opacity(0.16)))
+                    .foregroundStyle(appAppearance.accent)
+            }
             if videoURL != nil {
                 Text(_L("可直接播放", "Playable"))
                     .font(.system(size: 10))
@@ -135,8 +146,8 @@ struct MediaPreviewSheet: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 HStack(spacing: 8) {
                     Image(systemName: "info.circle").foregroundStyle(.secondary)
-                    Text(_L("这个站点不提供可播放直链（只能去原站播放，也无法下载）；此处显示的是高清封面。",
-                            "This site gives no direct media URL — open the source to watch; only the cover can be shown."))
+                    Text(_L("这个站点没能解析出可下载的直链（B 站/抖音会优先走平台接口；仍失败时只能去原站播放）；此处显示高清封面。",
+                            "No downloadable direct URL could be resolved — open the source to watch; showing the cover."))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                     Spacer()
