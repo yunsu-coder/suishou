@@ -77,4 +77,26 @@ final class CollectorFormTests: XCTestCase {
         _ = view
         _ = try render(sections, to: "/tmp/marknote-collector-video-form.png")
     }
+
+    /// AI 追问页：问题 + 可点选项 + 自由补充（排版肉眼过一遍）
+    @MainActor
+    func testRenderClarifyStage() throws {
+        let (store, _) = try TestEnv.makeStore()
+        var r = CollectRequest()
+        r.kind = "image"
+        r.subject = "赛博朋克"
+        let questions = [
+            CollectClarifyQuestion(id: "q1", question: "要几张、横图还是竖图？", field: "count",
+                                   options: ["3 张横图", "6 张横图", "3 张竖图"]),
+            CollectClarifyQuestion(id: "q2", question: "用在哪儿？（影响构图留白）", field: "usage",
+                                   options: ["笔记封面", "文章配图", "视频封面"]),
+        ]
+        // 只渲染内容区：ImageRenderer 画不了 ScrollView 内部（完整页会是一片空白）
+        let body = CollectorView(initialStage: .clarify, request: r, clarifyQuestions: questions)
+            .clarifyBody
+            .frame(width: 780)
+            .background(Color(nsColor: appAppearance.editorBackground))
+            .environment(store)
+        _ = try render(body, to: "/tmp/marknote-collector-clarify.png")
+    }
 }

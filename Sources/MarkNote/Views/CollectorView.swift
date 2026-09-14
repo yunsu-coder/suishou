@@ -3,13 +3,14 @@ import SwiftUI
 /// 素材采集面板（视图插件 `collector` 的内置渲染器）。
 ///
 /// 流程（老规矩：先签合同再干活）：
-/// 一句话需求 → AI 解析成需求卡片 → 缺字段高亮追问 → 开工确认 → 搜索 → 候选勾选 → 入库。
+/// 一句话需求 → AI 解析成需求卡片 → **AI 追问（没说清就接着问）** → 缺字段高亮 → 开工确认 →
+/// 搜索 → 候选勾选 → 入库。
 /// 结果不自动落地：用户勾选哪些、哪些才下载。
 struct CollectorView: View {
     @Environment(NotesStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
-    enum Stage { case input, review, candidates }
+    enum Stage { case input, clarify, review, candidates }
 
     @State private var stage: Stage = .input
     @State private var inputText = ""
@@ -49,11 +50,21 @@ struct CollectorView: View {
     @State private var crawlTotal = 0
     /// 本次入库的 Markdown 笔记（相对路径；用来「打开第一篇」）
     @State private var savedNotes: [String] = []
+    /// AI 追问：当前这一轮的问题 + 回答 + 轮次
+    @State private var clarifyQuestions: [CollectClarifyQuestion] = []
+    @State private var clarifyAnswers: [String: String] = [:]
+    @State private var clarifyReason: String?
+    @State private var clarifyRound = 0
+    @State private var clarifyBusy = false
+    /// 已答过的追问（拼进后续解析的文本里，别让 AI 忘掉）
+    @State private var clarifyTranscript = ""
 
     /// 供测试 / 预览直接进到某一步（默认从「一句话输入」开始）
-    init(initialStage: Stage = .input, request: CollectRequest = CollectRequest()) {
+    init(initialStage: Stage = .input, request: CollectRequest = CollectRequest(),
+         clarifyQuestions: [CollectClarifyQuestion] = []) {
         _stage = State(initialValue: initialStage)
         _request = State(initialValue: request)
+        _clarifyQuestions = State(initialValue: clarifyQuestions)
     }
 
     var body: some View {
@@ -63,6 +74,7 @@ struct CollectorView: View {
             Group {
                 switch stage {
                 case .input: inputStage
+                case .clarify: clarifyStage
                 case .review: reviewStage
                 case .candidates: candidateStage
                 }
@@ -142,6 +154,10 @@ struct CollectorView: View {
                     "Describe what you need in one sentence. The AI turns it into a requirement card — fill the gaps, confirm, then collection starts."))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
+            Text(_L("AI 没听明白时会**接着追问**（最多 3 轮，可跳过）：问清了才会去搜。",
+                    "If the AI isn't sure what you mean it **keeps asking** (up to 3 rounds, skippable)."))
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
             TextEditor(text: $inputText)
                 .font(.system(size: 13))
                 .frame(height: 110)
@@ -169,7 +185,7 @@ struct CollectorView: View {
                     if parsing {
                         ProgressView().controlSize(.small)
                     } else {
-                        Text(_L("解析需求", "Parse"))
+                        Text(_L("解析需求（可能追问）", "Parse (may ask follow-ups)"))
                     }
                 }
                 .buttonStyle(.borderedProminent)
@@ -292,12 +308,140 @@ struct CollectorView: View {
         if let r = await CollectorIntent.parse(inputText, current: request) {
             request = r
             statusText = nil
+            // 解析完先让 AI 自审一遍：没说清就追问，问清（或问满轮次）才進需求卡
+            clarifyRound = 0
+            clarifyTranscript = ""
+            if await askClarifyIfNeeded() { return }
         } else {
             statusText = LLM.configured
                 ? _L("解析失败，手动补一下吧", "Parse failed — fill manually")
                 : _L("未配置 API Key：手动填写", "No API key: fill manually")
         }
         stage = .review
+    }
+
+    // MARK: - AI 追问（需求没说清就接着问）
+
+    /// 需要追问 → 切到追问页并返回 true；否则返回 false（继续走需求卡）
+    private func askClarifyIfNeeded() async -> Bool {
+        guard LLM.configured, CollectorClarify.canAskMore(round: clarifyRound) else { return false }
+        clarifyBusy = true
+        clarifyRound += 1
+        let text = clarifyTranscript.isEmpty ? inputText : inputText + clarifyTranscript
+        let review = await CollectorClarify.review(request, userText: text, round: clarifyRound)
+        clarifyBusy = false
+        guard let review, !review.ready, !review.questions.isEmpty else { return false }
+        clarifyQuestions = review.questions
+        clarifyAnswers = [:]
+        clarifyReason = review.reason
+        stage = .clarify
+        return true
+    }
+
+    /// 提交这一轮回答：并进文本 → 重新解析 → 继续审（够了就进需求卡）
+    private func submitClarify() async {
+        let pairs = clarifyQuestions.map { (question: $0.question, answer: clarifyAnswers[$0.id] ?? "") }
+        guard pairs.contains(where: { !$0.answer.trimmed.isEmpty }) else {
+            stage = .review      // 一个都没答：别卡着，直接看需求卡
+            return
+        }
+        clarifyBusy = true
+        clarifyTranscript = "\n" + CollectorClarify.followUpText("", answers: pairs)
+        if let r = await CollectorIntent.parse(inputText + clarifyTranscript, current: request) {
+            request = r
+        }
+        clarifyBusy = false
+        if await askClarifyIfNeeded() { return }
+        stage = .review
+    }
+
+    /// 追问页：AI 的问题 + 可点选项 + 自由补充
+    private var clarifyStage: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ScrollView { clarifyBody }
+            Divider()
+            HStack {
+                Button(_L("不问了，直接看需求卡", "Skip to card")) { stage = .review }
+                    .disabled(clarifyBusy)
+                Button(_L("返回改一句话", "Back")) { stage = .input }
+                    .disabled(clarifyBusy)
+                Spacer()
+                Button {
+                    Task { await submitClarify() }
+                } label: {
+                    if clarifyBusy {
+                        HStack(spacing: 6) { ProgressView().controlSize(.small); Text(_L("理解中…", "Thinking…")) }
+                    } else {
+                        Text(_L("提交回答", "Submit"))
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(clarifyBusy)
+            }
+            .padding(14)
+        }
+    }
+
+    /// 追问页的内容区（单独抽出来：渲染检查与复用）
+    var clarifyBody: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "questionmark.bubble")
+                    .foregroundStyle(appAppearance.accent)
+                Text(_L("AI 还想确认几点", "A few things to confirm"))
+                    .font(.system(size: 13, weight: .semibold))
+                Text(_L("第 \(max(clarifyRound, 1))/\(CollectorClarify.maxRounds) 轮",
+                        "round \(max(clarifyRound, 1))/\(CollectorClarify.maxRounds)"))
+                    .font(.system(size: 10))
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Capsule().fill(appAppearance.accent.opacity(0.14)))
+                    .foregroundStyle(appAppearance.accent)
+            }
+            if let reason = clarifyReason, !reason.isEmpty {
+                Text(reason)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color(nsColor: appAppearance.editorForeground).opacity(0.72))
+            }
+            Text(_L("答完这些才能少搜一堆不相干的；不想答也行，直接看需求卡。",
+                    "Answering these keeps the search on target — or just skip to the card."))
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+            ForEach(clarifyQuestions) { q in
+                clarifyCard(q)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func clarifyCard(_ q: CollectClarifyQuestion) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(q.question)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color(nsColor: appAppearance.editorForeground))
+            if !q.options.isEmpty {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 6)],
+                          alignment: .leading, spacing: 6) {
+                    ForEach(q.options, id: \.self) { opt in
+                        chip(opt, on: clarifyAnswers[q.id] == opt) {
+                            // 再点一次取消；选项与自由文本共用一个答案位
+                            clarifyAnswers[q.id] = clarifyAnswers[q.id] == opt ? "" : opt
+                        }
+                    }
+                }
+            }
+            TextField(_L("也可以自己写（可补充多项，逗号分隔）", "or type your own answer"),
+                      text: Binding(get: { clarifyAnswers[q.id] ?? "" },
+                                    set: { clarifyAnswers[q.id] = $0 }))
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 12))
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10)
+            .fill(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground)))
+        .overlay(RoundedRectangle(cornerRadius: 10)
+            .stroke(Color(nsColor: appAppearance.editorForeground.withAlphaComponent(0.08))))
     }
 
     // MARK: - 第二步：需求卡片（缺字段高亮追问）

@@ -1419,8 +1419,16 @@ enum CollectorPrefs {
 
 enum CollectorIntent {
     /// 用 LLM 把自然语言解析为需求字段；未配置 key 或解析失败 → 返回 nil（走纯手填表单）。
-    static func parse(_ text: String, current: CollectRequest) async -> CollectRequest? {
-        guard LLM.configured else { return nil }
+    static func parse(_ text: String, current: CollectRequest,
+                      complete: ((String, String) async throws -> String)? = nil) async -> CollectRequest? {
+        // 不注入就要求配置了 Key（注入的场景 = 测试用假模型，不需要 Key）
+        let call: (String, String) async throws -> String
+        if let complete {
+            call = complete
+        } else {
+            guard LLM.configured else { return nil }
+            call = { system, user in try await LLM.complete(system: system, user: user) }
+        }
         let system = """
         你是素材采集需求解析器。把用户的话解析成 JSON（只输出 JSON，不要解释）：
         {"kind":"image|video|article|novel 或 null","subject":"主题（具体名词；找文章给题材，找小说给书名或题材；无法确定给 null）",
@@ -1453,7 +1461,7 @@ enum CollectorIntent {
            （小说要尽量给出 chapterLimit）。
         """
         let user = "用户输入：\(text)\n（已有需求：\(describe(current))）"
-        guard let reply = try? await LLM.complete(system: system, user: user) else { return nil }
+        guard let reply = try? await call(system, user) else { return nil }
         let jsonText = extractJSON(reply)
         guard let data = jsonText.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return nil }
