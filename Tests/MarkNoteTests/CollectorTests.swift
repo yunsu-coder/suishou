@@ -366,3 +366,30 @@ final class CollectVideoPipelineTests: XCTestCase {
         XCTAssertEqual(NotesStore.maxCollectedVideoBytes, 300 * 1024 * 1024)
     }
 }
+
+/// 画质档位：用于「你要 1080P，但账号只能取 360P」这类如实提示
+final class CollectQualityRankTests: XCTestCase {
+    func testRankMapping() {
+        XCTAssertEqual(CollectVideoResolution.rank(of: "360P"), 1)
+        XCTAssertEqual(CollectVideoResolution.rank(of: "480P"), 2)
+        XCTAssertEqual(CollectVideoResolution.rank(of: "720P"), 3)
+        XCTAssertEqual(CollectVideoResolution.rank(of: "1080P"), 4)
+        XCTAssertEqual(CollectVideoResolution.rank(of: "1080P60"), 5)
+        XCTAssertEqual(CollectVideoResolution.rank(of: "4K"), 6)
+        XCTAssertEqual(CollectVideoResolution.rank(of: nil), 0)
+        XCTAssertEqual(CollectVideoResolution.rank(of: "未知"), 0)
+    }
+
+    func testRequirementComparison() {
+        // 要求 ≥1080P（rank 4），只拿到 360P（1）→ 不达标，该提示
+        XCTAssertLessThan(CollectVideoResolution.rank(of: "360P"),
+                          CollectVideoResolution.fhd.requiredRank)
+        // 登录后拿到 1080P → 达标
+        XCTAssertGreaterThanOrEqual(CollectVideoResolution.rank(of: "1080P"),
+                                    CollectVideoResolution.fhd.requiredRank)
+        // 不限就永远达标
+        XCTAssertEqual(CollectVideoResolution.any.requiredRank, 0)
+        // 4K 要求：1080P 不算达标
+        XCTAssertLessThan(CollectVideoResolution.rank(of: "1080P"), CollectVideoResolution.uhd.requiredRank)
+    }
+}

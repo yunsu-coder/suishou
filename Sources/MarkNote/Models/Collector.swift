@@ -155,6 +155,28 @@ enum CollectVideoResolution: String, CaseIterable { case any, hd, fhd, uhd
         case .uhd: return "≥4K" } }
     var keyword: String { switch self {
         case .any: return ""; case .hd: return "hd"; case .fhd: return "1080p"; case .uhd: return "4k" } }
+
+    /// 需求的最低档位（用于「账号权限只到 360P」这类提示）
+    var requiredRank: Int {
+        switch self {
+        case .any: return 0
+        case .hd: return 3
+        case .fhd: return 4
+        case .uhd: return 6
+        }
+    }
+
+    /// 画质标签（"1080P" 等）→ 可比较的档位
+    static func rank(of label: String?) -> Int {
+        guard let label else { return 0 }
+        let s = label.uppercased()
+        if s.contains("4K") || s.contains("2160") { return 6 }
+        if s.contains("1080P") { return s.contains("60") ? 5 : 4 }
+        if s.contains("720P") { return s.contains("60") ? 4 : 3 }
+        if s.contains("480P") { return 2 }
+        if s.contains("360P") { return 1 }
+        return 0
+    }
 }
 
 enum CollectVideoAudio: String, CaseIterable { case any, with, without

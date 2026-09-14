@@ -857,7 +857,14 @@ struct CollectorView: View {
                 else { resolved = await CollectorVideoResolver.resolve(pageURL: page) }
                 var localRel: String?
                 if let r = resolved {
-                    statusText = _L("正在下载视频…", "Downloading video…")
+                    // 你要的清晰度达不到时，如实说清楚（多半是没登录 / 账号权限不够）
+                    let asked = CollectVideoResolution(rawValue: request.videoResolution) ?? .any
+                    if asked != .any, CollectVideoResolution.rank(of: r.quality) < asked.requiredRank {
+                        statusText = _L("注意：该视频只能取到 \(r.quality ?? "未知画质")（你要求 \(asked.label)）——登录 B 站可提升",
+                                        "Note: only \(r.quality ?? "unknown") available (asked \(asked.label)) — sign in to Bilibili")
+                    } else {
+                        statusText = _L("正在下载视频…", "Downloading video…")
+                    }
                     localRel = await store.downloadCollectedVideo(from: r.url, preferredName: name, referer: page)
                 }
                 var coverRel: String?
