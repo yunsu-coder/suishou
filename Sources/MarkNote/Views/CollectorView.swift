@@ -330,10 +330,16 @@ struct CollectorView: View {
         let text = clarifyTranscript.isEmpty ? inputText : inputText + clarifyTranscript
         let review = await CollectorClarify.review(request, userText: text, round: clarifyRound)
         clarifyBusy = false
-        guard let review, !review.ready, !review.questions.isEmpty else { return false }
-        clarifyQuestions = review.questions
+        // 「要不要继续问」= 硬规则（关键项体检 + 最少轮次）∪ 模型判断：
+        // 即便用户已经选过选项、模型说 ready，只要关键项还缺（或还没问够轮次）就接着问。
+        let questions = CollectorClarify.questionsForNextRound(review: review,
+                                                               request: request,
+                                                               round: clarifyRound)
+        guard !questions.isEmpty else { return false }
+        clarifyQuestions = questions
         clarifyAnswers = [:]
-        clarifyReason = review.reason
+        clarifyReason = review?.reason
+            ?? (CollectorClarify.missingKeyFields(request).isEmpty ? nil : _L("还有关键信息没确认", "a few key details left"))
         stage = .clarify
         return true
     }
@@ -351,6 +357,11 @@ struct CollectorView: View {
             request = r
         }
         clarifyBusy = false
+        // 用户在选项里明确选了「没有了，就这样」→ 尊重他（回答已回填），不再追问
+        if pairs.contains(where: { CollectorClarify.answerMeansStop($0.answer) }) {
+            stage = .review
+            return
+        }
         if await askClarifyIfNeeded() { return }
         stage = .review
     }

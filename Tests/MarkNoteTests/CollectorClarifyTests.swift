@@ -84,6 +84,89 @@ final class CollectorClarifyTests: XCTestCase {
         XCTAssertFalse(CollectorClarify.canAskMore(round: 9))
     }
 
+    // MARK: - 硬规则：选项答完也要接着问
+
+    func testKeyFieldGateForcesQuestionsEvenWhenModelSaysReady() {
+        var r = CollectRequest()
+        r.kind = "image"
+        r.subject = "赛博朋克霓虹街道"
+        let modelSaysReady = CollectClarifyReview(ready: true, reason: nil, questions: [])
+
+        // 图片没用途、没方向 → 模型说「懂了」也照样问
+        let first = CollectorClarify.questionsForNextRound(review: modelSaysReady, request: r, round: 1)
+        XCTAssertEqual(first.count, 1)
+        XCTAssertEqual(first[0].field, "usage")
+        XCTAssertTrue(first[0].options.contains("笔记封面"))
+
+        // 用户选了方向（等于答过一轮）→ 关键项齐了，但仍要收尾再问一轮
+        r.orientation = CollectOrientation.landscape.rawValue
+        let second = CollectorClarify.questionsForNextRound(review: modelSaysReady, request: r, round: 1)
+        XCTAssertEqual(second.count, 1, "最少 2 轮：选完选项还要再确认一次")
+        XCTAssertEqual(second[0].id, "refine", "收尾问一轮，并留「别问了」出口")
+        XCTAssertTrue(second[0].options.contains("没有了，就这样"))
+
+        // 第 2 轮 + 关键项齐 + 模型确认 → 放行
+        XCTAssertTrue(CollectorClarify.questionsForNextRound(review: modelSaysReady, request: r, round: 2).isEmpty)
+    }
+
+    func testKeyGapsPerKind() {
+        var video = CollectRequest()
+        video.kind = "video"
+        video.subject = "城市夜景延时"
+        XCTAssertEqual(CollectorClarify.missingKeyFields(video).first?.field, "videoDuration")
+        video.platforms = ["哔哩哔哩"]
+        XCTAssertTrue(CollectorClarify.missingKeyFields(video).isEmpty, "说了平台就不用再问时长")
+
+        var article = CollectRequest()
+        article.kind = "article"
+        article.subject = "AI 与知识工作"
+        XCTAssertEqual(CollectorClarify.missingKeyFields(article).first?.field, "usage")
+        article.styles = ["科技感"]
+        XCTAssertTrue(CollectorClarify.missingKeyFields(article).isEmpty)
+
+        var novel = CollectRequest()
+        novel.kind = "novel"
+        novel.subject = "西游记"
+        XCTAssertEqual(CollectorClarify.missingKeyFields(novel).first?.field, "chapterLimit",
+                       "没提章节数（还是默认 30）时要问")
+        novel.chapterLimit = 50
+        XCTAssertTrue(CollectorClarify.missingKeyFields(novel).isEmpty)
+
+        let nothing = CollectRequest()
+        XCTAssertEqual(CollectorClarify.missingKeyFields(nothing).map(\.field), ["kind", "subject"])
+    }
+
+    func testMissingSubjectAlwaysAsked() {
+        var r = CollectRequest()
+        r.kind = "novel"
+        let review = CollectClarifyReview(ready: true, reason: nil, questions: [])
+        let qs = CollectorClarify.questionsForNextRound(review: review, request: r, round: 2)
+        XCTAssertEqual(qs.first?.field, "subject")
+        XCTAssertTrue(qs.first?.question.contains("哪本书") == true, "小说要问书名")
+    }
+
+    func testModelQuestionsAreMergedButCapped() {
+        var r = CollectRequest()
+        r.kind = "image"
+        r.subject = "赛博朋克霓虹街道"
+        let model = CollectClarifyReview(ready: false, reason: "还不够", questions: [
+            .init(id: "m1", question: "要横图还是竖图？", field: "orientation", options: ["横图"]),
+            .init(id: "m2", question: "要几张？", field: "count", options: ["3 张"]),
+            .init(id: "m3", question: "第三条", field: "other", options: []),
+        ])
+        let qs = CollectorClarify.questionsForNextRound(review: model, request: r, round: 1)
+        XCTAssertEqual(qs.count, CollectorClarify.maxQuestions, "最多 3 条")
+        XCTAssertEqual(qs[0].field, "usage", "硬规则的问题排前面")
+        XCTAssertTrue(qs.contains { $0.id == "m1" })
+    }
+
+    func testStopAnswerEndsTheLoop() {
+        XCTAssertTrue(CollectorClarify.answerMeansStop("没有了，就这样"))
+        XCTAssertTrue(CollectorClarify.answerMeansStop("不用了"))
+        XCTAssertFalse(CollectorClarify.answerMeansStop("6 张横图"))
+        XCTAssertFalse(CollectorClarify.answerMeansStop("不限"), "「不限」是这一项不挑，不是不想被问")
+    }
+
     // MARK: - 闭环（假模型）
 
     func testClarifyLoopThenReady() async throws {
