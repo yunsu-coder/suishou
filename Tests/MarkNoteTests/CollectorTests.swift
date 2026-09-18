@@ -107,7 +107,7 @@ final class CollectorTests: XCTestCase {
         XCTAssertTrue(r.videoFilterParams().isEmpty)
         XCTAssertTrue(r.noWatermark, "默认过滤带水印")
         XCTAssertTrue(r.skipDuplicates)
-        XCTAssertTrue(r.safeSearch)
+        XCTAssertEqual(r.safetyEnum, .strict, "默认严格过滤（可切适中 / 关闭）")
         XCTAssertEqual(r.maxImport, 20)
     }
 

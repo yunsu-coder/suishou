@@ -10,7 +10,7 @@ struct CollectorView: View {
     @Environment(NotesStore.self) private var store
     @Environment(\.dismiss) private var dismiss
 
-    enum Stage { case input, clarify, review, candidates }
+    enum Stage { case input, clarify, review, candidates, links }
 
     @State private var stage: Stage = .input
     @State private var inputText = ""
@@ -55,6 +55,13 @@ struct CollectorView: View {
     @State private var clarifyBusy = false
     /// 已答过的追问（拼进后续解析的文本里，别让 AI 忘掉）
     @State private var clarifyTranscript = ""
+    /// 贴链接导入：用户自己看到的页面地址（每行一条）
+    @State private var linkText = ""
+    @State private var fetchingLinks = false
+    /// 关闭搜索过滤前的一次性成年确认（本机记一次）
+    @State private var showAdultConfirm = false
+    @State private var pendingSafety: CollectSafety?
+    static let adultConfirmedKey = "collectorAdultConfirmed"
     /// 站点账号面板（登录后采集才拿得到原图/长文/1080P）
     @State private var showAccounts = false
     /// 登录态变化 → 刷新「已登录」显示
@@ -78,6 +85,7 @@ struct CollectorView: View {
                 case .clarify: clarifyStage
                 case .review: reviewStage
                 case .candidates: candidateStage
+                case .links: linksStage
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -88,6 +96,17 @@ struct CollectorView: View {
             Button(_L("知道了", "OK"), role: .cancel) {}
         } message: {
             Text(importFailureMessage)
+        }
+        .alert(_L("关闭搜索过滤", "Turn search filter off"), isPresented: $showAdultConfirm) {
+            Button(_L("取消", "Cancel"), role: .cancel) { pendingSafety = nil }
+            Button(_L("我已满 18 岁，继续", "I am 18 or older")) {
+                UserDefaults.standard.set(true, forKey: Self.adultConfirmedKey)
+                if let value = pendingSafety { request.safety = value.rawValue }
+                pendingSafety = nil
+            }
+        } message: {
+            Text(_L("关闭后搜索引擎不再过滤结果（Bing adlt=off 等）。这只改搜索参数：站点自身的登录 / 年龄 / 付费门槛不会被绕过，也不会替你去抓需要授权的内容；请自行确认内容合法且你已成年。",
+                    "Results will no longer be filtered by search engines. Site-level gates still apply; you confirm you are an adult and will follow the law."))
         }
         .sheet(item: $previewCandidate) { c in
             MediaPreviewSheet(
@@ -193,6 +212,11 @@ struct CollectorView: View {
                         .foregroundStyle(.tertiary)
                 }
                 Spacer()
+                Button(_L("贴链接导入", "Import from links")) {
+                    stage = .links
+                }
+                .help(_L("把你自己看到的帖子 / 图片 / 视频链接丢进来，直接抓成素材（用你本机的登录会话读取）",
+                         "Paste links you can already see; fetched with your local signed-in session"))
                 Button(_L("手动填写", "Fill manually")) {
                     stage = .review
                 }
@@ -338,6 +362,72 @@ struct CollectorView: View {
     }
 
     // MARK: - AI 追问（需求没说清就接着问）
+
+    /// 贴链接导入：一行一条地址，抓成候选再勾选入库
+    private var linksStage: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(_L("把你看到的链接贴进来（一行一条）", "Paste links, one per line"))
+                .font(.system(size: 13, weight: .semibold))
+            Text(_L("支持：社交平台帖子（X / 微博等，走你本机的登录会话）、图片或视频直链、文章网页。"
+                    + "插件只读取你能看到的内容，不绕过登录 / 年龄 / 付费门槛。",
+                    "Supports social posts (fetched with your local session), direct image/video links, and article pages."))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            TextEditor(text: $linkText)
+                .font(.system(size: 12, design: .monospaced))
+                .frame(height: 200)
+                .padding(6)
+                .background(RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground)))
+                .overlay(RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color(nsColor: appAppearance.editorForeground.withAlphaComponent(0.15))))
+            Text(_L("例：https://x.com/用户名/status/1234567890（视频会尝试解析直链后下载；解析不到就只存缩略图 / 收藏条目）",
+                    "e.g. a status URL; videos are resolved to a direct URL when possible"))
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+            HStack {
+                Button(_L("返回", "Back")) { stage = .input }
+                    .disabled(fetchingLinks)
+                Spacer()
+                Button {
+                    Task { await fetchLinks() }
+                } label: {
+                    if fetchingLinks {
+                        HStack(spacing: 6) { ProgressView().controlSize(.small); Text(_L("抓取中…", "Fetching…")) }
+                    } else {
+                        Text(_L("开始抓取", "Fetch"))
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(fetchingLinks || linkText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func fetchLinks() async {
+        fetchingLinks = true
+        defer { fetchingLinks = false }
+        let (items, failures) = await CollectorLinkImport.candidates(from: linkText)
+        guard !items.isEmpty else {
+            importFailures = failures.isEmpty
+                ? [_L("没解析出可抓的内容：确认链接能在浏览器里打开，或先在「站点账号」里登录该站点",
+                      "Nothing fetchable: check the links open in your browser, or sign in via Site accounts")]
+                : failures
+            showFailureAlert = true
+            return
+        }
+        var list = items
+        for i in list.indices { list[i].selected = true }   // 贴进来的默认全选，直接点「采集选中」即可
+        candidates = list
+        if let first = list.first { request.kind = first.kind }
+        importFailures = failures
+        if !failures.isEmpty { showFailureAlert = true }
+        stage = .candidates
+    }
 
     /// 需要追问 → 切到追问页并返回 true；否则返回 false（继续走需求卡）
     private func askClarifyIfNeeded() async -> Bool {
@@ -812,7 +902,41 @@ struct CollectorView: View {
                 }
                 .id(accountsTick)
             }
-            flagRow(_L("安全搜索", "Safe search"), isOn: $request.safeSearch)
+            // 采集专用代理：访问 X / YouTube 等站点基本必须有；只影响采集，不动系统设置
+            textRow(_L("网络代理", "Proxy"),
+                    text: Binding(get: { CollectorPrefs.proxy ?? "" },
+                                  set: { value in
+                                      let t = value.trimmingCharacters(in: .whitespaces)
+                                      CollectorPrefs.proxy = t.isEmpty ? nil : t
+                                  }),
+                    required: false,
+                    placeholder: _L("127.0.0.1:7890（访问 X / YouTube 常需要；留空 = 直连）",
+                                    "host:port (usually needed for X / YouTube; empty = direct)"))
+            Text(CollectorNet.statusText)
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+            // 搜索过滤三档：关闭 = 不传任何过滤参数（站点自身的登录 / 年龄门槛不绕过）
+            singleChips(_L("搜索过滤", "Search filter"),
+                        options: CollectSafety.allCases.map { ($0.label, $0) },
+                        value: Binding(get: { request.safetyEnum },
+                                       set: { value in
+                                           // 关闭过滤前确认一次：只影响搜索参数，站点门槛照旧
+                                           if value == .off,
+                                              !UserDefaults.standard.bool(forKey: Self.adultConfirmedKey) {
+                                               pendingSafety = value
+                                               showAdultConfirm = true
+                                           } else {
+                                               request.safety = value.rawValue
+                                           }
+                                       }))
+            Text(request.safety == CollectSafety.off.rawValue
+                 ? _L("已关闭过滤：只影响搜索引擎的参数（Bing adlt=off 等）。站点自身的登录 / 年龄门槛依旧生效，付费与 DRM 内容也不会被绕过。",
+                      "Filter off: affects search-engine parameters only. Sign-in / age gates and paid or DRM content stay as they are.")
+                 : _L("过滤等级只作用于搜索引擎参数；插件不审查、不修改你本机已有的任何内容。",
+                      "The filter level only maps to search-engine parameters."))
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -912,10 +1036,10 @@ struct CollectorView: View {
             if kind == "video" {
                 all += await CollectorSearch.searchVideos(query: q, count: request.count,
                                                           filters: filters,
-                                                          safeSearch: request.safeSearch)
+                                                          safety: request.safetyEnum)
             } else if request.isTextKind {
                 var found = await CollectorSearch.searchWeb(query: q, count: max(request.count, 12),
-                                                            safeSearch: request.safeSearch)
+                                                            safety: request.safetyEnum)
                 if kind == "novel" {
                     // 小说：把「像目录页」的排前面（判定在解析阶段已经做过），并统一按小说入库
                     found.sort { ($0.kind == "novel" ? 0 : 1) < ($1.kind == "novel" ? 0 : 1) }
@@ -925,7 +1049,7 @@ struct CollectorView: View {
             } else {
                 all += await CollectorSearch.searchImages(query: q, count: request.count,
                                                           filters: filters,
-                                                          safeSearch: request.safeSearch)
+                                                          safety: request.safetyEnum)
             }
         }
         var seen = Set<String>()

@@ -964,7 +964,7 @@ final class NotesStore {
         if let cookie = CollectAccounts.requestCookie(for: url, referer: referer), !cookie.isEmpty {
             req.setValue(cookie, forHTTPHeaderField: "Cookie")
         }
-        guard let (data, resp) = try? await URLSession.shared.data(for: req) else {
+        guard let (data, resp) = try? await CollectorNet.session.data(for: req) else {
             return .failure("连不上 / 超时")   // 过小多半是错误页/占位图
         }
         guard let http = resp as? HTTPURLResponse else { return .failure("响应异常") }

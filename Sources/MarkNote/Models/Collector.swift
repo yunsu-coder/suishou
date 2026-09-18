@@ -59,6 +59,24 @@ enum CollectOptions {
 }
 
 /// 单选枚举（存 rawValue，便于 Codable 与 AI 回填）
+/// 搜索过滤等级：**只影响搜索引擎的过滤参数**，不绕过任何站点自身的登录 / 年龄门槛。
+enum CollectSafety: String, Codable, CaseIterable {
+    case strict      // 严格（默认）
+    case moderate    // 适中
+    case off         // 关闭（需要成年确认；站点自己的门槛仍照旧）
+
+    var label: String {
+        switch self {
+        case .strict: return _L("严格", "Strict")
+        case .moderate: return _L("适中", "Moderate")
+        case .off: return _L("关闭", "Off")
+        }
+    }
+
+    /// Bing `adlt` 参数值（图片 / 视频 / 网页搜索共用）
+    var bingValue: String { rawValue }
+}
+
 enum CollectOrientation: String, CaseIterable { case any, landscape, portrait, square
     var label: String { switch self {
         case .any: return _L("不限", "Any"); case .landscape: return _L("横图", "Landscape")
@@ -236,7 +254,8 @@ struct CollectRequest: Codable, Equatable {
     var license: String = CollectLicense.any.rawValue
     var siteFilter: String?                // 只看这些站点（逗号分隔域名）
     var excludeSites: String?              // 排除这些站点
-    var safeSearch = true
+    /// 搜索过滤等级（只影响搜索引擎参数；站点自己的门槛不绕过）
+    var safety: String = CollectSafety.strict.rawValue
     var platforms: [String] = []           // 视频平台偏好
 
     // —— 图片专属 ——
@@ -298,7 +317,16 @@ struct CollectRequest: Codable, Equatable {
         license = val(.license, CollectLicense.any.rawValue)
         siteFilter = opt(.siteFilter)
         excludeSites = opt(.excludeSites)
-        safeSearch = val(.safeSearch, true)
+        // 老记录只有 safeSearch: Bool → 迁移成三档（false = 关闭）
+        enum LegacyKeys: String, CodingKey { case safeSearch }
+        let legacyContainer = try? decoder.container(keyedBy: LegacyKeys.self)
+        if let s: String = opt(.safety), CollectSafety(rawValue: s) != nil {
+            safety = s
+        } else if let legacy = try? legacyContainer?.decodeIfPresent(Bool.self, forKey: .safeSearch) {
+            safety = (legacy ?? true) ? CollectSafety.strict.rawValue : CollectSafety.off.rawValue
+        } else {
+            safety = CollectSafety.strict.rawValue
+        }
         platforms = val(.platforms, [])
         imageFormat = val(.imageFormat, CollectImageFormat.any.rawValue)
         imageType = val(.imageType, CollectImageType.any.rawValue)
@@ -321,6 +349,9 @@ struct CollectRequest: Codable, Equatable {
     }
 
     var isReady: Bool { missing.isEmpty }
+
+    /// 搜索过滤等级（字符串存 rawValue，这里转回枚举）
+    var safetyEnum: CollectSafety { CollectSafety(rawValue: safety) ?? .strict }
 
     // MARK: 搜索词与筛选参数
 
@@ -629,7 +660,8 @@ enum CollectorSearch {
     /// 图片搜索：cn.bing.com/images/async —— 返回 m="{...}" JSON 卡片
     /// - Parameter filters: Bing `qft` 筛选（尺寸/方向/类型/授权/时效，来自需求选项）
     static func searchImages(query: String, count: Int = 24,
-                             filters: [String] = [], safeSearch: Bool = true) async -> [CollectCandidate] {
+                             filters: [String] = [],
+                             safety: CollectSafety = .strict) async -> [CollectCandidate] {
         guard var comp = URLComponents(string: "https://cn.bing.com/images/async") else { return [] }
         var items: [URLQueryItem] = [
             .init(name: "q", value: query),
@@ -640,7 +672,7 @@ enum CollectorSearch {
         if !filters.isEmpty {
             items.append(.init(name: "qft", value: filters.map { "+filterui:" + $0 }.joined()))
         }
-        if safeSearch { items.append(.init(name: "adlt", value: "strict")) }
+        items.append(.init(name: "adlt", value: safety.bingValue))
         comp.queryItems = items
         guard let url = comp.url, let html = await fetch(url) else { return [] }
         return parseImages(html)
@@ -648,7 +680,8 @@ enum CollectorSearch {
 
     /// 视频搜索：cn.bing.com/videos/search —— 返回 mmeta="{...}" JSON 卡片（须带 first/count 参数才有多条）
     static func searchVideos(query: String, count: Int = 24,
-                             filters: [String] = [], safeSearch: Bool = true) async -> [CollectCandidate] {
+                             filters: [String] = [],
+                             safety: CollectSafety = .strict) async -> [CollectCandidate] {
         guard var comp = URLComponents(string: "https://cn.bing.com/videos/search") else { return [] }
         var items: [URLQueryItem] = [
             .init(name: "q", value: query),
@@ -659,7 +692,7 @@ enum CollectorSearch {
         if !filters.isEmpty {
             items.append(.init(name: "qft", value: filters.map { "+filterui:" + $0 }.joined()))
         }
-        if safeSearch { items.append(.init(name: "adlt", value: "strict")) }
+        items.append(.init(name: "adlt", value: safety.bingValue))
         comp.queryItems = items
         guard let url = comp.url, let html = await fetch(url) else { return [] }
         return parseVideos(html)
@@ -668,12 +701,12 @@ enum CollectorSearch {
     /// 网页搜索（**文章 / 小说**）：360 → 搜狗 → Bing，谁先给结果用谁。
     /// 注：Bing 网页端在国内网络下常只按**首个词**给结果（图片/视频接口不受影响），所以不做主用；
     /// 搜狗连续请求几次就会弹验证，故排在 360 之后。
-    static func searchWeb(query: String, count: Int = 20, safeSearch: Bool = true) async -> [CollectCandidate] {
+    static func searchWeb(query: String, count: Int = 20, safety: CollectSafety = .strict) async -> [CollectCandidate] {
         let so360 = await search360(query: query, count: count)
         if !so360.isEmpty { return so360 }
         let sogou = await searchSogou(query: query, count: count)
         if !sogou.isEmpty { return sogou }
-        return await searchBingWeb(query: query, count: count, safeSearch: safeSearch)
+        return await searchBingWeb(query: query, count: count, safety: safety)
     }
 
     /// 360 搜索：`<h3 class="res-title">` 结果块；链接是 `so.com/link?m=…` 跳转，需要解一层
@@ -780,7 +813,7 @@ enum CollectorSearch {
     }
 
     /// Bing 网页搜索（备用）：`li.b_algo` → 标题 + 摘要 + 真实链接
-    static func searchBingWeb(query: String, count: Int = 20, safeSearch: Bool = true) async -> [CollectCandidate] {
+    static func searchBingWeb(query: String, count: Int = 20, safety: CollectSafety = .strict) async -> [CollectCandidate] {
         guard var comp = URLComponents(string: "https://cn.bing.com/search") else { return [] }
         var items: [URLQueryItem] = [
             .init(name: "q", value: query),
@@ -788,7 +821,7 @@ enum CollectorSearch {
             .init(name: "first", value: "1"),
             .init(name: "FORM", value: "PERE"),
         ]
-        if safeSearch { items.append(.init(name: "adlt", value: "strict")) }
+        items.append(.init(name: "adlt", value: safety.bingValue))
         comp.queryItems = items
         guard let url = comp.url, let html = await fetch(url) else { return [] }
         return parseWebResults(html)
@@ -876,7 +909,7 @@ enum CollectorSearch {
         if let accountCookie, !accountCookie.isEmpty {
             req.setValue(accountCookie, forHTTPHeaderField: "Cookie")
         }
-        guard let (data, _) = try? await URLSession.shared.data(for: req) else { return nil }
+        guard let (data, _) = try? await CollectorNet.session.data(for: req) else { return nil }
         return data
     }
 
@@ -1339,7 +1372,7 @@ final class ProgressDownload: NSObject, URLSessionDownloadDelegate {
     private func start(_ request: URLRequest) async throws -> DownloadedFile {
         try await withCheckedThrowingContinuation { cont in
             lock.lock(); continuation = cont; lock.unlock()
-            let s = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+            let s = URLSession(configuration: CollectorNet.configuration, delegate: self, delegateQueue: nil)
             lock.lock(); session = s; lock.unlock()
             s.downloadTask(with: request).resume()
         }
@@ -1414,6 +1447,18 @@ enum CollectorPrefs {
     static var bilibiliCookie: String? {
         get { CollectAccountStore.standard.cookie("bilibili") }
         set { CollectAccountStore.standard.setCookie(newValue, for: "bilibili") }
+    }
+
+    /// 采集专用的本机代理（host:port；空 = 直连）。只作用于采集插件。
+    static var proxy: String? {
+        get {
+            let s = UserDefaults.standard.string(forKey: "collectorProxy") ?? ""
+            return s.isEmpty ? nil : s
+        }
+        set {
+            UserDefaults.standard.set(newValue ?? "", forKey: "collectorProxy")
+            CollectorNet.rebuild()
+        }
     }
 }
 
