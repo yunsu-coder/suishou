@@ -94,18 +94,40 @@ enum CollectorLinkImport {
             }
             return nil
         }
-        let video = first([
+        var video = first([
             #"(?is)<meta[^>]+property\s*=\s*"og:video:secure_url"[^>]*content\s*=\s*"([^"]+)""#,
             #"(?is)<meta[^>]+content\s*=\s*"([^"]+)"[^>]*property\s*=\s*"og:video:secure_url""#,
             #"(?is)<meta[^>]+property\s*=\s*"og:video(?::url)?"[^>]*content\s*=\s*"([^"]+)""#,
             #"(?is)<meta[^>]+name\s*=\s*"twitter:player:stream"[^>]*content\s*=\s*"([^"]+)""#,
         ])
-        let image = first([
+        var image = first([
             #"(?is)<meta[^>]+property\s*=\s*"og:image(?::secure_url)?"[^>]*content\s*=\s*"([^"]+)""#,
             #"(?is)<meta[^>]+content\s*=\s*"([^"]+)"[^>]*property\s*=\s*"og:image""#,
             #"(?is)<meta[^>]+name\s*=\s*"twitter:image"[^>]*content\s*=\s*"([^"]+)""#,
         ])
+        // 社交平台兜底：X 的帖子页往往没有 og:video，直链藏在页面数据里（JSON 里斜杠会被转义）
+        if video == nil || image == nil {
+            let flat = html.replacingOccurrences(of: "\\/", with: "/")
+            if video == nil,
+               let s = HTMLToMarkdown.firstRegexGroup(flat, pattern: #"(https://video\.twimg\.com/[^"'\s\\]+)"#) {
+                video = URL(string: s)
+            }
+            if image == nil,
+               let s = HTMLToMarkdown.firstRegexGroup(flat, pattern: #"(https://pbs\.twimg\.com/media/[^"'\s\\]+)"#) {
+                image = URL(string: upgradeTwitterImage(s))
+            }
+        }
         return (video, image)
+    }
+
+    /// X 图片按尺寸后缀给图：把 small / medium 这类换成 orig，拿到原图
+    static func upgradeTwitterImage(_ url: String) -> String {
+        guard url.contains("pbs.twimg.com/media/") else { return url }
+        var s = url
+        for size in ["small", "medium", "360x360", "900x900", "120x120"] {
+            s = s.replacingOccurrences(of: "name=\(size)", with: "name=orig")
+        }
+        return s
     }
 
     private static func pageTitle(inHTML html: String) -> String? {

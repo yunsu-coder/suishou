@@ -89,6 +89,31 @@ final class CollectorLinkImportTests: XCTestCase {
         XCTAssertNil(media.image)
     }
 
+    /// X 的帖子页常见情况：没有 og:video，直链藏在页面数据里（JSON 转义了斜杠，图片带尺寸后缀）
+    func testTwitterPayloadFallback() throws {
+        let html = """
+        <script>{"video_info":{"variants":[{"url":"https:\\/\\/video.twimg.com\\/amplify_video\\/123\\/vid\\/1280x720\\/abc.mp4?tag=12"}]},
+        "photos":[{"url":"https://pbs.twimg.com/media/PHOTO123?format=jpg&name=medium"}]}</script>
+        """
+        let base = try XCTUnwrap(URL(string: "https://x.com/someone/status/1234567890"))
+        let media = CollectorLinkImport.mediaURLs(inHTML: html, base: base)
+        XCTAssertEqual(media.video?.absoluteString,
+                       "https://video.twimg.com/amplify_video/123/vid/1280x720/abc.mp4?tag=12",
+                       "转义斜杠要还原")
+        XCTAssertEqual(media.image?.absoluteString,
+                       "https://pbs.twimg.com/media/PHOTO123?format=jpg&name=orig",
+                       "尺寸后缀升级成 orig")
+    }
+
+    func testTwitterImageUpgrade() {
+        XCTAssertEqual(CollectorLinkImport.upgradeTwitterImage("https://pbs.twimg.com/media/A?name=small"),
+                       "https://pbs.twimg.com/media/A?name=orig")
+        XCTAssertEqual(CollectorLinkImport.upgradeTwitterImage("https://pbs.twimg.com/media/A?name=orig"),
+                       "https://pbs.twimg.com/media/A?name=orig")
+        XCTAssertEqual(CollectorLinkImport.upgradeTwitterImage("https://example.com/a.jpg"),
+                       "https://example.com/a.jpg", "非 twimg 不动")
+    }
+
     func testBatchParsingReportsBadLines() async {
         let (items, failures) = await CollectorLinkImport.candidates(from: """
         不是链接
