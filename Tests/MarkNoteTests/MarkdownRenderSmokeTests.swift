@@ -419,4 +419,54 @@ final class PreviewAssetBaseTests: XCTestCase {
         XCTAssertTrue(out.contains("source/image/09-13-a.png"), "img/ 要映射到 source/image/：\(out)")
         XCTAssertFalse(out.contains("%25E5"), "中文不能被二次编码：\(out)")
     }
+
+    /// 模板结构化渲染（方案 D）：属性卡 / @due 胶囊 / #标签 / 进度条
+    func testTemplateStructureRenders() throws {
+        func jsonString(_ value: String) throws -> String {
+            let data = try JSONSerialization.data(withJSONObject: [value])
+            let array = try XCTUnwrap(String(data: data, encoding: .utf8))
+            return String(array.dropFirst().dropLast())
+        }
+        let web = try loadPreviewWeb()
+        let md = """
+        ---
+        type: 日记
+        date: 2026-09-19
+        weather: 晴
+        mood: 
+        tags: [日记, 周记]
+        ---
+
+        # 2026-09-19 周六（晴）
+
+        - [ ] 把实验报告写完 @due(2026-09-20) #论文
+
+        进度 :: 1/3
+        """
+        let mdJSON = try jsonString(md)
+        let out = try evaluate(web, """
+        window.__setAssetBase('file:///tmp/');
+        window.renderMd(\(mdJSON), 'file:///tmp/', { dark: false, resetScroll: true });
+        JSON.stringify({
+          props: document.querySelectorAll('.mm-props .mm-chip').length,
+          propText: (document.querySelector('.mm-props') || {}).textContent || '',
+          due: document.querySelectorAll('.mm-due').length,
+          dueSoon: document.querySelectorAll('.mm-due.is-soon').length,
+          tag: document.querySelectorAll('.mm-tag').length,
+          progress: document.querySelectorAll('.mm-progress').length,
+          progressText: (document.querySelector('.mm-progress') || {}).textContent || '',
+          rawFrontMatterLeaked: document.body.textContent.indexOf('type: 日记') >= 0,
+          tasks: document.querySelectorAll('.task-list-item').length,
+          liHTML: (document.querySelector('.task-list-item') || {}).innerHTML || ''
+        });
+        """)
+        XCTAssertTrue(out.contains("\"props\":4"), "空属性（mood）不显示，其余 4 个进属性卡：\(out)")
+        XCTAssertTrue(out.contains("日记"), "属性值要显示：\(out)")
+        XCTAssertTrue(out.contains("\"due\":1"), "@due 渲染成日期胶囊：\(out)")
+        XCTAssertTrue(out.contains("\"tag\":1"), "#标签渲染成标签色：\(out)")
+        XCTAssertTrue(out.contains("\"progress\":1"), "进度行渲染成进度条：\(out)")
+        XCTAssertTrue(out.contains("1/3"), "进度条带数字：\(out)")
+        XCTAssertTrue(out.contains("\"rawFrontMatterLeaked\":false"), "front matter 不应残留成正文：\(out)")
+        XCTAssertTrue(out.contains("\"tasks\":1"), "任务行仍是可勾选任务：\(out)")
+    }
 }

@@ -452,6 +452,144 @@ if (typeof katex !== 'undefined') {
     return '<nav class="toc"><ul>' + items.join('') + '</ul></nav>';
   }
 
+  // ===== 模板结构化渲染（方案 D）=====
+  // 1) 属性卡：笔记开头的 YAML front matter → 顶部属性 chip（空值不显示）
+  // 2) 行内控件：@due(2026-09-22) → 日期胶囊（快到期变警示色）、#标签 → 标签色
+  // 3) 进度：单独一行的「进度 :: 3/8」→ 进度条
+  // 全部只影响预览，不改文件内容；别的编辑器打开仍是普通 Markdown。
+  var PROP_LABELS = {
+    type: '类型', date: '日期', weekday: '星期', weather: '天气', mood: '心情', tags: '标签',
+    course: '课程', lecturer: '讲师', book: '书名', author: '作者', source: '来源',
+    progress: '进度', status: '状态', due: '截止'
+  };
+
+  function splitFrontMatter(text) {
+    var m = text.match(/^\uFEFF?---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(\r?\n|$)/);
+    if (!m) { return { props: null, body: text }; }
+    var props = [];
+    var lines = m[1].split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line || line.charAt(0) === '#') { continue; }
+      var idx = line.indexOf(':');
+      if (idx <= 0) { continue; }
+      var key = line.slice(0, idx).trim();
+      var val = line.slice(idx + 1).trim().replace(/^\[(.*)\]$/, '$1').split(/\s*,\s*/).join(' · ');
+      if (!val) { continue; }                       // 还没填的空属性不显示
+      props.push({ key: PROP_LABELS[key] || key, value: val });
+    }
+    return { props: props.length ? props : null, body: text.slice(m[0].length) };
+  }
+
+  function propertyCard(props) {
+    var box = document.createElement('div');
+    box.className = 'mm-props';
+    for (var i = 0; i < props.length; i++) {
+      var chip = document.createElement('span');
+      chip.className = 'mm-chip';
+      var b = document.createElement('b');
+      b.textContent = props[i].key;
+      chip.appendChild(b);
+      chip.appendChild(document.createTextNode(props[i].value));
+      box.appendChild(chip);
+    }
+    return box;
+  }
+
+  /// 距离今天还有几天（用于「快到期」变色）
+  function daysUntil(iso) {
+    var parts = iso.split('-');
+    if (parts.length !== 3) { return null; }
+    var target = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.round((target - today) / 86400000);
+  }
+
+  function dueChip(iso) {
+    var span = document.createElement('span');
+    span.className = 'mm-due';
+    var left = daysUntil(iso);
+    if (left !== null && left <= 1) { span.classList.add('is-soon'); }
+    span.textContent = (left !== null && left >= 0)
+      ? ('📅 ' + iso.slice(5) + ' · 剩 ' + left + ' 天')
+      : ('📅 ' + iso);
+    return span;
+  }
+
+  /// 行内替换：文本节点里的 @due(...) 与 #标签
+  function applyInlineControls(root) {
+    // 先处理被 mention 渲染器拆开的写法：<span class="mention">@due</span>(2026-09-22)
+    var mentions = root.querySelectorAll('.mention');
+    var dueLead = /^\((\d{4}-\d{2}-\d{2})\)/;
+    for (var mi = mentions.length - 1; mi >= 0; mi--) {
+      var el = mentions[mi];
+      if ((el.textContent || '').trim() !== '@due') { continue; }
+      var nextNode = el.nextSibling;
+      if (!nextNode || nextNode.nodeType !== 3) { continue; }
+      var mm = (nextNode.nodeValue || '').match(dueLead);
+      if (!mm) { continue; }
+      nextNode.nodeValue = nextNode.nodeValue.slice(mm[0].length);
+      el.replaceWith(dueChip(mm[1]));
+    }
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var nodes = [];
+    while (walker.nextNode()) { nodes.push(walker.currentNode); }
+    var re = /@due\((\d{4}-\d{2}-\d{2})\)|(^|[\s（(])#([\p{L}\p{N}_\u4e00-\u9fa5-]{1,18})/gu;
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      var parent = node.parentNode;
+      if (!parent) { continue; }
+      if (/^(CODE|PRE|A|SCRIPT|STYLE|TEXTAREA|H1|H2|H3|H4|H5|H6)$/.test(parent.tagName)) { continue; }
+      var text = node.nodeValue;
+      if (text.indexOf('@due(') === -1 && text.indexOf('#') === -1) { continue; }
+      var frag = document.createDocumentFragment();
+      var last = 0, m;
+      re.lastIndex = 0;
+      while ((m = re.exec(text)) !== null) {
+        if (m.index > last) { frag.appendChild(document.createTextNode(text.slice(last, m.index))); }
+        if (m[1]) {
+          frag.appendChild(dueChip(m[1]));
+        } else {
+          frag.appendChild(document.createTextNode(m[2] || ''));
+          var tag = document.createElement('span');
+          tag.className = 'mm-tag';
+          tag.textContent = '#' + m[3];
+          frag.appendChild(tag);
+        }
+        last = m.index + m[0].length;
+      }
+      if (last === 0) { continue; }
+      if (last < text.length) { frag.appendChild(document.createTextNode(text.slice(last))); }
+      parent.replaceChild(frag, node);
+    }
+  }
+
+  /// 「进度 :: 3/8」独立段落 → 进度条
+  function applyProgressLines(root) {
+    var ps = root.querySelectorAll('p');
+    for (var i = ps.length - 1; i >= 0; i--) {
+      var p = ps[i];
+      var m = (p.textContent || '').trim().match(/^(?:进度|progress)\s*::\s*(\d+)\s*\/\s*(\d+)$/i);
+      if (!m) { continue; }
+      var done = +m[1], total = Math.max(1, +m[2]);
+      var box = document.createElement('div');
+      box.className = 'mm-progress';
+      var label = document.createElement('span');
+      label.textContent = (done === total)
+        ? ('全部完成 ' + done + '/' + total)
+        : ('进度 ' + done + '/' + total);
+      var bar = document.createElement('span');
+      bar.className = 'bar';
+      var fill = document.createElement('i');
+      fill.style.width = Math.round(done / total * 100) + '%';
+      bar.appendChild(fill);
+      box.appendChild(label);
+      box.appendChild(bar);
+      p.replaceWith(box);
+    }
+  }
+
   // ===== mermaid 懒加载 =====
   var mermaidReady = null;
   function ensureMermaid() {
@@ -749,7 +887,9 @@ window.renderMd = function (md, baseDir, opts) {
     // 顺序要紧：先让注册表把「相对路径」图片换成内联 data URL（键是相对路径），
     // 再把剩下的本地资源绝对化到工作台根（source/mp4 里的视频、未内联的图）。
     // 之前先按「笔记目录」补路径，会把 source/… 拼成 笔记目录/source/…（对不上工作台根）。
-    var html = renderMedia(absolutizeAssets(resolveImages(md2html(fixLegacyAssetTargets(md)), null)));
+    // 模板结构化渲染：先把 front matter 摘出来（md2html 之前），渲染完再插属性卡
+    var fm = splitFrontMatter(md);
+    var html = renderMedia(absolutizeAssets(resolveImages(md2html(fixLegacyAssetTargets(fm.body)), null)));
     // 标题锚点（anchor）与 [TOC] 目录（toc）独立开关
     if (isMod('anchor') || isMod('toc')) {
       html = anchorize(html);
@@ -761,6 +901,14 @@ window.renderMd = function (md, baseDir, opts) {
       }
     }
     container.innerHTML = html;
+    // 行内控件与进度条（预览专用渲染，不改文件）
+    try {
+      applyInlineControls(container);
+      applyProgressLines(container);
+      if (fm.props && fm.props.length) {
+        container.insertBefore(propertyCard(fm.props), container.firstChild);
+      }
+    } catch (e) { /* 结构化渲染失败不影响正文显示 */ }
     // HTML 导出（exportMode 非 posterMode）：视频/音频「附件卡」转回内嵌播放器 ——
     // @[名](source/…mp4) 的卡在导出件里同样可播（src 由 Swift 侧内联 data URL）
     if (opts.exportMode && !opts.posterMode) {

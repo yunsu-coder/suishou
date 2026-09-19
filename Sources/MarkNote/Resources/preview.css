@@ -555,3 +555,27 @@ html.no-figcaption .markdown-body figcaption { display: none !important; }
 .markdown-body ins { color: var(--md-insert, var(--text)); }
 .markdown-body blockquote { border-left-color: var(--md-quote, var(--accent)); }
 .markdown-body hr { border-top-color: var(--md-hr, var(--hr, var(--border-strong))); }
+
+/* ===== 模板结构化渲染（方案 D）：属性卡 / 日期胶囊 / 标签 / 进度条 =====
+   颜色全部走主题变量；缺字段时回落到 accent / text，老主题不受影响。 */
+.markdown-body .mm-props { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.markdown-body .mm-chip {
+  background: var(--accent-soft); border-radius: 8px; padding: 4px 10px;
+  font-size: .86em; color: var(--text); line-height: 1.5;
+}
+.markdown-body .mm-chip b { color: var(--accent); font-weight: 600; margin-right: 6px; }
+.markdown-body .mm-due {
+  display: inline-block; border: 1px solid var(--accent); border-radius: 999px;
+  padding: 0 8px; margin: 0 2px; font-size: .86em; color: var(--accent); white-space: nowrap;
+}
+.markdown-body .mm-due.is-soon { border-color: var(--danger); color: var(--danger); }
+.markdown-body .mm-tag { color: var(--h2, var(--accent)); font-size: .94em; }
+.markdown-body .mm-progress {
+  display: flex; align-items: center; gap: 10px; margin: 10px 0;
+  font-size: .9em; color: var(--text-secondary);
+}
+.markdown-body .mm-progress .bar {
+  flex: 1 1 auto; height: 6px; border-radius: 99px; overflow: hidden;
+  background: var(--code-bg); border: 1px solid var(--border);
+}
+.markdown-body .mm-progress .bar > i { display: block; height: 100%; background: var(--accent); }

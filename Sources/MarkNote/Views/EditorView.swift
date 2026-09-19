@@ -186,6 +186,39 @@ struct EditorView: View {
             }
             .buttonStyle(.plain)
             .help(_LL("显示 / 隐藏资源管理器（⌘B）", "Show / Hide Explorer (⌘B)"))
+            // 新建（含模板）：放在标签行最左侧，一眼能看到
+            Menu {
+                Button {
+                    store.createNote()
+                } label: {
+                    Label(_LL("空白笔记", "Blank note"), systemImage: "doc")
+                }
+                let templates = PluginManager.shared.allTemplates()
+                if !templates.isEmpty {
+                    Divider()
+                    ForEach(templateCategories(templates), id: \.self) { cat in
+                        Section(cat) {
+                            ForEach(templates.filter { $0.category == cat }) { tpl in
+                                Button {
+                                    store.createNoteFromTemplate(
+                                        tpl, context: TemplateContext(title: tpl.displayName))
+                                } label: {
+                                    Label(tpl.displayName, systemImage: tpl.icon)
+                                }
+                            }
+                        }
+                    }
+                }
+            } label: {
+                ThemeIcon(name: "plus", fallback: "plus", size: 13)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, height: 22)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help(_LL("新建笔记：空白（⌘N）或从模板（日记 / 待办 / 课堂笔记…）",
+                      "New note: blank (⌘N) or from a template"))
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 4) {
                     ForEach(store.openTabs, id: \.self) { id in
@@ -486,6 +519,11 @@ struct EditorView: View {
     }
 
     /// 把 AI 面板的回答插入当前光标处
+    /// 模板分类（按分类排序，菜单里分组显示）
+    private func templateCategories(_ templates: [NoteTemplate]) -> [String] {
+        Array(Set(templates.map(\.category))).sorted()
+    }
+
     private func insertAIText(_ text: String) {
         guard let tv = textViewRef else { return }
         tv.window?.makeFirstResponder(tv)
