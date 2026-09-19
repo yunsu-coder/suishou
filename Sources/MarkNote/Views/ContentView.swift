@@ -478,6 +478,34 @@ struct EmptyStateView: View {
                 Button(_LL("新建第一篇文件", "Create First Note")) { store.createNote() }
                     .buttonStyle(.borderedProminent)
             }
+            // 模板入口（显眼位置）：没打开笔记时也能一键建「今天的日记」等
+            if !PluginManager.shared.allTemplates().isEmpty {
+                Menu {
+                    Button {
+                        store.createNote()
+                    } label: {
+                        Label(_LL("空白笔记", "Blank note"), systemImage: "doc")
+                    }
+                    Divider()
+                    ForEach(Array(Set(PluginManager.shared.allTemplates().map(\.category))).sorted(),
+                            id: \.self) { cat in
+                        Section(cat) {
+                            ForEach(PluginManager.shared.allTemplates().filter { $0.category == cat }) { tpl in
+                                Button {
+                                    store.createNoteFromTemplate(
+                                        tpl, context: TemplateContext(title: tpl.displayName))
+                                } label: {
+                                    Label(tpl.displayName, systemImage: tpl.icon)
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Label(_LL("从模板新建", "New from template"), systemImage: "plus.circle")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

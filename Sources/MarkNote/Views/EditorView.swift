@@ -217,7 +217,7 @@ struct EditorView: View {
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .help(_LL("新建笔记：空白（⌘N）或从模板（日记 / 待办 / 课堂笔记…）",
+            .help(_LL("新建笔记：空白（⌘N）或从模板（日记 / 待办 / 课堂笔记…）ZZMARKER1",
                       "New note: blank (⌘N) or from a template"))
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 4) {

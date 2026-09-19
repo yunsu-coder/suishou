@@ -147,6 +147,17 @@ struct MarkNoteApp: App {
                 NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
             }
         }
+        if args.contains("--list-templates") {
+            // 诊断：打印当前加载到的模板（分类 / 文件名规则 / 菜单文案），确认模板包是否装上
+            PluginManager.shared.scan(workspaceDir: store.notesDir)
+            let templates = PluginManager.shared.allTemplates()
+            print("TEMPLATES \(templates.count)")
+            for t in templates {
+                print(" - \(t.id) | \(t.displayName) | \(t.category) | \(t.fileName ?? "-")")
+            }
+            print("MENU \(_L("空白笔记", "Blank note")) | \(_L("从模板新建", "New from template")) | \(_L("网络代理", "Proxy"))")
+            exit(0)
+        }
         if args.contains("--create-note") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 NotificationCenter.default.post(name: .requestNewNote, object: nil)

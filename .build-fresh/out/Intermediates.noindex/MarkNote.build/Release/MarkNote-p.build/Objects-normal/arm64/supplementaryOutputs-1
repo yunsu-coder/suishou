@@ -1,0 +1,11 @@
+{
+  "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/DerivedSources/resource_bundle_accessor.swift" : {
+    "abi-baseline-json" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote.abi.json",
+    "const-values" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote-primary.swiftconstvalues",
+    "dependencies" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote-primary.d",
+    "diagnostics" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote-primary.dia",
+    "swiftdoc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote.swiftdoc",
+    "swiftmodule" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote.swiftmodule",
+    "swiftsourceinfo" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote.swiftsourceinfo"
+  }
+}

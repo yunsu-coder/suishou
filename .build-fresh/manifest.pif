@@ -1,0 +1,4151 @@
+[
+  {
+    "contents" : {
+      "guid" : "Workspace:/Users/gzhysu/Desktop/note",
+      "name" : "MarkNote",
+      "path" : "/Users/gzhysu/Desktop/note",
+      "projects" : [
+        "f938c59c92f7f16a1f57baaee4685a7f2e2ae24150b169621924ecee97dd86c9",
+        "f022d9e87d5eff51bf6b91da321087f79c5f528abb545feda96e0648fdb016f4"
+      ]
+    },
+    "signature" : "a879195f4f162d29c20457d4e008b8e6170cad07daeffd1bf264da61056c37d8",
+    "type" : "workspace"
+  },
+  {
+    "contents" : {
+      "buildConfigurations" : [
+        {
+          "buildSettings" : {
+            "CLANG_ENABLE_MODULES[__platform_filter=driverkit]" : "YES",
+            "CLANG_ENABLE_MODULES[__platform_filter=ios-maccatalyst]" : "YES",
+            "CLANG_ENABLE_MODULES[__platform_filter=ios;ios-simulator]" : "YES",
+            "CLANG_ENABLE_MODULES[__platform_filter=macos]" : "YES",
+            "CLANG_ENABLE_MODULES[__platform_filter=tvos;tvos-simulator]" : "YES",
+            "CLANG_ENABLE_MODULES[__platform_filter=watchos;watchos-simulator]" : "YES",
+            "CLANG_ENABLE_MODULES[__platform_filter=xros;xros-simulator]" : "YES",
+            "CODE_SIGNING_REQUIRED" : "NO",
+            "CODE_SIGN_IDENTITY" : "",
+            "COMPILER_WORKING_DIRECTORY" : "$(WORKSPACE_DIR)",
+            "COPY_PHASE_STRIP" : "NO",
+            "DEBUG_INFORMATION_FORMAT" : "dwarf",
+            "DRIVERKIT_DEPLOYMENT_TARGET" : "21.0",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=driverkit]" : "@rpath",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=ios-maccatalyst]" : "@rpath",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=ios;ios-simulator]" : "@rpath",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=macos]" : "@rpath",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=tvos;tvos-simulator]" : "@rpath",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=watchos;watchos-simulator]" : "@rpath",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=xros;xros-simulator]" : "@rpath",
+            "ENABLE_NS_ASSERTIONS" : "YES",
+            "ENABLE_TESTABILITY" : "YES",
+            "ENABLE_TESTING_SEARCH_PATHS" : "YES",
+            "ENTITLEMENTS_REQUIRED" : "NO",
+            "GCC_OPTIMIZATION_LEVEL" : "0",
+            "GCC_PREPROCESSOR_DEFINITIONS" : [
+              "$(inherited)",
+              "SWIFT_PACKAGE",
+              "DEBUG=1"
+            ],
+            "INDEX_ENABLE_DATA_STORE" : "YES",
+            "IPHONEOS_DEPLOYMENT_TARGET" : "15.0",
+            "IPHONEOS_DEPLOYMENT_TARGET[__platform_filter=ios-maccatalyst]" : "15.0",
+            "KEEP_PRIVATE_EXTERNS" : "NO",
+            "LIBTOOL_NO_WARNING_FOR_NO_SYMBOLS" : "YES",
+            "LINKER_DRIVER" : "auto",
+            "MACOSX_DEPLOYMENT_TARGET" : "14.0",
+            "ONLY_ACTIVE_ARCH" : "YES",
+            "OTHER_CFLAGS" : [
+              "$(inherited)",
+              "-DXcode"
+            ],
+            "OTHER_LDRFLAGS" : [
+
+            ],
+            "OTHER_SWIFT_FLAGS" : [
+              "$(inherited)",
+              "-DXcode"
+            ],
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SKIP_INSTALL" : "YES",
+            "SPECIALIZATION_SDK_OPTIONS[__platform_filter=macos]" : [
+
+            ],
+            "SUPPORTED_PLATFORMS" : [
+              "$(AVAILABLE_PLATFORMS)"
+            ],
+            "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : [
+              "$(inherited)",
+              "SWIFT_PACKAGE",
+              "DEBUG"
+            ],
+            "SWIFT_INSTALL_OBJC_HEADER" : "NO",
+            "SWIFT_OBJC_INTERFACE_HEADER_NAME" : "",
+            "SWIFT_OPTIMIZATION_LEVEL" : "-Onone",
+            "TARGETED_DEVICE_FAMILY" : "",
+            "TVOS_DEPLOYMENT_TARGET" : "15.0",
+            "USE_HEADERMAP" : "NO",
+            "WATCHOS_DEPLOYMENT_TARGET" : "9.0",
+            "XROS_DEPLOYMENT_TARGET" : "1.0"
+          },
+          "guid" : "PACKAGE:note::BUILDCONFIG_0",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Debug"
+        },
+        {
+          "buildSettings" : {
+            "CLANG_ENABLE_MODULES[__platform_filter=driverkit]" : "YES",
+            "CLANG_ENABLE_MODULES[__platform_filter=ios-maccatalyst]" : "YES",
+            "CLANG_ENABLE_MODULES[__platform_filter=ios;ios-simulator]" : "YES",
+            "CLANG_ENABLE_MODULES[__platform_filter=macos]" : "YES",
+            "CLANG_ENABLE_MODULES[__platform_filter=tvos;tvos-simulator]" : "YES",
+            "CLANG_ENABLE_MODULES[__platform_filter=watchos;watchos-simulator]" : "YES",
+            "CLANG_ENABLE_MODULES[__platform_filter=xros;xros-simulator]" : "YES",
+            "CODE_SIGNING_REQUIRED" : "NO",
+            "CODE_SIGN_IDENTITY" : "",
+            "COMPILER_WORKING_DIRECTORY" : "$(WORKSPACE_DIR)",
+            "COPY_PHASE_STRIP" : "YES",
+            "DEBUG_INFORMATION_FORMAT" : "dwarf-with-dsym",
+            "DEPLOYMENT_POSTPROCESSING" : "YES",
+            "DRIVERKIT_DEPLOYMENT_TARGET" : "21.0",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=driverkit]" : "@rpath",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=ios-maccatalyst]" : "@rpath",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=ios;ios-simulator]" : "@rpath",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=macos]" : "@rpath",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=tvos;tvos-simulator]" : "@rpath",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=watchos;watchos-simulator]" : "@rpath",
+            "DYLIB_INSTALL_NAME_BASE[__platform_filter=xros;xros-simulator]" : "@rpath",
+            "ENABLE_TESTING_SEARCH_PATHS" : "YES",
+            "ENTITLEMENTS_REQUIRED" : "NO",
+            "GCC_OPTIMIZATION_LEVEL" : "s",
+            "GCC_PREPROCESSOR_DEFINITIONS" : [
+              "$(inherited)",
+              "SWIFT_PACKAGE"
+            ],
+            "IPHONEOS_DEPLOYMENT_TARGET" : "15.0",
+            "IPHONEOS_DEPLOYMENT_TARGET[__platform_filter=ios-maccatalyst]" : "15.0",
+            "KEEP_PRIVATE_EXTERNS" : "NO",
+            "LIBTOOL_NO_WARNING_FOR_NO_SYMBOLS" : "YES",
+            "LINKER_DRIVER" : "auto",
+            "MACOSX_DEPLOYMENT_TARGET" : "14.0",
+            "OTHER_CFLAGS" : [
+              "$(inherited)",
+              "-DXcode"
+            ],
+            "OTHER_LDRFLAGS" : [
+
+            ],
+            "OTHER_SWIFT_FLAGS" : [
+              "$(inherited)",
+              "-DXcode"
+            ],
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SKIP_INSTALL" : "YES",
+            "SPECIALIZATION_SDK_OPTIONS[__platform_filter=macos]" : [
+
+            ],
+            "SUPPORTED_PLATFORMS" : [
+              "$(AVAILABLE_PLATFORMS)"
+            ],
+            "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : [
+              "$(inherited)",
+              "SWIFT_PACKAGE"
+            ],
+            "SWIFT_INSTALL_OBJC_HEADER" : "NO",
+            "SWIFT_OBJC_INTERFACE_HEADER_NAME" : "",
+            "SWIFT_OPTIMIZATION_LEVEL" : "-Owholemodule",
+            "TARGETED_DEVICE_FAMILY" : "",
+            "TVOS_DEPLOYMENT_TARGET" : "15.0",
+            "USE_HEADERMAP" : "NO",
+            "WATCHOS_DEPLOYMENT_TARGET" : "9.0",
+            "XROS_DEPLOYMENT_TARGET" : "1.0"
+          },
+          "guid" : "PACKAGE:note::BUILDCONFIG_1",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Release"
+        }
+      ],
+      "defaultConfigurationName" : "Release",
+      "groupTree" : {
+        "children" : [
+          {
+            "children" : [
+
+            ],
+            "guid" : "PACKAGE:note::MAINGROUP::REF_0",
+            "name" : "AdditionalFiles",
+            "path" : "/",
+            "sourceTree" : "<absolute>",
+            "type" : "group"
+          },
+          {
+            "children" : [
+
+            ],
+            "guid" : "PACKAGE:note::MAINGROUP::REF_1",
+            "name" : "Binaries",
+            "path" : "/",
+            "sourceTree" : "<absolute>",
+            "type" : "group"
+          },
+          {
+            "children" : [
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_0",
+                "name" : "AIExpertsTests.swift",
+                "path" : "AIExpertsTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_1",
+                "name" : "AIHistoryTests.swift",
+                "path" : "AIHistoryTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_2",
+                "name" : "BubblePopThemeTests.swift",
+                "path" : "BubblePopThemeTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_3",
+                "name" : "CCppTests.swift",
+                "path" : "CCppTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_4",
+                "name" : "CodeHighlightTests.swift",
+                "path" : "CodeHighlightTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_5",
+                "name" : "CollectorAccountsTests.swift",
+                "path" : "CollectorAccountsTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_6",
+                "name" : "CollectorClarifyTests.swift",
+                "path" : "CollectorClarifyTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_7",
+                "name" : "CollectorDownloadResultTests.swift",
+                "path" : "CollectorDownloadResultTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_8",
+                "name" : "CollectorFormTests.swift",
+                "path" : "CollectorFormTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_9",
+                "name" : "CollectorImageLiveTests.swift",
+                "path" : "CollectorImageLiveTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_10",
+                "name" : "CollectorLinkImportTests.swift",
+                "path" : "CollectorLinkImportTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_11",
+                "name" : "CollectorLoginEffectLiveTests.swift",
+                "path" : "CollectorLoginEffectLiveTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_12",
+                "name" : "CollectorTests.swift",
+                "path" : "CollectorTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_13",
+                "name" : "CollectorTextLiveTests.swift",
+                "path" : "CollectorTextLiveTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_14",
+                "name" : "CollectorTextTests.swift",
+                "path" : "CollectorTextTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_15",
+                "name" : "CollectorVideoLiveTests.swift",
+                "path" : "CollectorVideoLiveTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_16",
+                "name" : "CollectorVideoResolveTests.swift",
+                "path" : "CollectorVideoResolveTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_17",
+                "name" : "ConflictTests.swift",
+                "path" : "ConflictTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_18",
+                "name" : "DownloadProgressTests.swift",
+                "path" : "DownloadProgressTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_19",
+                "name" : "DropGuardTests.swift",
+                "path" : "DropGuardTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_20",
+                "name" : "EditorPerfTests.swift",
+                "path" : "EditorPerfTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_21",
+                "name" : "FeatureTests.swift",
+                "path" : "FeatureTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_22",
+                "name" : "FlowchartRouterPropertyTests.swift",
+                "path" : "FlowchartRouterPropertyTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_23",
+                "name" : "FlowchartStressRenderTests.swift",
+                "path" : "FlowchartStressRenderTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_24",
+                "name" : "FlowchartTests.swift",
+                "path" : "FlowchartTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_25",
+                "name" : "HTMLToMarkdownTests.swift",
+                "path" : "HTMLToMarkdownTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_26",
+                "name" : "L10nTests.swift",
+                "path" : "L10nTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_27",
+                "name" : "MarkdownRenderSmokeTests.swift",
+                "path" : "MarkdownRenderSmokeTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_28",
+                "name" : "MindMapTests.swift",
+                "path" : "MindMapTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_29",
+                "name" : "NoteTemplateTests.swift",
+                "path" : "NoteTemplateTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_30",
+                "name" : "PluginCSSTests.swift",
+                "path" : "PluginCSSTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_31",
+                "name" : "PluginEffectTests.swift",
+                "path" : "PluginEffectTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_32",
+                "name" : "PluginTests.swift",
+                "path" : "PluginTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_33",
+                "name" : "ReferenceTests.swift",
+                "path" : "ReferenceTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_34",
+                "name" : "RegressionTests.swift",
+                "path" : "RegressionTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_35",
+                "name" : "RenderPluginWebTests.swift",
+                "path" : "RenderPluginWebTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_36",
+                "name" : "StoreIOTests.swift",
+                "path" : "StoreIOTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_37",
+                "name" : "TestSupport.swift",
+                "path" : "TestSupport.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_38",
+                "name" : "ThemeAccessPerfTests.swift",
+                "path" : "ThemeAccessPerfTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_39",
+                "name" : "ThemeMarketAuditTests.swift",
+                "path" : "ThemeMarketAuditTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_40",
+                "name" : "ThemeProgressBarRenderTests.swift",
+                "path" : "ThemeProgressBarRenderTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_41",
+                "name" : "ViewPluginTests.swift",
+                "path" : "ViewPluginTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_42",
+                "name" : "WorkspaceAgentTests.swift",
+                "path" : "WorkspaceAgentTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_43",
+                "name" : "XLinkImportLiveTests.swift",
+                "path" : "XLinkImportLiveTests.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_2::REF_44",
+                "name" : "ZZDiag.swift",
+                "path" : "ZZDiag.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              }
+            ],
+            "guid" : "PACKAGE:note::MAINGROUP::REF_2",
+            "name" : "/Users/gzhysu/Desktop/note/Tests/MarkNoteTests",
+            "path" : "/Users/gzhysu/Desktop/note/Tests/MarkNoteTests",
+            "sourceTree" : "<absolute>",
+            "type" : "group"
+          },
+          {
+            "children" : [
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_0",
+                "name" : "Editor/CodeHighlighter.swift",
+                "path" : "Editor/CodeHighlighter.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_1",
+                "name" : "Editor/LineNumberRulerView.swift",
+                "path" : "Editor/LineNumberRulerView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_2",
+                "name" : "Editor/MarkdownEditorView.swift",
+                "path" : "Editor/MarkdownEditorView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_3",
+                "name" : "Editor/MarkdownHighlighter.swift",
+                "path" : "Editor/MarkdownHighlighter.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_4",
+                "name" : "Editor/MarkdownTextView.swift",
+                "path" : "Editor/MarkdownTextView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_5",
+                "name" : "Export/ExportService.swift",
+                "path" : "Export/ExportService.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_6",
+                "name" : "MarkNoteApp.swift",
+                "path" : "MarkNoteApp.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_7",
+                "name" : "Models/AIExpert.swift",
+                "path" : "Models/AIExpert.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_8",
+                "name" : "Models/AssetSyntax.swift",
+                "path" : "Models/AssetSyntax.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_9",
+                "name" : "Models/Collector.swift",
+                "path" : "Models/Collector.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_10",
+                "name" : "Models/CollectorAccounts.swift",
+                "path" : "Models/CollectorAccounts.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_11",
+                "name" : "Models/CollectorClarify.swift",
+                "path" : "Models/CollectorClarify.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_12",
+                "name" : "Models/CollectorLinkImport.swift",
+                "path" : "Models/CollectorLinkImport.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_13",
+                "name" : "Models/CollectorNet.swift",
+                "path" : "Models/CollectorNet.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_14",
+                "name" : "Models/CollectorWebRender.swift",
+                "path" : "Models/CollectorWebRender.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_15",
+                "name" : "Models/FeatureModules.swift",
+                "path" : "Models/FeatureModules.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_16",
+                "name" : "Models/FileTools.swift",
+                "path" : "Models/FileTools.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_17",
+                "name" : "Models/Flowchart.swift",
+                "path" : "Models/Flowchart.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_18",
+                "name" : "Models/FlowchartRouter.swift",
+                "path" : "Models/FlowchartRouter.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_19",
+                "name" : "Models/HTMLToMarkdown.swift",
+                "path" : "Models/HTMLToMarkdown.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_20",
+                "name" : "Models/L10n.swift",
+                "path" : "Models/L10n.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_21",
+                "name" : "Models/LLM.swift",
+                "path" : "Models/LLM.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_22",
+                "name" : "Models/MindMap.swift",
+                "path" : "Models/MindMap.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_23",
+                "name" : "Models/Note.swift",
+                "path" : "Models/Note.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_24",
+                "name" : "Models/NoteTemplate.swift",
+                "path" : "Models/NoteTemplate.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_25",
+                "name" : "Models/NovelCollector.swift",
+                "path" : "Models/NovelCollector.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_26",
+                "name" : "Models/Plugin.swift",
+                "path" : "Models/Plugin.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_27",
+                "name" : "Models/Theme.swift",
+                "path" : "Models/Theme.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_28",
+                "name" : "Models/ThemeFonts.swift",
+                "path" : "Models/ThemeFonts.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_29",
+                "name" : "Models/ThemeQuality.swift",
+                "path" : "Models/ThemeQuality.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_30",
+                "name" : "Store/NotesStore.swift",
+                "path" : "Store/NotesStore.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_31",
+                "name" : "Store/PluginManager.swift",
+                "path" : "Store/PluginManager.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_32",
+                "name" : "Store/Workspace.swift",
+                "path" : "Store/Workspace.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_33",
+                "name" : "Store/WorkspaceAgent.swift",
+                "path" : "Store/WorkspaceAgent.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_34",
+                "name" : "Views/AIPanelView.swift",
+                "path" : "Views/AIPanelView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_35",
+                "name" : "Views/AssetGridView.swift",
+                "path" : "Views/AssetGridView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_36",
+                "name" : "Views/AssetImportSheet.swift",
+                "path" : "Views/AssetImportSheet.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_37",
+                "name" : "Views/CollectorAccountsView.swift",
+                "path" : "Views/CollectorAccountsView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_38",
+                "name" : "Views/CollectorLoginView.swift",
+                "path" : "Views/CollectorLoginView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_39",
+                "name" : "Views/CollectorView.swift",
+                "path" : "Views/CollectorView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_40",
+                "name" : "Views/CommandPalette.swift",
+                "path" : "Views/CommandPalette.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_41",
+                "name" : "Views/ContentView.swift",
+                "path" : "Views/ContentView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_42",
+                "name" : "Views/EditorView.swift",
+                "path" : "Views/EditorView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_43",
+                "name" : "Views/FlowchartCanvas.swift",
+                "path" : "Views/FlowchartCanvas.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_44",
+                "name" : "Views/FlowchartView.swift",
+                "path" : "Views/FlowchartView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_45",
+                "name" : "Views/GlassBackdrop.swift",
+                "path" : "Views/GlassBackdrop.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_46",
+                "name" : "Views/ImageZoomView.swift",
+                "path" : "Views/ImageZoomView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_47",
+                "name" : "Views/MediaPreview.swift",
+                "path" : "Views/MediaPreview.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_48",
+                "name" : "Views/MindMapCanvas.swift",
+                "path" : "Views/MindMapCanvas.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_49",
+                "name" : "Views/MindMapView.swift",
+                "path" : "Views/MindMapView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_50",
+                "name" : "Views/NoteCardsView.swift",
+                "path" : "Views/NoteCardsView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_51",
+                "name" : "Views/PluginMarketView.swift",
+                "path" : "Views/PluginMarketView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_52",
+                "name" : "Views/PreviewRenderState.swift",
+                "path" : "Views/PreviewRenderState.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_53",
+                "name" : "Views/PreviewView.swift",
+                "path" : "Views/PreviewView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_54",
+                "name" : "Views/QuickOpenView.swift",
+                "path" : "Views/QuickOpenView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_55",
+                "name" : "Views/SettingsView.swift",
+                "path" : "Views/SettingsView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_56",
+                "name" : "Views/SidebarView.swift",
+                "path" : "Views/SidebarView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_57",
+                "name" : "Views/ThemeEasterEggOverlay.swift",
+                "path" : "Views/ThemeEasterEggOverlay.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_58",
+                "name" : "Views/ThemeIcon.swift",
+                "path" : "Views/ThemeIcon.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_59",
+                "name" : "Views/ThemeProgressBar.swift",
+                "path" : "Views/ThemeProgressBar.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_60",
+                "name" : "Views/TreeTableView.swift",
+                "path" : "Views/TreeTableView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_3::REF_61",
+                "name" : "Views/VersionsView.swift",
+                "path" : "Views/VersionsView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              }
+            ],
+            "guid" : "PACKAGE:note::MAINGROUP::REF_3",
+            "name" : "/Users/gzhysu/Desktop/note/Sources/MarkNote",
+            "path" : "/Users/gzhysu/Desktop/note/Sources/MarkNote",
+            "sourceTree" : "<absolute>",
+            "type" : "group"
+          },
+          {
+            "fileType" : "file",
+            "guid" : "PACKAGE:note::MAINGROUP::REF_4",
+            "name" : "/Users/gzhysu/Desktop/note/Sources/MarkNote/Resources",
+            "path" : "/Users/gzhysu/Desktop/note/Sources/MarkNote/Resources",
+            "sourceTree" : "<absolute>",
+            "type" : "file"
+          },
+          {
+            "fileType" : "file",
+            "guid" : "PACKAGE:note::MAINGROUP::REF_5",
+            "name" : "$(CONFIGURATION_BUILD_DIR)/MarkNote_MarkNote.bundle",
+            "path" : "$(CONFIGURATION_BUILD_DIR)/MarkNote_MarkNote.bundle",
+            "sourceTree" : "<group>",
+            "type" : "file"
+          },
+          {
+            "children" : [
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_0",
+                "name" : "Editor/CodeHighlighter.swift",
+                "path" : "Editor/CodeHighlighter.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_1",
+                "name" : "Editor/LineNumberRulerView.swift",
+                "path" : "Editor/LineNumberRulerView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_2",
+                "name" : "Editor/MarkdownEditorView.swift",
+                "path" : "Editor/MarkdownEditorView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_3",
+                "name" : "Editor/MarkdownHighlighter.swift",
+                "path" : "Editor/MarkdownHighlighter.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_4",
+                "name" : "Editor/MarkdownTextView.swift",
+                "path" : "Editor/MarkdownTextView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_5",
+                "name" : "Export/ExportService.swift",
+                "path" : "Export/ExportService.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_6",
+                "name" : "MarkNoteApp.swift",
+                "path" : "MarkNoteApp.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_7",
+                "name" : "Models/AIExpert.swift",
+                "path" : "Models/AIExpert.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_8",
+                "name" : "Models/AssetSyntax.swift",
+                "path" : "Models/AssetSyntax.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_9",
+                "name" : "Models/Collector.swift",
+                "path" : "Models/Collector.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_10",
+                "name" : "Models/CollectorAccounts.swift",
+                "path" : "Models/CollectorAccounts.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_11",
+                "name" : "Models/CollectorClarify.swift",
+                "path" : "Models/CollectorClarify.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_12",
+                "name" : "Models/CollectorLinkImport.swift",
+                "path" : "Models/CollectorLinkImport.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_13",
+                "name" : "Models/CollectorNet.swift",
+                "path" : "Models/CollectorNet.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_14",
+                "name" : "Models/CollectorWebRender.swift",
+                "path" : "Models/CollectorWebRender.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_15",
+                "name" : "Models/FeatureModules.swift",
+                "path" : "Models/FeatureModules.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_16",
+                "name" : "Models/FileTools.swift",
+                "path" : "Models/FileTools.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_17",
+                "name" : "Models/Flowchart.swift",
+                "path" : "Models/Flowchart.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_18",
+                "name" : "Models/FlowchartRouter.swift",
+                "path" : "Models/FlowchartRouter.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_19",
+                "name" : "Models/HTMLToMarkdown.swift",
+                "path" : "Models/HTMLToMarkdown.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_20",
+                "name" : "Models/L10n.swift",
+                "path" : "Models/L10n.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_21",
+                "name" : "Models/LLM.swift",
+                "path" : "Models/LLM.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_22",
+                "name" : "Models/MindMap.swift",
+                "path" : "Models/MindMap.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_23",
+                "name" : "Models/Note.swift",
+                "path" : "Models/Note.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_24",
+                "name" : "Models/NoteTemplate.swift",
+                "path" : "Models/NoteTemplate.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_25",
+                "name" : "Models/NovelCollector.swift",
+                "path" : "Models/NovelCollector.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_26",
+                "name" : "Models/Plugin.swift",
+                "path" : "Models/Plugin.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_27",
+                "name" : "Models/Theme.swift",
+                "path" : "Models/Theme.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_28",
+                "name" : "Models/ThemeFonts.swift",
+                "path" : "Models/ThemeFonts.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_29",
+                "name" : "Models/ThemeQuality.swift",
+                "path" : "Models/ThemeQuality.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_30",
+                "name" : "Store/NotesStore.swift",
+                "path" : "Store/NotesStore.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_31",
+                "name" : "Store/PluginManager.swift",
+                "path" : "Store/PluginManager.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_32",
+                "name" : "Store/Workspace.swift",
+                "path" : "Store/Workspace.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_33",
+                "name" : "Store/WorkspaceAgent.swift",
+                "path" : "Store/WorkspaceAgent.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_34",
+                "name" : "Views/AIPanelView.swift",
+                "path" : "Views/AIPanelView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_35",
+                "name" : "Views/AssetGridView.swift",
+                "path" : "Views/AssetGridView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_36",
+                "name" : "Views/AssetImportSheet.swift",
+                "path" : "Views/AssetImportSheet.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_37",
+                "name" : "Views/CollectorAccountsView.swift",
+                "path" : "Views/CollectorAccountsView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_38",
+                "name" : "Views/CollectorLoginView.swift",
+                "path" : "Views/CollectorLoginView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_39",
+                "name" : "Views/CollectorView.swift",
+                "path" : "Views/CollectorView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_40",
+                "name" : "Views/CommandPalette.swift",
+                "path" : "Views/CommandPalette.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_41",
+                "name" : "Views/ContentView.swift",
+                "path" : "Views/ContentView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_42",
+                "name" : "Views/EditorView.swift",
+                "path" : "Views/EditorView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_43",
+                "name" : "Views/FlowchartCanvas.swift",
+                "path" : "Views/FlowchartCanvas.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_44",
+                "name" : "Views/FlowchartView.swift",
+                "path" : "Views/FlowchartView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_45",
+                "name" : "Views/GlassBackdrop.swift",
+                "path" : "Views/GlassBackdrop.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_46",
+                "name" : "Views/ImageZoomView.swift",
+                "path" : "Views/ImageZoomView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_47",
+                "name" : "Views/MediaPreview.swift",
+                "path" : "Views/MediaPreview.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_48",
+                "name" : "Views/MindMapCanvas.swift",
+                "path" : "Views/MindMapCanvas.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_49",
+                "name" : "Views/MindMapView.swift",
+                "path" : "Views/MindMapView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_50",
+                "name" : "Views/NoteCardsView.swift",
+                "path" : "Views/NoteCardsView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_51",
+                "name" : "Views/PluginMarketView.swift",
+                "path" : "Views/PluginMarketView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_52",
+                "name" : "Views/PreviewRenderState.swift",
+                "path" : "Views/PreviewRenderState.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_53",
+                "name" : "Views/PreviewView.swift",
+                "path" : "Views/PreviewView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_54",
+                "name" : "Views/QuickOpenView.swift",
+                "path" : "Views/QuickOpenView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_55",
+                "name" : "Views/SettingsView.swift",
+                "path" : "Views/SettingsView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_56",
+                "name" : "Views/SidebarView.swift",
+                "path" : "Views/SidebarView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_57",
+                "name" : "Views/ThemeEasterEggOverlay.swift",
+                "path" : "Views/ThemeEasterEggOverlay.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_58",
+                "name" : "Views/ThemeIcon.swift",
+                "path" : "Views/ThemeIcon.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_59",
+                "name" : "Views/ThemeProgressBar.swift",
+                "path" : "Views/ThemeProgressBar.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_60",
+                "name" : "Views/TreeTableView.swift",
+                "path" : "Views/TreeTableView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              },
+              {
+                "fileType" : "sourcecode.swift",
+                "guid" : "PACKAGE:note::MAINGROUP::REF_6::REF_61",
+                "name" : "Views/VersionsView.swift",
+                "path" : "Views/VersionsView.swift",
+                "sourceTree" : "<group>",
+                "type" : "file"
+              }
+            ],
+            "guid" : "PACKAGE:note::MAINGROUP::REF_6",
+            "name" : "/Users/gzhysu/Desktop/note/Sources/MarkNote",
+            "path" : "/Users/gzhysu/Desktop/note/Sources/MarkNote",
+            "sourceTree" : "<absolute>",
+            "type" : "group"
+          }
+        ],
+        "guid" : "PACKAGE:note::MAINGROUP",
+        "name" : "",
+        "path" : "",
+        "sourceTree" : "<group>",
+        "type" : "group"
+      },
+      "guid" : "PACKAGE:note",
+      "path" : "/Users/gzhysu/Desktop/note/Package.swift",
+      "projectDirectory" : "/Users/gzhysu/Desktop/note",
+      "projectIsPackage" : "true",
+      "projectName" : "MarkNote",
+      "targets" : [
+        "b8ab6c721cc9904169ca40e02e8f07ea1699f7899b169f4cf36120f989f2343a",
+        "563f2a02714b4ada26de3e86dd26f787f7ee78c8879cbfcda566dc0662b4f692",
+        "d7cb39b0a34194f953281b468cd9db6d82bb991df42aeb71f6fdd95a68b6e968",
+        "a4bb021f7ac9d5839c0c74b3455ff80f9cbc0804177fd2137c2225421876b620",
+        "1d254ae5409cbb0a585b0ad1ed81ec91b154cb8dbabc9ba8c6dc0db77b3cd289",
+        "8029002ab5402d61d6f16e52b5a6bfab6d2c1b160a0b681733722c8a4382b01e"
+      ]
+    },
+    "signature" : "f938c59c92f7f16a1f57baaee4685a7f2e2ae24150b169621924ecee97dd86c9",
+    "type" : "project"
+  },
+  {
+    "contents" : {
+      "approvedByUser" : "true",
+      "buildConfigurations" : [
+        {
+          "buildSettings" : {
+            "APPLE_TEST_BUNDLE_RPATH" : "$(APPLE_TEST_BUNDLE_RPATH_SHALLOW_BUNDLE_$(SHALLOW_BUNDLE:default=NO))",
+            "APPLE_TEST_BUNDLE_RPATH_SHALLOW_BUNDLE_NO" : "@loader_path/../../..",
+            "APPLE_TEST_BUNDLE_RPATH_SHALLOW_BUNDLE_YES" : "@loader_path/../..",
+            "BUILD_SERVER_PROTOCOL_TARGET_TAGS" : [
+              "$(inherited)",
+              "test"
+            ],
+            "DOCC_EXTRACT_PROJECT_HEADERS_DOCUMENTATION" : "YES",
+            "DRIVERKIT_DEPLOYMENT_TARGET" : "21.0",
+            "GENERATE_EMBED_IN_CODE_ACCESSORS" : "NO",
+            "GENERATE_INFOPLIST_FILE" : "YES",
+            "GENERATE_RESOURCE_ACCESSORS" : "YES",
+            "INDEX_ENABLE_DATA_STORE" : "YES",
+            "IPHONEOS_DEPLOYMENT_TARGET" : "17.0",
+            "IPHONEOS_DEPLOYMENT_TARGET[__platform_filter=ios-maccatalyst]" : "17.0",
+            "LD_RUNPATH_SEARCH_PATHS" : [
+              "$(RPATH_ORIGIN)/Frameworks",
+              "$(RPATH_ORIGIN)/../Frameworks",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=driverkit]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=ios-maccatalyst]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=ios;ios-simulator]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=macos]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=tvos;tvos-simulator]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=watchos;watchos-simulator]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=xros;xros-simulator]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "MACOSX_DEPLOYMENT_TARGET" : "14.0",
+            "PACKAGE_RESOURCE_TARGET_KIND" : "regular",
+            "PRODUCT_BUNDLE_IDENTIFIER" : "note.MarkNoteTests",
+            "PRODUCT_MODULE_NAME" : "MarkNoteTests",
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SDKROOT" : "auto",
+            "SDK_VARIANT" : "auto",
+            "SKIP_INSTALL" : "NO",
+            "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : [
+              "$(inherited)"
+            ],
+            "SWIFT_DISABLE_PARSE_AS_LIBRARY" : "NO",
+            "SWIFT_ENABLE_BARE_SLASH_REGEX" : "NO",
+            "SWIFT_LIBRARIES_ONLY" : "YES",
+            "SWIFT_PACKAGE_NAME" : "note",
+            "SWIFT_VERSION" : "5",
+            "SYMBOL_GRAPH_EXTRACTOR_OUTPUT_DIR" : "$(TARGET_BUILD_DIR)/$(CURRENT_ARCH)/MarkNoteTests.symbolgraphs",
+            "TAPI_EXTRACT_API_OUTPUT_DIR" : "$(TARGET_BUILD_DIR)/$(CURRENT_ARCH)/MarkNoteTests.symbolgraphs",
+            "TARGET_NAME" : "MarkNoteTests",
+            "TARGET_TEMP_DIR_SUFFIX" : "-p",
+            "TVOS_DEPLOYMENT_TARGET" : "17.0",
+            "WATCHOS_DEPLOYMENT_TARGET" : "26.0",
+            "XROS_DEPLOYMENT_TARGET" : "1.0"
+          },
+          "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDCONFIG_0",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Debug"
+        },
+        {
+          "buildSettings" : {
+            "APPLE_TEST_BUNDLE_RPATH" : "$(APPLE_TEST_BUNDLE_RPATH_SHALLOW_BUNDLE_$(SHALLOW_BUNDLE:default=NO))",
+            "APPLE_TEST_BUNDLE_RPATH_SHALLOW_BUNDLE_NO" : "@loader_path/../../..",
+            "APPLE_TEST_BUNDLE_RPATH_SHALLOW_BUNDLE_YES" : "@loader_path/../..",
+            "BUILD_SERVER_PROTOCOL_TARGET_TAGS" : [
+              "$(inherited)",
+              "test"
+            ],
+            "DOCC_EXTRACT_PROJECT_HEADERS_DOCUMENTATION" : "YES",
+            "DRIVERKIT_DEPLOYMENT_TARGET" : "21.0",
+            "GENERATE_EMBED_IN_CODE_ACCESSORS" : "NO",
+            "GENERATE_INFOPLIST_FILE" : "YES",
+            "GENERATE_RESOURCE_ACCESSORS" : "YES",
+            "INDEX_ENABLE_DATA_STORE" : "YES",
+            "IPHONEOS_DEPLOYMENT_TARGET" : "17.0",
+            "IPHONEOS_DEPLOYMENT_TARGET[__platform_filter=ios-maccatalyst]" : "17.0",
+            "LD_RUNPATH_SEARCH_PATHS" : [
+              "$(RPATH_ORIGIN)/Frameworks",
+              "$(RPATH_ORIGIN)/../Frameworks",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=driverkit]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=ios-maccatalyst]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=ios;ios-simulator]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=macos]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=tvos;tvos-simulator]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=watchos;watchos-simulator]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "LD_RUNPATH_SEARCH_PATHS[__platform_filter=xros;xros-simulator]" : [
+              "$(APPLE_TEST_BUNDLE_RPATH)",
+              "$(inherited)"
+            ],
+            "MACOSX_DEPLOYMENT_TARGET" : "14.0",
+            "PACKAGE_RESOURCE_TARGET_KIND" : "regular",
+            "PRODUCT_BUNDLE_IDENTIFIER" : "note.MarkNoteTests",
+            "PRODUCT_MODULE_NAME" : "MarkNoteTests",
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SDKROOT" : "auto",
+            "SDK_VARIANT" : "auto",
+            "SKIP_INSTALL" : "NO",
+            "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : [
+              "$(inherited)"
+            ],
+            "SWIFT_DISABLE_PARSE_AS_LIBRARY" : "NO",
+            "SWIFT_ENABLE_BARE_SLASH_REGEX" : "NO",
+            "SWIFT_LIBRARIES_ONLY" : "YES",
+            "SWIFT_PACKAGE_NAME" : "note",
+            "SWIFT_VERSION" : "5",
+            "SYMBOL_GRAPH_EXTRACTOR_OUTPUT_DIR" : "$(TARGET_BUILD_DIR)/$(CURRENT_ARCH)/MarkNoteTests.symbolgraphs",
+            "TAPI_EXTRACT_API_OUTPUT_DIR" : "$(TARGET_BUILD_DIR)/$(CURRENT_ARCH)/MarkNoteTests.symbolgraphs",
+            "TARGET_NAME" : "MarkNoteTests",
+            "TARGET_TEMP_DIR_SUFFIX" : "-p",
+            "TVOS_DEPLOYMENT_TARGET" : "17.0",
+            "WATCHOS_DEPLOYMENT_TARGET" : "26.0",
+            "XROS_DEPLOYMENT_TARGET" : "1.0"
+          },
+          "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDCONFIG_1",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Release"
+        }
+      ],
+      "buildPhases" : [
+        {
+          "buildFiles" : [
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_0",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::0",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_1",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::1",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_2",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::2",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_3",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::3",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_4",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::4",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_5",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::5",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_6",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::6",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_7",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::7",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_8",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::8",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_9",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::9",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_10",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::10",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_11",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::11",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_12",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::12",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_13",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::13",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_14",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::14",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_15",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::15",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_16",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::16",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_17",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::17",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_18",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::18",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_19",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::19",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_20",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::20",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_21",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::21",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_22",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::22",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_23",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::23",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_24",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::24",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_25",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::25",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_26",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::26",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_27",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::27",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_28",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::28",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_29",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::29",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_30",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::30",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_31",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::31",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_32",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::32",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_33",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::33",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_34",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::34",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_35",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::35",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_36",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::36",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_37",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::37",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_38",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::38",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_39",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::39",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_40",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::40",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_41",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::41",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_42",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::42",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_43",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::43",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_2::REF_44",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0::44",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            }
+          ],
+          "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_0",
+          "type" : "com.apple.buildphase.sources"
+        },
+        {
+          "buildFiles" : [
+            {
+              "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_1::0",
+              "platformFilters" : [
+
+              ],
+              "targetReference" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable"
+            }
+          ],
+          "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests::BUILDPHASE_1",
+          "type" : "com.apple.buildphase.frameworks"
+        }
+      ],
+      "buildRules" : [
+
+      ],
+      "customTasks" : [
+
+      ],
+      "dependencies" : [
+        {
+          "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote",
+          "platformFilters" : [
+
+          ]
+        },
+        {
+          "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable",
+          "platformFilters" : [
+
+          ]
+        }
+      ],
+      "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests",
+      "name" : "MarkNoteTests-product",
+      "productReference" : {
+        "guid" : "PRODUCTREF-PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests",
+        "name" : "$(EXECUTABLE_NAME)",
+        "type" : "file"
+      },
+      "productTypeIdentifier" : "com.apple.product-type.bundle.unit-test",
+      "type" : "standard"
+    },
+    "signature" : "b8ab6c721cc9904169ca40e02e8f07ea1699f7899b169f4cf36120f989f2343a",
+    "type" : "target"
+  },
+  {
+    "contents" : {
+      "approvedByUser" : "true",
+      "buildConfigurations" : [
+        {
+          "buildSettings" : {
+            "DRIVERKIT_DEPLOYMENT_TARGET" : "21.0",
+            "IPHONEOS_DEPLOYMENT_TARGET" : "17.0",
+            "IPHONEOS_DEPLOYMENT_TARGET[__platform_filter=ios-maccatalyst]" : "17.0",
+            "LD_RUNPATH_SEARCH_PATHS" : [
+              "$(inherited)",
+              "$(RPATH_ORIGIN)"
+            ],
+            "LINKER_DRIVER" : "swiftc",
+            "MACOSX_DEPLOYMENT_TARGET" : "14.0",
+            "PACKAGE_RESOURCE_TARGET_KIND" : "regular",
+            "PRODUCT_BUNDLE_IDENTIFIER" : "note.MarkNoteTests-test-runner",
+            "PRODUCT_MODULE_NAME" : "MarkNoteTests_test_runner",
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SDKROOT" : "auto",
+            "SDK_VARIANT" : "auto",
+            "SKIP_INSTALL" : "NO",
+            "SWIFT_VERSION" : "5.0",
+            "TARGET_NAME" : "MarkNoteTests-test-runner",
+            "TVOS_DEPLOYMENT_TARGET" : "17.0",
+            "WATCHOS_DEPLOYMENT_TARGET" : "26.0",
+            "XROS_DEPLOYMENT_TARGET" : "1.0"
+          },
+          "guid" : "PACKAGE-TARGET:MarkNoteTests_test_runner::BUILDCONFIG_0",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Debug"
+        },
+        {
+          "buildSettings" : {
+            "DRIVERKIT_DEPLOYMENT_TARGET" : "21.0",
+            "IPHONEOS_DEPLOYMENT_TARGET" : "17.0",
+            "IPHONEOS_DEPLOYMENT_TARGET[__platform_filter=ios-maccatalyst]" : "17.0",
+            "LD_RUNPATH_SEARCH_PATHS" : [
+              "$(inherited)",
+              "$(RPATH_ORIGIN)"
+            ],
+            "LINKER_DRIVER" : "swiftc",
+            "MACOSX_DEPLOYMENT_TARGET" : "14.0",
+            "PACKAGE_RESOURCE_TARGET_KIND" : "regular",
+            "PRODUCT_BUNDLE_IDENTIFIER" : "note.MarkNoteTests-test-runner",
+            "PRODUCT_MODULE_NAME" : "MarkNoteTests_test_runner",
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SDKROOT" : "auto",
+            "SDK_VARIANT" : "auto",
+            "SKIP_INSTALL" : "NO",
+            "SWIFT_VERSION" : "5.0",
+            "TARGET_NAME" : "MarkNoteTests-test-runner",
+            "TVOS_DEPLOYMENT_TARGET" : "17.0",
+            "WATCHOS_DEPLOYMENT_TARGET" : "26.0",
+            "XROS_DEPLOYMENT_TARGET" : "1.0"
+          },
+          "guid" : "PACKAGE-TARGET:MarkNoteTests_test_runner::BUILDCONFIG_1",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Release"
+        }
+      ],
+      "buildPhases" : [
+        {
+          "buildFiles" : [
+
+          ],
+          "guid" : "PACKAGE-TARGET:MarkNoteTests_test_runner::BUILDPHASE_0",
+          "type" : "com.apple.buildphase.sources"
+        },
+        {
+          "buildFiles" : [
+            {
+              "guid" : "PACKAGE-TARGET:MarkNoteTests_test_runner::BUILDPHASE_1::0",
+              "platformFilters" : [
+
+              ],
+              "targetReference" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests"
+            }
+          ],
+          "guid" : "PACKAGE-TARGET:MarkNoteTests_test_runner::BUILDPHASE_1",
+          "type" : "com.apple.buildphase.frameworks"
+        }
+      ],
+      "buildRules" : [
+
+      ],
+      "customTasks" : [
+
+      ],
+      "dependencies" : [
+        {
+          "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests",
+          "platformFilters" : [
+
+          ]
+        }
+      ],
+      "guid" : "PACKAGE-TARGET:MarkNoteTests_test_runner",
+      "name" : "MarkNoteTests-test-runner",
+      "productReference" : {
+        "guid" : "PRODUCTREF-PACKAGE-TARGET:MarkNoteTests_test_runner",
+        "name" : "MarkNoteTests-test-runner",
+        "type" : "file"
+      },
+      "productTypeIdentifier" : "com.apple.product-type.tool.swiftpm-test-runner",
+      "type" : "standard"
+    },
+    "signature" : "563f2a02714b4ada26de3e86dd26f787f7ee78c8879cbfcda566dc0662b4f692",
+    "type" : "target"
+  },
+  {
+    "contents" : {
+      "approvedByUser" : "true",
+      "buildConfigurations" : [
+        {
+          "buildSettings" : {
+            "DOCC_EXTRACT_PROJECT_HEADERS_DOCUMENTATION" : "YES",
+            "DRIVERKIT_DEPLOYMENT_TARGET" : "21.0",
+            "GENERATE_RESOURCE_ACCESSORS" : "YES",
+            "IPHONEOS_DEPLOYMENT_TARGET" : "15.0",
+            "IPHONEOS_DEPLOYMENT_TARGET[__platform_filter=ios-maccatalyst]" : "15.0",
+            "MACOSX_DEPLOYMENT_TARGET" : "14.0",
+            "OTHER_SWIFT_FLAGS" : [
+              "$(inherited)",
+              "$(OTHER_SWIFT_FLAGS_ENABLE_LIBFUZZER_$(ENABLE_LIBFUZZER))"
+            ],
+            "OTHER_SWIFT_FLAGS_ENABLE_LIBFUZZER_YES" : [
+              "-Xfrontend",
+              "-entry-point-function-name",
+              "-Xfrontend",
+              "MarkNote_main"
+            ],
+            "PACKAGE_RESOURCE_BUNDLE_NAME" : "MarkNote_MarkNote",
+            "PACKAGE_RESOURCE_TARGET_KIND" : "regular",
+            "PRODUCT_BUNDLE_IDENTIFIER" : "note.MarkNote",
+            "PRODUCT_MODULE_NAME" : "MarkNote",
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SDKROOT" : "auto",
+            "SDK_VARIANT" : "auto",
+            "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : [
+              "$(inherited)",
+              "SWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE"
+            ],
+            "SWIFT_DISABLE_PARSE_AS_LIBRARY" : "NO",
+            "SWIFT_ENABLE_BARE_SLASH_REGEX" : "NO",
+            "SWIFT_INSTALL_MODULE" : "NO",
+            "SWIFT_LIBRARIES_ONLY" : "YES",
+            "SWIFT_PACKAGE_NAME" : "note",
+            "SWIFT_VERSION" : "5",
+            "SYMBOL_GRAPH_EXTRACTOR_OUTPUT_DIR" : "$(TARGET_BUILD_DIR)/$(CURRENT_ARCH)/MarkNote.symbolgraphs",
+            "TAPI_EXTRACT_API_OUTPUT_DIR" : "$(TARGET_BUILD_DIR)/$(CURRENT_ARCH)/MarkNote.symbolgraphs",
+            "TARGET_NAME" : "MarkNote",
+            "TARGET_TEMP_DIR_SUFFIX" : "-p",
+            "TVOS_DEPLOYMENT_TARGET" : "15.0",
+            "WATCHOS_DEPLOYMENT_TARGET" : "9.0",
+            "XROS_DEPLOYMENT_TARGET" : "1.0"
+          },
+          "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDCONFIG_0",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Debug"
+        },
+        {
+          "buildSettings" : {
+            "DOCC_EXTRACT_PROJECT_HEADERS_DOCUMENTATION" : "YES",
+            "DRIVERKIT_DEPLOYMENT_TARGET" : "21.0",
+            "GENERATE_RESOURCE_ACCESSORS" : "YES",
+            "IPHONEOS_DEPLOYMENT_TARGET" : "15.0",
+            "IPHONEOS_DEPLOYMENT_TARGET[__platform_filter=ios-maccatalyst]" : "15.0",
+            "MACOSX_DEPLOYMENT_TARGET" : "14.0",
+            "OTHER_SWIFT_FLAGS" : [
+              "$(inherited)",
+              "$(OTHER_SWIFT_FLAGS_ENABLE_LIBFUZZER_$(ENABLE_LIBFUZZER))"
+            ],
+            "OTHER_SWIFT_FLAGS_ENABLE_LIBFUZZER_YES" : [
+              "-Xfrontend",
+              "-entry-point-function-name",
+              "-Xfrontend",
+              "MarkNote_main"
+            ],
+            "PACKAGE_RESOURCE_BUNDLE_NAME" : "MarkNote_MarkNote",
+            "PACKAGE_RESOURCE_TARGET_KIND" : "regular",
+            "PRODUCT_BUNDLE_IDENTIFIER" : "note.MarkNote",
+            "PRODUCT_MODULE_NAME" : "MarkNote",
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SDKROOT" : "auto",
+            "SDK_VARIANT" : "auto",
+            "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : [
+              "$(inherited)",
+              "SWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE"
+            ],
+            "SWIFT_DISABLE_PARSE_AS_LIBRARY" : "NO",
+            "SWIFT_ENABLE_BARE_SLASH_REGEX" : "NO",
+            "SWIFT_INSTALL_MODULE" : "NO",
+            "SWIFT_LIBRARIES_ONLY" : "YES",
+            "SWIFT_PACKAGE_NAME" : "note",
+            "SWIFT_VERSION" : "5",
+            "SYMBOL_GRAPH_EXTRACTOR_OUTPUT_DIR" : "$(TARGET_BUILD_DIR)/$(CURRENT_ARCH)/MarkNote.symbolgraphs",
+            "TAPI_EXTRACT_API_OUTPUT_DIR" : "$(TARGET_BUILD_DIR)/$(CURRENT_ARCH)/MarkNote.symbolgraphs",
+            "TARGET_NAME" : "MarkNote",
+            "TARGET_TEMP_DIR_SUFFIX" : "-p",
+            "TVOS_DEPLOYMENT_TARGET" : "15.0",
+            "WATCHOS_DEPLOYMENT_TARGET" : "9.0",
+            "XROS_DEPLOYMENT_TARGET" : "1.0"
+          },
+          "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDCONFIG_1",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Release"
+        }
+      ],
+      "buildPhases" : [
+        {
+          "buildFiles" : [
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_0",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::0",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_1",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::1",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_2",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::2",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_3",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::3",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_4",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::4",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_5",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::5",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_6",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::6",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_7",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::7",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_8",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::8",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_9",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::9",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_10",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::10",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_11",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::11",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_12",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::12",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_13",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::13",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_14",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::14",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_15",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::15",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_16",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::16",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_17",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::17",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_18",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::18",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_19",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::19",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_20",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::20",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_21",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::21",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_22",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::22",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_23",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::23",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_24",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::24",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_25",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::25",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_26",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::26",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_27",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::27",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_28",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::28",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_29",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::29",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_30",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::30",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_31",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::31",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_32",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::32",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_33",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::33",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_34",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::34",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_35",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::35",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_36",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::36",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_37",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::37",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_38",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::38",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_39",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::39",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_40",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::40",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_41",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::41",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_42",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::42",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_43",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::43",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_44",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::44",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_45",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::45",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_46",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::46",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_47",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::47",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_48",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::48",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_49",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::49",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_50",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::50",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_51",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::51",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_52",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::52",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_53",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::53",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_54",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::54",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_55",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::55",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_56",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::56",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_57",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::57",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_58",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::58",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_59",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::59",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_60",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::60",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_3::REF_61",
+              "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0::61",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            }
+          ],
+          "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote::BUILDPHASE_0",
+          "type" : "com.apple.buildphase.sources"
+        }
+      ],
+      "buildRules" : [
+
+      ],
+      "customTasks" : [
+
+      ],
+      "dependencies" : [
+        {
+          "guid" : "PACKAGE-RESOURCE:MarkNote",
+          "platformFilters" : [
+
+          ]
+        }
+      ],
+      "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote",
+      "name" : "MarkNote-product",
+      "productReference" : {
+        "guid" : "PRODUCTREF-PACKAGE-PRODUCT:note_MarkNote.MarkNote",
+        "name" : "$(EXECUTABLE_NAME)",
+        "type" : "file"
+      },
+      "productTypeIdentifier" : "com.apple.product-type.tool",
+      "type" : "standard"
+    },
+    "signature" : "d7cb39b0a34194f953281b468cd9db6d82bb991df42aeb71f6fdd95a68b6e968",
+    "type" : "target"
+  },
+  {
+    "contents" : {
+      "approvedByUser" : "true",
+      "buildConfigurations" : [
+        {
+          "buildSettings" : {
+            "COREML_CODEGEN_LANGUAGE" : "None",
+            "COREML_COMPILER_CONTAINER" : "swift-package",
+            "EXECUTABLE_NAME" : "",
+            "GENERATE_INFOPLIST_FILE" : "YES",
+            "PACKAGE_RESOURCE_TARGET_KIND" : "resource",
+            "PRODUCT_BUNDLE_IDENTIFIER" : "note.MarkNote.resources",
+            "PRODUCT_MODULE_NAME" : "MarkNote_MarkNote",
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SDKROOT" : "auto",
+            "SDK_VARIANT" : "auto",
+            "TARGET_NAME" : "MarkNote_MarkNote",
+            "TARGET_TEMP_DIR_SUFFIX" : "-b"
+          },
+          "guid" : "PACKAGE-RESOURCE:MarkNote::BUILDCONFIG_0",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Debug"
+        },
+        {
+          "buildSettings" : {
+            "COREML_CODEGEN_LANGUAGE" : "None",
+            "COREML_COMPILER_CONTAINER" : "swift-package",
+            "EXECUTABLE_NAME" : "",
+            "GENERATE_INFOPLIST_FILE" : "YES",
+            "PACKAGE_RESOURCE_TARGET_KIND" : "resource",
+            "PRODUCT_BUNDLE_IDENTIFIER" : "note.MarkNote.resources",
+            "PRODUCT_MODULE_NAME" : "MarkNote_MarkNote",
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SDKROOT" : "auto",
+            "SDK_VARIANT" : "auto",
+            "TARGET_NAME" : "MarkNote_MarkNote",
+            "TARGET_TEMP_DIR_SUFFIX" : "-b"
+          },
+          "guid" : "PACKAGE-RESOURCE:MarkNote::BUILDCONFIG_1",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Release"
+        }
+      ],
+      "buildPhases" : [
+        {
+          "buildFiles" : [
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_4",
+              "guid" : "PACKAGE-RESOURCE:MarkNote::BUILDPHASE_0::0",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false",
+              "resourceRule" : "copy"
+            }
+          ],
+          "guid" : "PACKAGE-RESOURCE:MarkNote::BUILDPHASE_0",
+          "type" : "com.apple.buildphase.resources"
+        }
+      ],
+      "buildRules" : [
+
+      ],
+      "customTasks" : [
+
+      ],
+      "dependencies" : [
+
+      ],
+      "guid" : "PACKAGE-RESOURCE:MarkNote",
+      "name" : "MarkNote_MarkNote",
+      "productReference" : {
+        "guid" : "PRODUCTREF-PACKAGE-RESOURCE:MarkNote",
+        "name" : "MarkNote_MarkNote",
+        "type" : "file"
+      },
+      "productTypeIdentifier" : "com.apple.product-type.bundle",
+      "type" : "standard"
+    },
+    "signature" : "a4bb021f7ac9d5839c0c74b3455ff80f9cbc0804177fd2137c2225421876b620",
+    "type" : "target"
+  },
+  {
+    "contents" : {
+      "approvedByUser" : "true",
+      "buildConfigurations" : [
+        {
+          "buildSettings" : {
+            "COREML_CODEGEN_LANGUAGE" : "Swift",
+            "COREML_COMPILER_CONTAINER" : "swift-package",
+            "DEFINES_MODULE" : "YES",
+            "DOCC_EXTRACT_PROJECT_HEADERS_DOCUMENTATION" : "YES",
+            "GENERATE_EMBED_IN_CODE_ACCESSORS" : "YES",
+            "GENERATE_PRELINK_OBJECT_FILE" : "NO",
+            "GENERATE_RESOURCE_ACCESSORS" : "YES",
+            "MODULEMAP_FILE_CONTENTS" : "module MarkNote {\nheader \"MarkNote-Swift.h\"\nexport *\n}",
+            "MODULEMAP_PATH" : "$(GENERATED_MODULEMAP_DIR)/MarkNote.modulemap",
+            "OTHER_SWIFT_FLAGS" : [
+              "$(inherited)",
+              "-Xfrontend",
+              "-entry-point-function-name",
+              "-Xfrontend",
+              "MarkNote_main"
+            ],
+            "PACKAGE_RESOURCE_BUNDLE_NAME" : "MarkNote_MarkNote",
+            "PACKAGE_RESOURCE_TARGET_KIND" : "regular",
+            "PRODUCT_BUNDLE_IDENTIFIER" : "note.MarkNote",
+            "PRODUCT_MODULE_NAME" : "MarkNote",
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SDKROOT" : "auto",
+            "SDK_VARIANT" : "auto",
+            "STRIP_INSTALLED_PRODUCT" : "NO",
+            "SUPPORTS_TEXT_BASED_API" : "NO",
+            "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : [
+              "$(inherited)",
+              "SWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE"
+            ],
+            "SWIFT_DISABLE_PARSE_AS_LIBRARY" : "NO",
+            "SWIFT_ENABLE_BARE_SLASH_REGEX" : "NO",
+            "SWIFT_LIBRARIES_ONLY" : "YES",
+            "SWIFT_OBJC_INTERFACE_HEADER_DIR" : "$(GENERATED_MODULEMAP_DIR)",
+            "SWIFT_OBJC_INTERFACE_HEADER_NAME" : "MarkNote-Swift.h",
+            "SWIFT_PACKAGE_NAME" : "note",
+            "SWIFT_VERSION" : "5",
+            "SYMBOL_GRAPH_EXTRACTOR_OUTPUT_DIR" : "$(TARGET_BUILD_DIR)/$(CURRENT_ARCH)/MarkNote.symbolgraphs",
+            "TAPI_DYLIB_INSTALL_NAME" : "MarkNote",
+            "TAPI_EXTRACT_API_OUTPUT_DIR" : "$(TARGET_BUILD_DIR)/$(CURRENT_ARCH)/MarkNote.symbolgraphs",
+            "TARGET_BUILD_DIR" : "$(TARGET_BUILD_DIR)/ExecutableModules",
+            "TARGET_NAME" : "MarkNote--41C1F417680010D7-testable",
+            "TARGET_TEMP_DIR_SUFFIX" : "-t"
+          },
+          "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDCONFIG_0",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+              "EMBED_PACKAGE_RESOURCE_BUNDLE_NAMES" : [
+                "$(inherited)",
+                "MarkNote_MarkNote"
+              ],
+              "FRAMEWORK_SEARCH_PATHS" : [
+                "$(BUILT_PRODUCTS_DIR)/PackageFrameworks",
+                "$(inherited)"
+              ],
+              "LD_RUNPATH_SEARCH_PATHS" : [
+                "$(RPATH_ORIGIN)",
+                "$(BUILT_PRODUCTS_DIR)/PackageFrameworks",
+                "$(inherited)"
+              ],
+              "LD_WARN_DUPLICATE_LIBRARIES" : "NO",
+              "LIBRARY_SEARCH_PATHS[__platform_filter=windows-msvc]" : [
+                "$(inherited)",
+                "$(TARGET_BUILD_DIR)/ExecutableModules"
+              ],
+              "OTHER_CFLAGS" : [
+                "-fmodule-map-file=$(GENERATED_MODULEMAP_DIR)/MarkNote.modulemap",
+                "$(inherited)"
+              ]
+            }
+          },
+          "name" : "Debug"
+        },
+        {
+          "buildSettings" : {
+            "COREML_CODEGEN_LANGUAGE" : "Swift",
+            "COREML_COMPILER_CONTAINER" : "swift-package",
+            "DEFINES_MODULE" : "YES",
+            "DOCC_EXTRACT_PROJECT_HEADERS_DOCUMENTATION" : "YES",
+            "GENERATE_EMBED_IN_CODE_ACCESSORS" : "YES",
+            "GENERATE_PRELINK_OBJECT_FILE" : "NO",
+            "GENERATE_RESOURCE_ACCESSORS" : "YES",
+            "MODULEMAP_FILE_CONTENTS" : "module MarkNote {\nheader \"MarkNote-Swift.h\"\nexport *\n}",
+            "MODULEMAP_PATH" : "$(GENERATED_MODULEMAP_DIR)/MarkNote.modulemap",
+            "OTHER_SWIFT_FLAGS" : [
+              "$(inherited)",
+              "-Xfrontend",
+              "-entry-point-function-name",
+              "-Xfrontend",
+              "MarkNote_main"
+            ],
+            "PACKAGE_RESOURCE_BUNDLE_NAME" : "MarkNote_MarkNote",
+            "PACKAGE_RESOURCE_TARGET_KIND" : "regular",
+            "PRODUCT_BUNDLE_IDENTIFIER" : "note.MarkNote",
+            "PRODUCT_MODULE_NAME" : "MarkNote",
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SDKROOT" : "auto",
+            "SDK_VARIANT" : "auto",
+            "STRIP_INSTALLED_PRODUCT" : "NO",
+            "SUPPORTS_TEXT_BASED_API" : "NO",
+            "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : [
+              "$(inherited)",
+              "SWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE"
+            ],
+            "SWIFT_DISABLE_PARSE_AS_LIBRARY" : "NO",
+            "SWIFT_ENABLE_BARE_SLASH_REGEX" : "NO",
+            "SWIFT_LIBRARIES_ONLY" : "YES",
+            "SWIFT_OBJC_INTERFACE_HEADER_DIR" : "$(GENERATED_MODULEMAP_DIR)",
+            "SWIFT_OBJC_INTERFACE_HEADER_NAME" : "MarkNote-Swift.h",
+            "SWIFT_PACKAGE_NAME" : "note",
+            "SWIFT_VERSION" : "5",
+            "SYMBOL_GRAPH_EXTRACTOR_OUTPUT_DIR" : "$(TARGET_BUILD_DIR)/$(CURRENT_ARCH)/MarkNote.symbolgraphs",
+            "TAPI_DYLIB_INSTALL_NAME" : "MarkNote",
+            "TAPI_EXTRACT_API_OUTPUT_DIR" : "$(TARGET_BUILD_DIR)/$(CURRENT_ARCH)/MarkNote.symbolgraphs",
+            "TARGET_BUILD_DIR" : "$(TARGET_BUILD_DIR)/ExecutableModules",
+            "TARGET_NAME" : "MarkNote--41C1F417680010D7-testable",
+            "TARGET_TEMP_DIR_SUFFIX" : "-t"
+          },
+          "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDCONFIG_1",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+              "EMBED_PACKAGE_RESOURCE_BUNDLE_NAMES" : [
+                "$(inherited)",
+                "MarkNote_MarkNote"
+              ],
+              "FRAMEWORK_SEARCH_PATHS" : [
+                "$(BUILT_PRODUCTS_DIR)/PackageFrameworks",
+                "$(inherited)"
+              ],
+              "LD_RUNPATH_SEARCH_PATHS" : [
+                "$(RPATH_ORIGIN)",
+                "$(inherited)"
+              ],
+              "LD_WARN_DUPLICATE_LIBRARIES" : "NO",
+              "LIBRARY_SEARCH_PATHS[__platform_filter=windows-msvc]" : [
+                "$(inherited)",
+                "$(TARGET_BUILD_DIR)/ExecutableModules"
+              ],
+              "OTHER_CFLAGS" : [
+                "-fmodule-map-file=$(GENERATED_MODULEMAP_DIR)/MarkNote.modulemap",
+                "$(inherited)"
+              ]
+            }
+          },
+          "name" : "Release"
+        }
+      ],
+      "buildPhases" : [
+        {
+          "buildFiles" : [
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_0",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::0",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_1",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::1",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_2",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::2",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_3",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::3",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_4",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::4",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_5",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::5",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_6",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::6",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_7",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::7",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_8",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::8",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_9",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::9",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_10",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::10",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_11",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::11",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_12",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::12",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_13",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::13",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_14",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::14",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_15",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::15",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_16",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::16",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_17",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::17",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_18",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::18",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_19",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::19",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_20",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::20",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_21",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::21",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_22",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::22",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_23",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::23",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_24",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::24",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_25",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::25",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_26",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::26",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_27",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::27",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_28",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::28",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_29",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::29",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_30",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::30",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_31",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::31",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_32",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::32",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_33",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::33",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_34",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::34",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_35",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::35",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_36",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::36",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_37",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::37",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_38",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::38",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_39",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::39",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_40",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::40",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_41",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::41",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_42",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::42",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_43",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::43",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_44",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::44",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_45",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::45",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_46",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::46",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_47",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::47",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_48",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::48",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_49",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::49",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_50",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::50",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_51",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::51",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_52",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::52",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_53",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::53",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_54",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::54",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_55",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::55",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_56",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::56",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_57",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::57",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_58",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::58",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_59",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::59",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_60",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::60",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            },
+            {
+              "codeSignOnCopy" : "false",
+              "fileReference" : "PACKAGE:note::MAINGROUP::REF_6::REF_61",
+              "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0::61",
+              "platformFilters" : [
+
+              ],
+              "removeHeadersOnCopy" : "false"
+            }
+          ],
+          "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable::BUILDPHASE_0",
+          "type" : "com.apple.buildphase.sources"
+        }
+      ],
+      "buildRules" : [
+
+      ],
+      "customTasks" : [
+
+      ],
+      "dependencies" : [
+        {
+          "guid" : "PACKAGE-RESOURCE:MarkNote",
+          "platformFilters" : [
+
+          ]
+        }
+      ],
+      "guid" : "PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable",
+      "name" : "MarkNote",
+      "productReference" : {
+        "guid" : "PRODUCTREF-PACKAGE-TARGET:MarkNote--41C1F417680010D7-testable",
+        "name" : "$(EXECUTABLE_NAME)",
+        "type" : "file"
+      },
+      "productTypeIdentifier" : "org.swift.product-type.common.object",
+      "type" : "standard"
+    },
+    "signature" : "1d254ae5409cbb0a585b0ad1ed81ec91b154cb8dbabc9ba8c6dc0db77b3cd289",
+    "type" : "target"
+  },
+  {
+    "contents" : {
+      "buildConfigurations" : [
+        {
+          "buildSettings" : {
+
+          },
+          "guid" : "PACKAGE-PRODUCT:note-MarkNotePackageTests.MarkNotePackageTests::BUILDCONFIG_0",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Debug"
+        },
+        {
+          "buildSettings" : {
+
+          },
+          "guid" : "PACKAGE-PRODUCT:note-MarkNotePackageTests.MarkNotePackageTests::BUILDCONFIG_1",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Release"
+        }
+      ],
+      "buildPhases" : [
+
+      ],
+      "buildRules" : [
+
+      ],
+      "customTasks" : [
+
+      ],
+      "dependencies" : [
+        {
+          "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests",
+          "platformFilters" : [
+
+          ]
+        },
+        {
+          "guid" : "PACKAGE-TARGET:MarkNoteTests_test_runner",
+          "platformFilters" : [
+
+          ]
+        }
+      ],
+      "guid" : "PACKAGE-PRODUCT:note-MarkNotePackageTests.MarkNotePackageTests",
+      "name" : "MarkNotePackageTests-product",
+      "type" : "aggregate"
+    },
+    "signature" : "8029002ab5402d61d6f16e52b5a6bfab6d2c1b160a0b681733722c8a4382b01e",
+    "type" : "target"
+  },
+  {
+    "contents" : {
+      "buildConfigurations" : [
+        {
+          "buildSettings" : {
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SDKROOT" : "auto",
+            "SDK_VARIANT" : "auto",
+            "SKIP_INSTALL" : "YES",
+            "SUPPORTED_PLATFORMS" : [
+              "$(AVAILABLE_PLATFORMS)"
+            ]
+          },
+          "guid" : "AGGREGATE::BUILDCONFIG_0",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Debug"
+        },
+        {
+          "buildSettings" : {
+            "PRODUCT_NAME" : "$(TARGET_NAME)",
+            "SDKROOT" : "auto",
+            "SDK_VARIANT" : "auto",
+            "SKIP_INSTALL" : "YES",
+            "SUPPORTED_PLATFORMS" : [
+              "$(AVAILABLE_PLATFORMS)"
+            ]
+          },
+          "guid" : "AGGREGATE::BUILDCONFIG_1",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Release"
+        }
+      ],
+      "defaultConfigurationName" : "Release",
+      "developmentRegion" : "en",
+      "groupTree" : {
+        "children" : [
+
+        ],
+        "guid" : "AGGREGATE::MAINGROUP",
+        "name" : "",
+        "path" : "",
+        "sourceTree" : "<group>",
+        "type" : "group"
+      },
+      "guid" : "AGGREGATE",
+      "path" : "/Users/gzhysu/Desktop/note/Package.swift",
+      "projectDirectory" : "/Users/gzhysu/Desktop/note",
+      "projectIsPackage" : "true",
+      "projectName" : "Aggregate",
+      "targets" : [
+        "5fef4f9297839ae6a5c8e089036f6105ed96c76f504fcb3cb91751f20c8938ba",
+        "711439bd54638a103d6ef3ea1b91cd8107328f220b09b4b0cd42ea2b60de2a9a"
+      ]
+    },
+    "signature" : "f022d9e87d5eff51bf6b91da321087f79c5f528abb545feda96e0648fdb016f4",
+    "type" : "project"
+  },
+  {
+    "contents" : {
+      "buildConfigurations" : [
+        {
+          "buildSettings" : {
+
+          },
+          "guid" : "ALL-INCLUDING-TESTS::BUILDCONFIG_0",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Debug"
+        },
+        {
+          "buildSettings" : {
+
+          },
+          "guid" : "ALL-INCLUDING-TESTS::BUILDCONFIG_1",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Release"
+        }
+      ],
+      "buildPhases" : [
+
+      ],
+      "buildRules" : [
+
+      ],
+      "customTasks" : [
+
+      ],
+      "dependencies" : [
+        {
+          "guid" : "PACKAGE-PRODUCT:note_MarkNoteTests.MarkNoteTests",
+          "platformFilters" : [
+
+          ]
+        },
+        {
+          "guid" : "PACKAGE-TARGET:MarkNoteTests_test_runner",
+          "platformFilters" : [
+
+          ]
+        },
+        {
+          "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote",
+          "platformFilters" : [
+
+          ]
+        },
+        {
+          "guid" : "PACKAGE-RESOURCE:MarkNote",
+          "platformFilters" : [
+
+          ]
+        }
+      ],
+      "guid" : "ALL-INCLUDING-TESTS",
+      "name" : "AllIncludingTests",
+      "type" : "aggregate"
+    },
+    "signature" : "5fef4f9297839ae6a5c8e089036f6105ed96c76f504fcb3cb91751f20c8938ba",
+    "type" : "target"
+  },
+  {
+    "contents" : {
+      "buildConfigurations" : [
+        {
+          "buildSettings" : {
+
+          },
+          "guid" : "ALL-EXCLUDING-TESTS::BUILDCONFIG_0",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Debug"
+        },
+        {
+          "buildSettings" : {
+
+          },
+          "guid" : "ALL-EXCLUDING-TESTS::BUILDCONFIG_1",
+          "impartedBuildProperties" : {
+            "buildSettings" : {
+
+            }
+          },
+          "name" : "Release"
+        }
+      ],
+      "buildPhases" : [
+
+      ],
+      "buildRules" : [
+
+      ],
+      "customTasks" : [
+
+      ],
+      "dependencies" : [
+        {
+          "guid" : "PACKAGE-PRODUCT:note_MarkNote.MarkNote",
+          "platformFilters" : [
+
+          ]
+        },
+        {
+          "guid" : "PACKAGE-RESOURCE:MarkNote",
+          "platformFilters" : [
+
+          ]
+        }
+      ],
+      "guid" : "ALL-EXCLUDING-TESTS",
+      "name" : "AllExcludingTests",
+      "type" : "aggregate"
+    },
+    "signature" : "711439bd54638a103d6ef3ea1b91cd8107328f220b09b4b0cd42ea2b60de2a9a",
+    "type" : "target"
+  }
+]

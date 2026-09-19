@@ -1,0 +1,326 @@
+{
+  "" : {
+    "const-values" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote-primary.swiftconstvalues",
+    "dependencies" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote-primary.d",
+    "diagnostics" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote-primary.dia",
+    "emit-module-dependencies" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote-primary-emit-module.dia",
+    "pch" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNote-primary.swiftdeps"
+  },
+  "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/DerivedSources/resource_bundle_accessor.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/resource_bundle_accessor.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/resource_bundle_accessor.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/resource_bundle_accessor.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Editor/CodeHighlighter.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CodeHighlighter.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CodeHighlighter.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CodeHighlighter.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Editor/LineNumberRulerView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/LineNumberRulerView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/LineNumberRulerView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/LineNumberRulerView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Editor/MarkdownEditorView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkdownEditorView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkdownEditorView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkdownEditorView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Editor/MarkdownHighlighter.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkdownHighlighter.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkdownHighlighter.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkdownHighlighter.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Editor/MarkdownTextView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkdownTextView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkdownTextView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkdownTextView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Export/ExportService.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ExportService.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ExportService.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ExportService.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/MarkNoteApp.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNoteApp.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNoteApp.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MarkNoteApp.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/AIExpert.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AIExpert.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AIExpert.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AIExpert.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/AssetSyntax.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AssetSyntax.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AssetSyntax.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AssetSyntax.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/Collector.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Collector.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Collector.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Collector.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/CollectorAccounts.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorAccounts.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorAccounts.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorAccounts.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/CollectorClarify.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorClarify.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorClarify.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorClarify.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/CollectorLinkImport.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorLinkImport.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorLinkImport.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorLinkImport.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/CollectorNet.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorNet.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorNet.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorNet.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/CollectorWebRender.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorWebRender.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorWebRender.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorWebRender.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/FeatureModules.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FeatureModules.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FeatureModules.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FeatureModules.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/FileTools.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FileTools.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FileTools.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FileTools.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/Flowchart.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Flowchart.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Flowchart.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Flowchart.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/FlowchartRouter.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FlowchartRouter.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FlowchartRouter.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FlowchartRouter.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/HTMLToMarkdown.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/HTMLToMarkdown.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/HTMLToMarkdown.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/HTMLToMarkdown.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/L10n.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/L10n.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/L10n.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/L10n.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/LLM.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/LLM.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/LLM.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/LLM.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/MindMap.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MindMap.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MindMap.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MindMap.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/Note.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Note.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Note.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Note.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/NoteTemplate.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/NoteTemplate.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/NoteTemplate.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/NoteTemplate.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/NovelCollector.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/NovelCollector.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/NovelCollector.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/NovelCollector.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/Plugin.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Plugin.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Plugin.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Plugin.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/Theme.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Theme.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Theme.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Theme.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/ThemeFonts.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeFonts.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeFonts.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeFonts.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Models/ThemeQuality.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeQuality.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeQuality.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeQuality.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Store/NotesStore.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/NotesStore.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/NotesStore.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/NotesStore.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Store/PluginManager.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/PluginManager.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/PluginManager.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/PluginManager.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Store/Workspace.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Workspace.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Workspace.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/Workspace.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Store/WorkspaceAgent.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/WorkspaceAgent.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/WorkspaceAgent.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/WorkspaceAgent.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/AIPanelView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AIPanelView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AIPanelView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AIPanelView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/AssetGridView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AssetGridView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AssetGridView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AssetGridView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/AssetImportSheet.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AssetImportSheet.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AssetImportSheet.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/AssetImportSheet.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/CollectorAccountsView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorAccountsView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorAccountsView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorAccountsView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/CollectorLoginView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorLoginView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorLoginView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorLoginView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/CollectorView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CollectorView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/CommandPalette.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CommandPalette.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CommandPalette.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/CommandPalette.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/ContentView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ContentView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/EditorView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/EditorView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/EditorView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/EditorView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/FlowchartCanvas.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FlowchartCanvas.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FlowchartCanvas.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FlowchartCanvas.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/FlowchartView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FlowchartView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FlowchartView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/FlowchartView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/GlassBackdrop.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/GlassBackdrop.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/GlassBackdrop.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/GlassBackdrop.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/ImageZoomView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ImageZoomView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ImageZoomView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ImageZoomView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/MediaPreview.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MediaPreview.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MediaPreview.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MediaPreview.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/MindMapCanvas.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MindMapCanvas.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MindMapCanvas.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MindMapCanvas.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/MindMapView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MindMapView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MindMapView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/MindMapView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/NoteCardsView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/NoteCardsView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/NoteCardsView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/NoteCardsView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/PluginMarketView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/PluginMarketView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/PluginMarketView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/PluginMarketView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/PreviewRenderState.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/PreviewRenderState.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/PreviewRenderState.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/PreviewRenderState.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/PreviewView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/PreviewView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/PreviewView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/PreviewView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/QuickOpenView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/QuickOpenView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/QuickOpenView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/QuickOpenView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/SettingsView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/SettingsView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/SettingsView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/SettingsView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/SidebarView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/SidebarView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/SidebarView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/SidebarView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/ThemeEasterEggOverlay.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeEasterEggOverlay.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeEasterEggOverlay.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeEasterEggOverlay.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/ThemeIcon.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeIcon.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeIcon.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeIcon.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/ThemeProgressBar.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeProgressBar.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeProgressBar.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/ThemeProgressBar.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/TreeTableView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/TreeTableView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/TreeTableView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/TreeTableView.o"
+  },
+  "/Users/gzhysu/Desktop/note/Sources/MarkNote/Views/VersionsView.swift" : {
+    "index-unit-output-path" : "/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/VersionsView.o",
+    "llvm-bc" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/VersionsView.bc",
+    "object" : "/Users/gzhysu/Desktop/note/.build-fresh/out/Intermediates.noindex/MarkNote.build/Release/MarkNote-p.build/Objects-normal/arm64/VersionsView.o"
+  }
+}

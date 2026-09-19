@@ -1,0 +1,7 @@
+Target dependency graph (3 targets)
+Target 'AllExcludingTests' in project 'Aggregate'
+➜ Explicit dependency on target 'MarkNote-product' in project 'MarkNote'
+➜ Explicit dependency on target 'MarkNote_MarkNote' in project 'MarkNote'
+Target 'MarkNote-product' in project 'MarkNote'
+➜ Explicit dependency on target 'MarkNote_MarkNote' in project 'MarkNote'
+Target 'MarkNote_MarkNote' in project 'MarkNote' (no dependencies)
