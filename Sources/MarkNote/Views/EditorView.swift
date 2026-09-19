@@ -126,6 +126,10 @@ struct EditorView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                     if store.loadedNoteID == newID {
                         textViewRef?.window?.makeFirstResponder(textViewRef)
+                        // 从模板新建的笔记：装好后直接进「填空模式」（Tab 在字段间跳）
+                        if let plan = store.consumePendingFill(for: newID) {
+                            (textViewRef as? MarkdownTextView)?.startFill(plan)
+                        }
                     }
                 }
             }
@@ -153,6 +157,11 @@ struct EditorView: View {
             .onReceive(NotificationCenter.default.publisher(for: .aiInsertResult)) { note in
                 if let text = note.object as? String {
                     insertAIText(text)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .templateInsertRequested)) { note in
+                if let tpl = note.object as? NoteTemplate {
+                    insertTemplate(tpl)
                 }
             }
             .sheet(item: $zoomImage) { target in
@@ -481,6 +490,22 @@ struct EditorView: View {
         guard let tv = textViewRef else { return }
         tv.window?.makeFirstResponder(tv)
         tv.insertText(text, replacementRange: tv.selectedRange())
+    }
+
+    /// 把模板插到光标处：变量当场替换、字段进入 Tab 填空（范围按插入点偏移）
+    private func insertTemplate(_ template: NoteTemplate) {
+        guard let tv = textViewRef as? MarkdownTextView else { return }
+        let sel = tv.selectedRange()
+        let selected = sel.length > 0 ? (tv.string as NSString).substring(with: sel) : nil
+        var ctx = TemplateContext(title: store.currentTitle)
+        ctx.selection = selected
+        let expansion = NoteTemplateEngine.expand(template, context: ctx)
+        tv.window?.makeFirstResponder(tv)
+        tv.insertText(expansion.text, replacementRange: sel)
+        guard expansion.hasFields else { return }
+        let base = sel.location
+        let shifted = expansion.fields.map { (($0.lowerBound + base)..<($0.upperBound + base)) }
+        tv.startFill(TemplateFillPlan(fields: shifted))
     }
 
     /// 拖拽 .md/.txt 文件到编辑器 → 导入为新文件

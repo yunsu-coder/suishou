@@ -8,6 +8,8 @@ extension Notification.Name {
     static let aiQuickActionRequested = Notification.Name("aiQuickActionRequested")
     /// object: String（AI 回答插入到编辑器光标处）
     static let aiInsertResult = Notification.Name("aiInsertResult")
+    /// object: NoteTemplate（把模板插入到当前光标处，并进入 Tab 填空模式）
+    static let templateInsertRequested = Notification.Name("templateInsertRequested")
 }
 
 /// 选中文本快捷操作：翻译 / 改写 / 润色

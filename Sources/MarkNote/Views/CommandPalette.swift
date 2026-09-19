@@ -129,6 +129,22 @@ enum CommandRegistry {
                 NotificationCenter.default.post(name: .aiInsertResult, object: sn.displayText)
             })
         }
+        // 插件 templates（kind = templates）：新建笔记 / 插入到当前笔记
+        // 变量自动填（日期、星期…），`<#字段#>` 进去后自动选中，Tab 在字段间跳
+        for tpl in PluginManager.shared.allTemplates() {
+            let category = tpl.category.isEmpty ? _L("模板", "Template") : tpl.category
+            items.append(CommandItem(key: "tpl.new.\(tpl.id)",
+                                     title: _L("新建：\(tpl.displayName)", "New: \(tpl.displayName)"),
+                                     category: category, icon: tpl.icon) {
+                store.createNoteFromTemplate(tpl, context: TemplateContext(title: tpl.displayName))
+            })
+            items.append(CommandItem(key: "tpl.insert.\(tpl.id)",
+                                     title: _L("插入：\(tpl.displayName)", "Insert: \(tpl.displayName)"),
+                                     category: category, icon: "text.insert") {
+                // 编辑器负责展开（它知道光标位置与选中文字）并进入 Tab 填空
+                NotificationCenter.default.post(name: .templateInsertRequested, object: tpl)
+            })
+        }
         // 轻量设定：按特性开关过滤（隐藏禁用项）
         items = items.filter { item in
             switch item.key {

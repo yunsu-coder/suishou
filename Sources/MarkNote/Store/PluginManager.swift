@@ -111,6 +111,48 @@ final class PluginManager {
                               text: Self.normalizeText($0.text),
                               textEn: $0.textEn.map { Self.normalizeText($0) })
             })
+        case .templates:
+            guard let items = try? JSONDecoder().decode([TemplateSpec].self, from: Data(contentsOf: pkg.mainURL)) else { return }
+            for t in items {
+                let body = Self.normalizeText(t.body)
+                // 质量门槛：必须有正文与分类；变量必须在白名单里（否则写进去就是死字）
+                let unknown = NoteTemplateEngine.variables(in: body)
+                    .subtracting(NoteTemplateEngine.knownVariables)
+                if !unknown.isEmpty {
+                    d.templateIssues[pkg.id, default: []]
+                        .append("\(t.name)：未知变量 \(unknown.sorted().joined(separator: "、"))")
+                    continue
+                }
+                if let rule = t.fileName, rule.contains("<#") {
+                    d.templateIssues[pkg.id, default: []]
+                        .append("\(t.name)：文件名规则里不能放字段（<#…#>），只允许变量")
+                    continue
+                }
+                // 字段写法必须是 <#名字#> 或 <#名字:默认值#>：写错（例如 <#名字#:默认值>）会留下死字符
+                if body.filter({ $0 == "<" }).count != body.filter({ $0 == ">" }).count
+                    || body.contains("#:") {
+                    d.templateIssues[pkg.id, default: []]
+                        .append("\(t.name)：字段写法不对，应为 <#名字:默认值#>（默认值可省略）")
+                    continue
+                }
+                if NoteTemplateEngine.variables(in: body).isEmpty
+                    && !body.contains("<#") && t.fileName == nil {
+                    d.templateIssues[pkg.id, default: []]
+                        .append("\(t.name)：既没有变量也没有字段（模板至少要有一处动态内容）")
+                    continue
+                }
+                d.templates.append(NoteTemplate(id: "tpl-\(pkg.id)-\(t.id ?? UUID().uuidString)",
+                                                name: t.name,
+                                                nameEn: t.nameEn,
+                                                icon: t.icon ?? "doc.badge.plus",
+                                                category: t.category ?? _L("常用", "Common"),
+                                                desc: t.desc ?? "",
+                                                descEn: t.descEn,
+                                                body: body,
+                                                bodyEn: t.bodyEn.map { Self.normalizeText($0) },
+                                                fileName: t.fileName,
+                                                folder: t.folder))
+            }
         case .theme:
             guard let items = try? JSONDecoder().decode([ThemeSpec].self, from: Data(contentsOf: pkg.mainURL)) else { return }
             for t in items {
@@ -265,6 +307,17 @@ final class PluginManager {
         return data.snippets
     }
 
+    func allTemplates() -> [NoteTemplate] {
+        lock.lock(); defer { lock.unlock() }
+        return data.templates
+    }
+
+    /// 模板包未通过质量门槛的原因（空 = 通过）
+    func templateIssues(for packageID: String) -> [String] {
+        lock.lock(); defer { lock.unlock() }
+        return data.templateIssues[packageID] ?? []
+    }
+
     func allThemes() -> [PluginTheme] {
         lock.lock(); defer { lock.unlock() }
         return data.themes
@@ -339,6 +392,21 @@ final class PluginManager {
         let textEn: String?
     }
 
+    /// 模板包（kind = templates）里的单条模板声明
+    struct TemplateSpec: Codable {
+        var id: String?
+        var name: String
+        var nameEn: String?
+        var icon: String?
+        var category: String?
+        var desc: String?
+        var descEn: String?
+        var body: String
+        var bodyEn: String?
+        var fileName: String?
+        var folder: String?
+    }
+
     struct CommandSpec: Codable {
         let id: String
         let name: String
@@ -353,6 +421,8 @@ struct PluginData {
     var experts: [AIExpert] = []
     var fileOverrides: [String: FileTypeOverride] = [:]
     var snippets: [PluginSnippet] = []
+    var templates: [NoteTemplate] = []
+    var templateIssues: [String: [String]] = [:]
     var themes: [PluginTheme] = []
     /// 主题包 → 质量审计未通过原因（面板可展示，帮助作者补齐）
     var themeIssues: [String: [String]] = [:]

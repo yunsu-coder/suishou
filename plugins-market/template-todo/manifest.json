@@ -1,0 +1,25 @@
+{
+  "id": "template-todo",
+  "name": "待办模板",
+  "nameEn": "Todo Templates",
+  "version": "1.0.0",
+  "kind": "templates",
+  "desc": "看板式待办：待办 / 进行中 / 已完成 三列，带截止日、标签与自动进度统计",
+  "descEn": "Kanban-style todo with columns, due dates, tags and automatic progress",
+  "features": [
+    "看板列 = Markdown 的二级标题，勾选即完成，卡片墙的待办筛选自动同步",
+    "截止日用 @due(2026-09-22)（Obsidian Tasks 同款），标签用 #论文",
+    "进度 :: 0/5 交给 App 自动统计，不用自己数",
+    "另附「每日清单」模板：每日/每周重复，未完成项手动结转"
+  ],
+  "featuresEn": [
+    "Columns are ## headings; ticking a box completes it and syncs with the cards wall",
+    "@due(2026-09-22) and #tags follow the Obsidian Tasks convention",
+    "progress :: 0/5 is counted automatically",
+    "Also ships a daily checklist template"
+  ],
+  "author": "随手社区",
+  "main": "templates.json",
+  "minAppVersion": "2.0.0",
+  "icon": "checklist"
+}

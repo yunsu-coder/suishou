@@ -44,8 +44,59 @@ final class MarkdownTextView: NSTextView {
         handler(actions[sender.tag], text)
     }
 
+    // MARK: - 模板填空模式（Tab 在字段间跳，输入即替换）
+
+    /// 当前填空进度（nil = 不在填空）
+    private(set) var fillPlan: TemplateFillPlan?
+
+    /// 开始填空：选中第一个字段
+    func startFill(_ plan: TemplateFillPlan) {
+        guard plan.isActive else { return }
+        fillPlan = plan
+        if let range = fillPlan?.current {
+            setSelectedRange(NSRange(location: range.lowerBound, length: range.count))
+            scrollRangeToVisible(NSRange(location: range.lowerBound, length: range.count))
+        }
+    }
+
+    /// 结束填空（保留已填内容；清除多余字段标记不需要，因为字段本身不写进文本）
+    func exitFill() {
+        guard fillPlan != nil else { return }
+        fillPlan = nil
+        // 落到最后一个字段之后，方便继续写正文
+        let caret = selectedRange().location + selectedRange().length
+        setSelectedRange(NSRange(location: min(caret, (string as NSString).length), length: 0))
+        window?.makeFirstResponder(self)
+    }
+
+    /// 文本变了 → 同步字段范围（打字会让后面的字段整体平移）
+    override func didChangeText() {
+        super.didChangeText()
+        guard var plan = fillPlan else { return }
+        let edited = textStorage?.editedRange ?? NSRange(location: 0, length: 0)
+        let delta = textStorage?.changeInLength ?? 0
+        guard delta != 0 || edited.length > 0 else { return }
+        let oldStart = edited.location
+        let oldLength = max(0, edited.length - delta)
+        plan.applyEdit(editedRange: oldStart..<(oldStart + oldLength), delta: delta)
+        fillPlan = plan
+    }
+
     /// 编辑器焦点下 ⌘⌫/⌘⌦（两种退格）也会被文本系统截胡 —— 拦截并转给"删除文件"命令
     override func keyDown(with event: NSEvent) {
+        // 模板填空模式：Tab / ⇧Tab 在字段间跳，Esc 结束（见 Models/NoteTemplate.swift）
+        if fillPlan?.isActive == true {
+            if event.keyCode == 48 {                        // Tab
+                let delta = event.modifierFlags.contains(.shift) ? -1 : 1
+                if let next = fillPlan?.advance(delta) {
+                    setSelectedRange(NSRange(location: next.lowerBound, length: next.count))
+                } else {
+                    exitFill()                              // 走到头：收工，光标落在字段后
+                }
+                return
+            }
+            if event.keyCode == 53 { exitFill(); return }    // Esc
+        }
         if event.modifierFlags.contains(.command),
            event.keyCode == 51 || event.keyCode == 117 {   // 51=Delete(⌫) 117=DeleteForward(⌦)
             NotificationCenter.default.post(name: .deleteNoteRequested, object: nil)

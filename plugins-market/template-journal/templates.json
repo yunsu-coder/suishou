@@ -1,0 +1,28 @@
+[
+  {
+    "id": "daily",
+    "name": "日记 · 结构化",
+    "nameEn": "Journal · Structured",
+    "icon": "book.closed",
+    "category": "日记",
+    "desc": "日期属性 + 三件好事 + 复盘 + 明日一件事",
+    "descEn": "Properties, three good things, review, one thing for tomorrow",
+    "fileName": "{{date}}",
+    "folder": "日记",
+    "body": "---\ntype: 日记\ndate: {{date}}\nweekday: {{weekday}}\nweather: \nmood: \ntags: [日记]\n---\n\n# {{date}} {{weekday}}\n\n## 三件好事\n- [ ] <#第一件:值得记住的一件小事#>\n- [ ] <#第二件#>\n- [ ] <#第三件#>\n\n进度 :: 0/3\n\n## 今日复盘\n- 做成了：<#做成了什么#>\n- 卡住了：<#卡在哪里#>\n\n## 明天只做一件事\n- <#只写一件#>\n",
+    "bodyEn": "---\ntype: journal\ndate: {{date}}\nweekday: {{weekday}}\nweather: \nmood: \ntags: [journal]\n---\n\n# {{date}} {{weekday}}\n\n## Three good things\n- [ ] <#First:something small worth remembering#>\n- [ ] <#Second#>\n- [ ] <#Third#>\n\nprogress :: 0/3\n\n## Review\n- Went well: <#What worked#>\n- Got stuck: <#What blocked you#>\n\n## One thing for tomorrow\n- <#Just one#>\n"
+  },
+  {
+    "id": "quick",
+    "name": "日记 · 极简三行",
+    "nameEn": "Journal · Quick",
+    "icon": "text.alignleft",
+    "category": "日记",
+    "desc": "今天 / 心情 / 一件小事，30 秒能写完",
+    "descEn": "Today, mood, one small thing",
+    "fileName": "{{date}} 极简",
+    "folder": "日记",
+    "body": "# {{date}} {{weekday}}\n\n今天：<#今天过得怎么样#>\n心情：<#晴 / 阴 / 雨#>\n一件小事：<#一件小事#>\n\n{{cursor}}\n",
+    "bodyEn": "# {{date}} {{weekday}}\n\nToday: <#How was today#>\nMood: <#sunny / cloudy / rainy#>\nOne small thing: <#Something small#>\n\n{{cursor}}\n"
+  }
+]

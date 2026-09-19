@@ -1,0 +1,28 @@
+[
+  {
+    "id": "cornell",
+    "name": "课堂笔记 · 康奈尔",
+    "nameEn": "Class · Cornell",
+    "icon": "graduationcap",
+    "category": "课堂笔记",
+    "desc": "线索 / 笔记 / 总结三栏 + 公式 + 疑问转待办",
+    "descEn": "Cues / notes / summary with formulas and questions",
+    "fileName": "{{date}} 课堂笔记",
+    "folder": "课堂笔记",
+    "body": "---\ntype: 课堂笔记\ncourse: \nlecturer: \ndate: {{date}}\n---\n\n# <#课程:线性代数#> · 第 <#讲次:4#> 讲 · <#主题:特征值与相似对角化#>\n\n::: cornell <#课程:线性代数#> · 第 <#讲次:4#> 讲\n线索 :: <#关键词，用 / 分隔#>\n笔记 :: <#课堂要点#>\n总结 :: <#一句话总结#>\n:::\n\n## 例题与公式\n$$ <#公式，例如 T = 2\\pi\\sqrt{L/g}#> $$\n\n::: data <#数据表标题:实验数据#>\n| 次数 | 值 1 | 值 2 |\n| --- | --- | --- |\n| 1 |  |  |\n:::\n\n## 还没搞懂\n- [ ] <#没听懂的地方#>\n",
+    "bodyEn": "---\ntype: class\ncourse: \nlecturer: \ndate: {{date}}\n---\n\n# <#Course:Linear Algebra#> · Lecture <#number:4#> · <#topic:Eigenvalues#>\n\n::: cornell <#Course:Linear Algebra#> · Lecture <#number:4#>\nCues :: <#keywords, separated by /#>\nNotes :: <#Takeaways#>\nSummary :: <#One-sentence summary#>\n:::\n\n## Formula\n$$ <#Formula, e.g. T = 2\\pi\\sqrt{L/g}#> $$\n\n::: data <#Table title:Measurements#>\n| Run | Value 1 | Value 2 |\n| --- | --- | --- |\n| 1 |  |  |\n:::\n\n## Still unclear\n- [ ] <#What you did not get#>\n"
+  },
+  {
+    "id": "lecture",
+    "name": "课堂笔记 · 课前中后",
+    "nameEn": "Class · Before/During/After",
+    "icon": "list.bullet.rectangle",
+    "category": "课堂笔记",
+    "desc": "课前问题 / 课中要点 / 课后疑问与参考",
+    "descEn": "Questions before, notes during, follow-ups after",
+    "fileName": "{{date}} 课堂速记",
+    "folder": "课堂笔记",
+    "body": "---\ntype: 课堂笔记\ndate: {{date}}\n---\n\n# <#课程:课程名#> · {{date}}\n\n## 课前问题\n1. <#带着什么问题来上课#>\n\n## 课中要点\n- <#要点一#>\n- <#要点二#>\n\n<!-- 板书照片可以直接拖进来，自动进素材库 -->\n\n## 课后疑问\n- [ ] <#还没想明白的地方#>\n\n## 参考资料\n- <#教材 / 论文 / 链接#>\n",
+    "bodyEn": "---\ntype: class\ndate: {{date}}\n---\n\n# <#Course:Course#> · {{date}}\n\n## Before class\n1. <#What do you want to answer#>\n\n## During class\n- <#Point one#>\n- <#Point two#>\n\n<!-- Drag board photos here; they land in the asset library -->\n\n## After class\n- [ ] <#Still unclear#>\n\n## References\n- <#Textbook / paper / link#>\n"
+  }
+]

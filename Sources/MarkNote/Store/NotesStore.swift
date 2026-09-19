@@ -499,6 +499,44 @@ final class NotesStore {
     }
     private(set) var previewMedium: PreviewMedium?
 
+    // MARK: - 从模板新建（见 Models/NoteTemplate.swift）
+
+    /// 待填空的字段计划：按笔记 id 暂存，编辑器装载完就取走（Tab 在字段间跳）
+    private var pendingFill: (noteID: String, plan: TemplateFillPlan)?
+
+    func consumePendingFill(for noteID: String) -> TemplateFillPlan? {
+        guard let pending = pendingFill, pending.noteID == noteID else { return nil }
+        pendingFill = nil
+        return pending.plan
+    }
+
+    /// 用模板正文新建一篇笔记：写文件 → 刷新索引 → 打开 → 登记填空计划
+    /// - Returns: 新笔记的相对 id（失败 nil）
+    @discardableResult
+    func createNoteFromTemplate(_ template: NoteTemplate, context: TemplateContext,
+                                selection: String? = nil) -> String? {
+        var ctx = context
+        ctx.selection = selection
+        let expansion = NoteTemplateEngine.expand(template, context: ctx)
+        let stem = NoteTemplateEngine.fileName(template, context: ctx)
+        let folderRaw = (template.folder ?? "").trimmed
+        let folder = folderRaw.isEmpty ? nil : NotesStore.noteStem(folderRaw)
+        let dir = folder.map { notesDir.appendingPathComponent($0, isDirectory: true) } ?? notesDir
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let name = Workspace.uniqueName(in: dir, fileName: "\(stem).md")
+            try expansion.text.write(to: dir.appendingPathComponent(name),
+                                     atomically: true, encoding: .utf8)
+            let id = folder.map { "\($0)/\(name)" } ?? name
+            reloadIndex()
+            openNote(id)
+            if expansion.hasFields { pendingFill = (id, TemplateFillPlan(expansion: expansion)) }
+            return id
+        } catch {
+            return nil
+        }
+    }
+
     func openNote(_ id: String) {
         // 文件管理器语义：文本类文件在 app 内编辑；图片/视频 → 预览面板直接展示；其余 → 系统默认程序
         let ext = (id as NSString).pathExtension.lowercased()

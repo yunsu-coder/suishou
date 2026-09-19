@@ -1,0 +1,25 @@
+{
+  "id": "template-journal",
+  "name": "日记模板",
+  "nameEn": "Journal Templates",
+  "version": "1.0.0",
+  "kind": "templates",
+  "desc": "结构化日记：属性自动带入日期与星期，三件好事、复盘、明日一件事；Tab 一路填完不用手改",
+  "descEn": "A structured daily journal with auto-filled date and weekday, three good things, review and one thing for tomorrow",
+  "features": [
+    "一键新建「2026-09-19」这样的当日日记，日期 / 星期 / 时间自动填好",
+    "属性区写成 YAML front matter（别的编辑器照样能读），App 里显示成属性控件",
+    "任务行用 - [ ] 勾选，截止日用 @due(2026-09-22)、标签用 #周记（Obsidian Tasks 同款写法）",
+    "`<#字段#>` 之后自动选中，Tab / Shift+Tab 在字段之间跳，输入即替换"
+  ],
+  "featuresEn": [
+    "One-click daily note with date and weekday filled in",
+    "Properties stored as YAML front matter (still readable anywhere), shown as controls in the app",
+    "- [ ] tasks with @due(2026-09-22) and #tags (Obsidian Tasks syntax)",
+    "Fields marked with <#name#> are auto-selected; Tab / Shift+Tab jumps between them"
+  ],
+  "author": "随手社区",
+  "main": "templates.json",
+  "minAppVersion": "2.0.0",
+  "icon": "book.closed"
+}

@@ -6,7 +6,7 @@ import SwiftUI
 /// 包结构：manifest.json（schema 见 PluginManifest）+ 按 kind 的数据文件。
 
 enum PluginKind: String, Codable, CaseIterable {
-    case experts, theme, filetypes, snippets, render, commands, views
+    case experts, theme, filetypes, snippets, templates, render, commands, views
 
     var displayName: String {
         switch self {
@@ -14,6 +14,7 @@ enum PluginKind: String, Codable, CaseIterable {
         case .theme: return _L("主题", "Theme")
         case .filetypes: return _L("文件类型", "File Type")
         case .snippets: return _L("插入模板", "Snippet")
+        case .templates: return _L("模板", "Template")
         case .render: return _L("渲染扩展", "Render Extension")
         case .commands: return _L("命令", "Command")
         case .views: return _L("视图", "View")
@@ -100,6 +101,7 @@ struct PluginPackage: Identifiable {
         case .theme: return "paintpalette"
         case .filetypes: return "doc.text"
         case .snippets: return "text.insert"
+        case .templates: return "doc.badge.plus"
         case .render: return "wand.and.stars"
         case .commands: return "command"
         case .views: return "rectangle.grid.2x2"
@@ -113,6 +115,7 @@ struct PluginPackage: Identifiable {
         case .theme: return Color(red: 0.62, green: 0.50, blue: 0.95)
         case .filetypes: return Color(red: 0.20, green: 0.62, blue: 0.60)
         case .snippets: return Color(red: 0.95, green: 0.62, blue: 0.25)
+        case .templates: return Color(red: 0.18, green: 0.66, blue: 0.60)
         case .render: return Color(red: 0.25, green: 0.55, blue: 0.95)
         case .commands: return Color(red: 0.55, green: 0.57, blue: 0.62)
         case .views: return Color(red: 0.20, green: 0.66, blue: 0.52)

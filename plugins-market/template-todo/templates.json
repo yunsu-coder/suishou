@@ -1,0 +1,28 @@
+[
+  {
+    "id": "kanban",
+    "name": "待办 · 看板",
+    "nameEn": "Todo · Kanban",
+    "icon": "rectangle.split.3x1",
+    "category": "待办",
+    "desc": "待办 / 进行中 / 已完成 三列，含截止日与标签",
+    "descEn": "Todo / doing / done columns with due dates and tags",
+    "fileName": "{{date}} 看板",
+    "folder": "待办",
+    "body": "# 看板 {{date}}（第 {{week}} 周）\n\n## 待办\n- [ ] <#第一件事:把这周要交的东西列出来#> @due({{tomorrow}}) #<#标签:论文#>\n- [ ] <#第二件事#> @due({{next_week}}) #<#标签:实验#>\n\n## 进行中\n- [ ] <#正在做的事#>\n\n## 已完成\n- [x] <#刚做完的事#>\n\n进度 :: 1/5\n",
+    "bodyEn": "# Kanban {{date}} (week {{week}})\n\n## Todo\n- [ ] <#First task:List what is due this week#> @due({{tomorrow}}) #<#tag:paper#>\n- [ ] <#Second task#> @due({{next_week}}) #<#tag:lab#>\n\n## Doing\n- [ ] <#What you are working on#>\n\n## Done\n- [x] <#Just finished#>\n\nprogress :: 1/5\n"
+  },
+  {
+    "id": "daily-list",
+    "name": "待办 · 每日清单",
+    "nameEn": "Todo · Daily list",
+    "icon": "checklist",
+    "category": "待办",
+    "desc": "每日固定动作 + 一件小事，未完成的手动结转",
+    "descEn": "Daily routine plus one small task",
+    "fileName": "{{date}} 每日",
+    "folder": "待办",
+    "body": "# {{date}} 每日清单\n\n## 固定动作\n- [ ] 背 50 个单词\n- [ ] 运动 30 分钟\n- [ ] 阅读 20 页\n\n## 今天额外要做的\n- [ ] <#额外事项#>\n\n## 昨天没做完的\n- [ ] <#从昨天结转过来#>\n\n进度 :: 0/4\n",
+    "bodyEn": "# {{date}} Daily\n\n## Routine\n- [ ] 50 words\n- [ ] 30 min exercise\n- [ ] Read 20 pages\n\n## One extra thing\n- [ ] <#Extra task#>\n\n## Carried over\n- [ ] <#From yesterday#>\n\nprogress :: 0/4\n"
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "id": "template-class",
+  "name": "课堂笔记模板",
+  "nameEn": "Class Note Templates",
+  "version": "1.0.0",
+  "kind": "templates",
+  "desc": "康奈尔笔记（线索 / 笔记 / 总结三栏）+ 公式 + 实验数据表 + 疑问转待办",
+  "descEn": "Cornell notes with three columns, formulas, data tables and question-to-todo",
+  "features": [
+    "课程 / 讲师 / 日期属性写在 front matter，App 里显示成属性控件",
+    "康奈尔三栏用 ::: cornell 容器（和 ::: tip 同一套语法），预览渲染成三栏",
+    "公式走 KaTeX；实验数据写成 Markdown 表格，预览直接渲染",
+    "没听懂的地方写成任务行，勾选即加入待办"
+  ],
+  "featuresEn": [
+    "Course / lecturer / date live in front matter and render as property controls",
+    "Cornell columns use the ::: cornell container (same family as ::: tip)",
+    "KaTeX formulas and Markdown tables render in preview",
+    "Confusing points become checkbox tasks"
+  ],
+  "author": "随手社区",
+  "main": "templates.json",
+  "minAppVersion": "2.0.0",
+  "icon": "graduationcap"
+}
