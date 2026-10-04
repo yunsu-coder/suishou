@@ -44,6 +44,13 @@ struct EditorView: View {
     }
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 终端面板开关（侧栏图标 / 视图菜单共用同一个 key）
+    @AppStorage("terminalPanelOpen") private var terminalOpen = false
+
+    /// 终端视图插件是否就位（未启用时 ⌘J 与面板都不出现）
+    private var hasTerminalView: Bool {
+        PluginManager.shared.allViews().contains { $0.type == .terminal }
+    }
 
     var body: some View {
         // 以"真正装载"或"媒体查看"为显示条件：单击仅选中不闪空编辑器；装载后显示
@@ -85,8 +92,15 @@ struct EditorView: View {
                 }
                 .layoutPriority(1)
                 .animation(.timingCurve(0.25, 1, 0.4, 1, duration: 0.18), value: effectiveMode)
+                // 内置终端面板（视图插件 view-terminal 启用时才存在；⌘J 开关）
+                if terminalOpen, hasTerminalView, !readerFocus {
+                    Divider()
+                    TerminalPanel { terminalOpen = false }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
                 if !readerFocus { statusBar }
             }
+            .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: terminalOpen)
             // 动画② 触发点（笔记切换 6pt + fade 0.12s）：整块内容随 loadedNoteID 换档（防卡：轻量） 
             .id("doc-\(store.loadedNoteID ?? "none")")
             .compositingGroup()

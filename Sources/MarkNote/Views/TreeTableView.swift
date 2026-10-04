@@ -543,9 +543,27 @@ struct TreeTableView: NSViewRepresentable {
             case "ppt", "pptx", "key", "odp": return (key, "play.rectangle", c(0.90, 0.55, 0.25))
             case "zip", "rar", "7z", "gz", "tar", "dmg": return (key, "archivebox", c(0.50, 0.54, 0.66))
             case "py", "js", "ts", "swift", "rb", "go", "rs", "java", "c", "cpp", "h",
-                 "cs", "php", "sh", "sql": return (key, "curlybraces", c(0.32, 0.50, 0.78))
+                 "cs", "php", "sh", "sql":
+                // 主题包还没画「每语言专属图标」时的兜底：至少按语言给色（不裂图、不糊成一片）
+                return (key, "curlybraces", languageTint(key) ?? c(0.32, 0.50, 0.78))
             default: return (key, "doc", c(0.58, 0.58, 0.62))
             }
+        }
+
+        /// 语言 → 兜底色（与各语言品牌色相近，主题提供专属图标后此色不再出现）
+        private static func languageTint(_ key: String) -> NSColor? {
+            let hex: [String: String] = [
+                "file.python": "#3B7EA1", "file.javascript": "#C9A227", "file.typescript": "#2F74C0",
+                "file.go": "#1FA3B8", "file.rust": "#C1663D", "file.c": "#5B7DB1",
+                "file.cpp": "#3F6FD8", "file.csharp": "#8B5CD6", "file.java": "#C0563C",
+                "file.kotlin": "#7F52FF", "file.swift": "#E0703A", "file.html": "#D9642F",
+                "file.css": "#2C6FB8", "file.vue": "#3FA36B", "file.xml": "#8A8F98",
+                "file.json": "#B08A2E", "file.yaml": "#C4536F", "file.shell": "#4E9A5F",
+                "file.sql": "#3C8C8C", "file.ruby": "#C43D3D", "file.php": "#6B6FC4",
+                "file.lua": "#2C4F9E", "file.asm": "#7A8290", "file.r": "#276DC3",
+                "file.data": "#4E9C78", "file.markdown": "#6C8CC7",
+            ]
+            return hex[key].map(colorHex)
         }
 
         private static func colorHex(_ hex: String) -> NSColor {

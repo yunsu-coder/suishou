@@ -1,0 +1,27 @@
+{
+  "id": "view-terminal",
+  "name": "终端",
+  "nameEn": "Terminal",
+  "version": "1.0.0",
+  "kind": "views",
+  "desc": "内置终端面板：真 PTY 登录 shell，一键运行当前文件（按语言挑解释器/编译器），输出流式回传，可中断、可清屏",
+  "descEn": "Built-in terminal panel: a real PTY login shell with one-click Run for the current file (per-language interpreter/compiler), streaming output, interrupt and clear",
+  "features": [
+    "底部停靠面板（⌘J 开关），高度可拖拽；关掉面板会话随之结束",
+    "▶ 运行当前文件：Python / Node / TS / Go / Rust / C / C++ / Java / Swift / Ruby / PHP / Shell / HTML… 自动选命令",
+    "运行目录 = 当前文件所在目录，相对路径的输入输出符合直觉",
+    "⏹ 中断（^C，必要时补 SIGINT）、清屏、↑↓ 命令历史、退出码回显",
+    "输出去过 ANSI 控制码，长输出自动截断，不卡界面"
+  ],
+  "featuresEn": [
+    "Docked bottom panel (⌘J), drag to resize; closing the panel ends the session",
+    "▶ Run current file: auto-picks the command for Python / Node / TS / Go / Rust / C / C++ / Java / Swift / Ruby / PHP / Shell / HTML…",
+    "Runs in the file's own directory so relative paths behave as expected",
+    "⏹ Interrupt (^C, SIGINT fallback), clear, ↑↓ history, exit-code echo",
+    "ANSI control codes stripped, long output trimmed, never blocks the UI"
+  ],
+  "author": "随手社区",
+  "main": "views.json",
+  "minAppVersion": "2.0.0",
+  "icon": "terminal"
+}

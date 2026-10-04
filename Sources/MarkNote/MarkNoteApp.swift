@@ -142,6 +142,25 @@ struct MarkNoteApp: App {
             print(ThemeQuality.contentHash(packageDir: dir) ?? "nil")
             exit(0)
         }
+        // 诊断：按质量门槛审一个主题包（升级/改图标后先跑它，避免"装上去才发现被拦"）
+        if let i = args.firstIndex(of: "--audit-theme"), i + 1 < args.count {
+            let dir = URL(fileURLWithPath: args[i + 1], isDirectory: true)
+            let manifest = dir.appendingPathComponent("manifest.json")
+            let specURL = dir.appendingPathComponent("theme.json")
+            let raw = (try? Data(contentsOf: manifest)) ?? Data()
+            let specRaw = (try? Data(contentsOf: specURL)) ?? Data()
+            let specs = (try? JSONDecoder().decode([ThemeSpec].self, from: specRaw)) ?? []
+            if let m = try? JSONDecoder().decode(PluginManifest.self, from: raw) {
+                print("THEME \(m.id) \(m.version)")
+            }
+            if specs.isEmpty { print("AUDIT 无法解析 theme.json") }
+            for t in specs {
+                let issues = ThemeQuality.audit(t, packageDir: dir, mainFileName: "theme.json")
+                print(issues.isEmpty ? "AUDIT ok：\(t.name)" : "AUDIT \(issues.count) 项不合格：")
+                for i in issues { print(" - \(i)") }
+            }
+            exit(0)
+        }
         if args.contains("--open-settings") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                 NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
@@ -447,6 +466,11 @@ struct MarkNoteApp: App {
                     NotificationCenter.default.post(name: .readerFocusToggle, object: nil)
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
+                Button(_LL("终端面板", "Terminal Panel")) {
+                    let open = UserDefaults.standard.bool(forKey: "terminalPanelOpen")
+                    UserDefaults.standard.set(!open, forKey: "terminalPanelOpen")
+                }
+                .keyboardShortcut("j", modifiers: [.command])
                 Divider()
                 ForEach(themeCatalog.options) { t in
                     Button {

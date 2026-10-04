@@ -46,13 +46,40 @@ enum Workspace {
         }
     }
 
-    /// 文件扩展名 → 主题语义图标槽位（文件夹 / 格式分类 / 颜色层级）。
+    /// 文件扩展名 → 主题语义图标槽位（文件夹 / 格式分类 / **每种语言一个槽位**）。
+    /// 主题包没提供对应语言的图标时会回落到 file.code（SF Symbol + 语言色），不会裂图。
     static func themeIconKey(for ext: String) -> String {
         switch ext.lowercased() {
         case "md", "markdown", "mdown", "mdx": return "file.markdown"
-        case "json", "jsonc", "yaml", "yml", "toml", "plist", "ini", "cfg", "conf",
-             "properties", "gradle", "csv", "tsv", "lock", "lockb":
+        // ── 专业语言：每种语言一个专属槽位 ──
+        case "py", "pyw", "pyi": return "file.python"
+        case "js", "jsx", "mjs", "cjs": return "file.javascript"
+        case "ts", "tsx", "mts", "cts": return "file.typescript"
+        case "go": return "file.go"
+        case "rs": return "file.rust"
+        case "c", "h": return "file.c"
+        case "cpp", "cc", "cxx", "c++", "hpp", "hh", "hxx", "mpp", "ipp": return "file.cpp"
+        case "cs": return "file.csharp"
+        case "java": return "file.java"
+        case "kt", "kts": return "file.kotlin"
+        case "swift": return "file.swift"
+        case "html", "htm", "xhtml": return "file.html"
+        case "vue", "svelte": return "file.vue"
+        case "xml", "svg", "xib", "storyboard", "plist": return "file.xml"
+        case "css", "scss", "sass", "less", "styl": return "file.css"
+        case "sh", "bash", "zsh", "fish", "ksh", "ps1", "bat", "cmd": return "file.shell"
+        case "sql": return "file.sql"
+        case "rb", "rake", "gemspec", "pl": return "file.ruby"
+        case "php", "phtml": return "file.php"
+        case "lua": return "file.lua"
+        case "asm", "s", "nasm": return "file.asm"
+        case "r": return "file.r"
+        case "json", "jsonc", "json5": return "file.json"
+        case "yaml", "yml": return "file.yaml"
+        case "toml", "ini", "cfg", "conf", "properties", "env", "gradle", "lock", "lockb",
+             "csv", "tsv", "editorconfig":
             return "file.data"
+        // ── 其余分类 ──
         case "png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "tiff", "tif", "svg", "ico":
             return "file.image"
         case "mp4", "mov", "m4v", "webm", "mkv", "avi": return "file.video"
@@ -60,11 +87,7 @@ enum Workspace {
         case "pdf", "doc", "docx", "pages", "rtf", "odt", "wps", "txt", "rst", "log":
             return "file.document"
         case "zip", "rar", "7z", "gz", "tar", "dmg": return "file.archive"
-        case "html", "htm", "xml", "xib", "storyboard", "css", "scss", "sass", "less", "styl",
-             "swift", "m", "mm", "c", "h", "cpp", "hpp", "cc", "mpp", "cs", "java", "kt", "go", "rs",
-             "py", "rb", "php", "pl", "lua", "js", "jsx", "ts", "tsx", "mjs", "cjs", "vue", "svelte",
-             "sh", "bash", "zsh", "fish", "sql", "ps1", "bat", "cmd", "vim", "asm", "s", "zig", "nim",
-             "ex", "exs", "erl", "hs", "makefile", "dockerfile":
+        case "m", "mm", "vim", "zig", "nim", "ex", "exs", "erl", "hs", "makefile", "dockerfile":
             return "file.code"
         default:
             return "file.other"

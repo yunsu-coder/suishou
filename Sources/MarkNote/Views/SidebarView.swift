@@ -47,6 +47,8 @@ struct SidebarView: View {
     @State private var viewsSnapshot: [PluginView] = []
     @State private var showFlowchart = false
     @State private var flowSpec: PluginView?
+    /// 终端面板开关（与 EditorView 共用同一个 UserDefaults key）
+    @AppStorage("terminalPanelOpen") private var terminalOpen = false
     /// 主题彩蛋点击计数（按主题声明次数触发）
     @State private var easterEggClicks = 0
 
@@ -74,6 +76,12 @@ struct SidebarView: View {
                     activityIcon("flowchart", _L("流程图", "Flowchart"), active: showFlowchart) {
                         flowSpec = flow
                         showFlowchart = true
+                    }
+                }
+                // 终端面板（底部停靠）：走插件声明，未启用不出现
+                if viewsSnapshot.contains(where: { $0.type == .terminal }) {
+                    activityIcon("terminal", _L("终端", "Terminal"), active: terminalOpen) {
+                        terminalOpen.toggle()
                     }
                 }
                 Spacer()

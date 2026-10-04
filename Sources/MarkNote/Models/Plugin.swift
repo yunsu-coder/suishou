@@ -260,6 +260,7 @@ enum PluginViewType: String, Codable, CaseIterable {
     case assetGrid
     case collector
     case flowchart
+    case terminal
 
     var displayName: String {
         switch self {
@@ -267,6 +268,7 @@ enum PluginViewType: String, Codable, CaseIterable {
         case .assetGrid: return _L("素材网格", "Asset Grid")
         case .collector: return _L("素材采集", "Asset Collector")
         case .flowchart: return _L("流程图", "Flowchart")
+        case .terminal: return _L("终端", "Terminal")
         }
     }
 }

@@ -1,0 +1,11 @@
+[
+  {
+    "id": "terminal",
+    "name": "终端",
+    "nameEn": "Terminal",
+    "type": "terminal",
+    "scope": "workspace",
+    "placement": "panel",
+    "options": {}
+  }
+]

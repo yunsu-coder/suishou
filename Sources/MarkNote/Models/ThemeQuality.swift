@@ -27,12 +27,33 @@ enum ThemeQuality {
         "file.video", "file.audio", "file.document", "file.archive", "file.other",
     ]
 
+    /// v6 新增：**每种语言一个专属槽位**（编程/网页/脚本/数据/查询语言各自成图标）。
+    /// 这些槽位是"可选但推荐"：主题可以逐个补齐；声明了就按同一套规则校验
+    /// （透明字形、不得复用同一资源、体积达标），没声明的语言自动回落到 file.code 兜底。
+    static let languageIconKeys: Set<String> = [
+        "file.python", "file.javascript", "file.typescript", "file.go", "file.rust",
+        "file.c", "file.cpp", "file.csharp", "file.java", "file.kotlin", "file.swift",
+        "file.html", "file.css", "file.xml", "file.vue", "file.shell",
+        "file.json", "file.yaml", "file.sql", "file.ruby", "file.php", "file.lua",
+        "file.asm", "file.r",
+    ]
+
+    /// 全部已知槽位（「图标语义未适配」的判定依据）
+    static let knownIconKeys: Set<String> = baseIconKeys.union(fileIconKeys).union(languageIconKeys)
+
     static func requiredIconKeys(for version: Int) -> Set<String> {
         version >= 2 ? baseIconKeys.union(fileIconKeys) : baseIconKeys
     }
 
-    static func distinctIconKeys(for version: Int) -> [String] {
-        version >= 2 ? ["folder"] + fileIconKeys.sorted() : ["folder"]
+    /// 不能复用同一资源的槽位（folder + 各格式 + 主题已声明的语言槽位）
+    static func distinctIconKeys(for version: Int, icons: [String: String] = [:]) -> [String] {
+        let languages = icons.keys.filter { languageIconKeys.contains($0) }.sorted()
+        return version >= 2 ? ["folder"] + fileIconKeys.sorted() + languages : ["folder"]
+    }
+    /// 语言槽位在上线时（auditVersion ≥ 6）必须整组补齐，避免"半套图标"的观感
+    static func missingLanguageIcons(for version: Int, icons: [String: String]) -> [String] {
+        guard version >= 6 else { return [] }
+        return languageIconKeys.subtracting(icons.keys).sorted()
     }
     static let maxFontBytes = 12 * 1024 * 1024
     static let maxIconBytes = 256 * 1024
@@ -118,12 +139,15 @@ enum ThemeQuality {
         for key in requiredKeys.sorted() where icons[key] == nil {
             issues.append("图标语义未覆盖：\(key)")
         }
-        let unknown = Set(icons.keys).subtracting(requiredKeys)
+        for key in missingLanguageIcons(for: version, icons: icons) {
+            issues.append("语言图标缺位（v6 起整组必填）：\(key)")
+        }
+        let unknown = Set(icons.keys).subtracting(knownIconKeys)
         for key in unknown.sorted() {
             issues.append("图标语义未适配：\(key)")
         }
         if version >= 3 {
-            for key in (fileIconKeys.union(["folder"])).sorted() {
+            for key in (fileIconKeys.union(languageIconKeys).union(["folder"])).sorted() {
                 guard let rel = icons[key] else { continue }
                 let url = packageDir.appendingPathComponent(rel)
                 if let coverage = opaqueCoverage(url), coverage > 0.82 {
@@ -132,7 +156,7 @@ enum ThemeQuality {
             }
         }
         var seen: [String: String] = [:]
-        for key in distinctIconKeys(for: version) {
+        for key in distinctIconKeys(for: version, icons: icons) {
             guard let rel = icons[key] else { continue }
             if let other = seen[rel] {
                 issues.append("图标语义复用：\(key) 与 \(other) 使用同一资源（缺少颜色/类型层级）")
