@@ -193,6 +193,46 @@ final class CodeHighlightTests: XCTestCase {
         XCTAssertTrue(has(t, .constant, "flex"), "值关键字")
     }
 
+    // MARK: - 配色细化（2026-10-04 完善）
+
+    func testCppIncludeAngleBracketsAreString() {
+        let src = "#include <vector>\n#include \"local.h\"\n"
+        let t = tokens(src, ext: "cpp")
+        XCTAssertTrue(has(t, .preproc, "#include"), "#include 走预处理色")
+        XCTAssertTrue(has(t, .string, "<vector>"), "尖括号头文件名走字符串色")
+        XCTAssertTrue(has(t, .string, "\"local.h\""), "引号头文件名还是字符串色")
+    }
+
+    func testTypeNameAfterClassKeyword() {
+        let src = """
+        class Widget : public Base {};
+        struct Point { int x; };
+        enum Color { Red, Green };
+        """
+        let t = tokens(src, ext: "cpp")
+        XCTAssertTrue(has(t, .keyword, "class"))
+        XCTAssertTrue(has(t, .type, "Widget"), "class 后面的名字按类型上色")
+        XCTAssertTrue(has(t, .type, "Point"), "struct 后面的名字按类型上色")
+        XCTAssertTrue(has(t, .type, "Color"), "enum 后面的名字按类型上色")
+
+        let py = tokens("class Greeter:\n    pass\n", ext: "py")
+        XCTAssertTrue(has(py, .type, "Greeter"), "Python class 名同理")
+        let ts = tokens("interface User { id: number }\n", ext: "ts")
+        XCTAssertTrue(has(ts, .type, "User"), "TS interface 名同理")
+    }
+
+    func testStringEscapesAreHighlighted() {
+        let src = "const char* s = \"line\\n\\t\\\"q\\\" \\u00e9\";"
+        let t = tokens(src, ext: "cpp")
+        XCTAssertTrue(has(t, .string, "line"), "整串还是字符串色")
+        XCTAssertTrue(has(t, .escape, "\\n"), "\\n 单独上色")
+        XCTAssertTrue(has(t, .escape, "\\t"), "\\t 单独上色")
+        XCTAssertTrue(has(t, .escape, "\\u00e9"), "\\uXXXX 整体上色")
+
+        let py = tokens("s = f\"a\\nb\"\n", ext: "py")
+        XCTAssertTrue(has(py, .escape, "\\n"), "Python 字符串里的转义同样上色")
+    }
+
     /// 大文件不能把输入卡死：40 万字符内单遍扫描要够快（后台队列跑，这里给宽松上限）
     func testLargeFileTokenizePerformance() {
         let unit = "int add(int a, int b) { return a + b; }  // 注释\n"

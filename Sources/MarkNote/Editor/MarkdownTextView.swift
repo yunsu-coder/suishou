@@ -109,17 +109,27 @@ final class MarkdownTextView: NSTextView {
             if ch == "]" || ch == "/" { blockIndent(indent: true); return }
             if ch == "[" { blockIndent(indent: false); return }
         }
-        // 括号自动成对（VSCode 式）：码文件输入 ( [ { → 自动补闭合符并回退光标
+        // 代码文件：成对补全 + 选区包围 + 类型越过（VS Code 式）
         if event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
            Workspace.isEditorText(fileExtension),
            !MarkdownEditorView.isMarkdownExt(fileExtension),
-           selectedRange().length == 0,
            let ch = event.charactersIgnoringModifiers {
-            if ch == "(" || ch == "[" || ch == "{" {
-                if autoCloseBracket(ch) { return }
-            } else if ch == ")" || ch == "]" || ch == "}" {
-                // 光标已停在闭合符上 → 直接越过（不重复输入）
-                if skipOverCloser(ch) { return }
+            // 有选区 → 直接用符号包住（输入 " 也能把选中的词包成字符串）
+            if selectedRange().length > 0, let wrapped = Self.wrapped(
+                (string as NSString).substring(with: selectedRange()), with: ch) {
+                insertText(wrapped, replacementRange: selectedRange())
+                return
+            }
+            if selectedRange().length == 0 {
+                if ch == "(" || ch == "[" || ch == "{" {
+                    if autoCloseBracket(ch) { return }
+                } else if ch == ")" || ch == "]" || ch == "}" {
+                    // 光标已停在闭合符上 → 直接越过（不重复输入）
+                    if skipOverCloser(ch) { return }
+                } else if ch == "\"" || ch == "'" || ch == "`" {
+                    // 引号补全：后面紧跟字母/数字时不补（避免在词中间乱插）
+                    if autoCloseQuote(ch) { return }
+                }
             }
         }
         // ⌘⇧\ 跳到匹配括号
@@ -172,6 +182,56 @@ final class MarkdownTextView: NSTextView {
         return true
     }
 
+    /// 当前文件的缩进单位（C/C++/Python/Go/JS… 4；HTML/CSS/JSON/Markdown 2）
+    private var indentUnit: Int { MarkdownEditorView.indentUnit(for: fileExtension) }
+
+    /// Tab 该插几个空格：光标已在行首空白里 → 对齐到下一个制表位（VS Code 手感）
+    static func tabInsertion(beforeCaret prefix: String, unit: Int) -> String {
+        let u = max(1, unit)
+        if prefix.allSatisfy({ $0 == " " }) {
+            let pad = u - (prefix.count % u)
+            return String(repeating: " ", count: pad)
+        }
+        return String(repeating: " ", count: u)
+    }
+
+    /// 选中一段文本后输入包围符号 → 用符号包住选区（VS Code 行为）
+    static func wrapped(_ selection: String, with ch: String) -> String? {
+        let pairs: [String: String] = ["(": ")", "[": "]", "{": "}", "\"": "\"", "'": "'", "`": "`"]
+        guard let close = pairs[ch] else { return nil }
+        return ch + selection + close
+    }
+
+    /// 光标两侧恰好是一对空符号 → 一次退格删掉整对
+    static func isDeletablePair(prev: String, next: String) -> Bool {
+        let pairs: [String: String] = ["(": ")", "[": "]", "{": "}", "\"": "\"", "'": "'", "`": "`"]
+        return pairs[prev] == next
+    }
+
+    /// 退格：空对（() [] {} "" ''）一次删两个字符
+    override func deleteBackward(_ sender: Any?) {
+        if FeatureModules.isEnabled(FeatureModules.editorCodeSmart),
+           Workspace.isEditorText(fileExtension),
+           selectedRange().length == 0 {
+            let ns = string as NSString
+            let loc = selectedRange().location
+            if loc >= 1, loc < ns.length {
+                let prev = ns.substring(with: NSRange(location: loc - 1, length: 1))
+                let next = ns.substring(with: NSRange(location: loc, length: 1))
+                if Self.isDeletablePair(prev: prev, next: next) {
+                    let range = NSRange(location: loc - 1, length: 2)
+                    if shouldChangeText(in: range, replacementString: "") {
+                        textStorage?.replaceCharacters(in: range, with: "")
+                        didChangeText()
+                        setSelectedRange(NSRange(location: loc - 1, length: 0))
+                    }
+                    return
+                }
+            }
+        }
+        super.deleteBackward(sender)
+    }
+
     /// 输入闭括号时若下一字符即同款闭合符 → 跳过（VSCode type-over）
     private func skipOverCloser(_ ch: String) -> Bool {
         let sel = selectedRange()
@@ -179,6 +239,26 @@ final class MarkdownTextView: NSTextView {
         guard sel.length == 0, sel.location < ns.length else { return false }
         let next = ns.substring(with: NSRange(location: sel.location, length: 1))
         guard next == ch else { return false }
+        setSelectedRange(NSRange(location: sel.location + 1, length: 0))
+        return true
+    }
+
+    /// 引号补全 / 越过：`"` `'` `` ` `` 都按 VS Code 的行为来
+    /// - 下一字符就是同款引号 → 直接越过（不重复输入）
+    /// - 下一字符是字母/数字 → 不补（在词中间不该乱插）
+    /// - 其余情况 → 补一个闭合引号并把光标放中间
+    private func autoCloseQuote(_ ch: String) -> Bool {
+        let ns = string as NSString
+        let sel = selectedRange()
+        if sel.location < ns.length {
+            let next = ns.substring(with: NSRange(location: sel.location, length: 1))
+            if next == ch {                                  // 越过
+                setSelectedRange(NSRange(location: sel.location + 1, length: 0))
+                return true
+            }
+            if next.rangeOfCharacter(from: .alphanumerics) != nil { return false }
+        }
+        insertText(ch + ch, replacementRange: sel)
         setSelectedRange(NSRange(location: sel.location + 1, length: 0))
         return true
     }
@@ -201,6 +281,11 @@ final class MarkdownTextView: NSTextView {
             // VSCode：{ 回车 → {⏎    ⏎}  光标落在中间行
             let middle = "\n" + ws + unit
             return middle + "\n" + ws + "}"
+        }
+        // Python 的冒号块 + 括号未闭合的续行：往里缩一级（VS Code 同款）
+        let pyColon = fileExtension.lowercased() == "py" && core.hasSuffix(":")
+        if pyColon || core.hasSuffix("(") || core.hasSuffix("[") {
+            return "\n" + ws + unit
         }
         if core.hasPrefix("}") || core == "}" {
             return "\n" + (ws.count >= unit.count ? String(ws.dropLast(unit.count)) : ws)
@@ -346,7 +431,11 @@ final class MarkdownTextView: NSTextView {
             blockIndent(indent: true)
             return
         }
-        insertText("  ", replacementRange: selectedRange())
+        // 行首空白里 → 对齐到下一个制表位；否则插入一个缩进单位（C/C++/Python 4、HTML/CSS 2）
+        let lineStart = text.lineRange(for: NSRange(location: min(sel.location, text.length), length: 0)).location
+        let prefix = text.substring(with: NSRange(location: lineStart,
+                                                  length: max(0, sel.location - lineStart)))
+        insertText(Self.tabInsertion(beforeCaret: prefix, unit: indentUnit), replacementRange: sel)
     }
 
     /// ⇧⇥：反缩进（多选或当前行）
@@ -365,7 +454,7 @@ final class MarkdownTextView: NSTextView {
         let full = text.lineRange(for: NSRange(location: range.location, length: min(range.length, text.length - range.location)))
         guard full.length > 0 else { return }
         let sub = text.substring(with: full)
-        let transformed = Self.transformIndent(sub, indent: indent)
+        let transformed = Self.transformIndent(sub, indent: indent, unit: indentUnit)
         guard transformed != sub else { return }
         guard shouldChangeText(in: full, replacementString: transformed) else { return }
         textStorage?.replaceCharacters(in: full, with: transformed)
@@ -396,8 +485,9 @@ final class MarkdownTextView: NSTextView {
         setSelectedRange(NSRange(location: full.location + start, length: max(0, end - start)))
     }
 
-    /// 每行 +2 空格 / 卸一个 Tab 或最多 2 个空格（行尾独立变换，行开头的空串不参与缩进）
-    static func transformIndent(_ text: String, indent: Bool) -> String {
+    /// 每行加一个缩进单位 / 卸一个 Tab 或最多一个单位（行尾独立变换，行首空串不参与缩进）
+    static func transformIndent(_ text: String, indent: Bool, unit: Int = 2) -> String {
+        let pad = String(repeating: " ", count: max(1, unit))
         if text.isEmpty { return text }
         let lines = text.components(separatedBy: "\n")
         var out = [String]()
@@ -408,14 +498,14 @@ final class MarkdownTextView: NSTextView {
                 if line.isEmpty && i == lines.count - 1 && lines.count > 1 {
                     out.append(line)
                 } else {
-                    out.append("  " + line)
+                    out.append(pad + line)
                 }
             } else {
                 if line.hasPrefix("\t") {
                     out.append(String(line.dropFirst()))
                 } else {
                     let ws = line.prefix(while: { $0 == " " })
-                    out.append(String(line.dropFirst(min(2, ws.count))))
+                    out.append(String(line.dropFirst(min(max(1, unit), ws.count))))
                 }
             }
         }

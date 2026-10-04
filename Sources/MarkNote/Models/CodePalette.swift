@@ -30,6 +30,7 @@ enum CodePalette {
         case .tag:      return NSColor.sRGB(0.878, 0.424, 0.459)   // #E06C75
         case .property: return NSColor.sRGB(0.820, 0.603, 0.400)   // #D19A66
         case .constant: return NSColor.sRGB(0.820, 0.603, 0.400)   // #D19A66
+        case .escape:   return NSColor.sRGB(0.337, 0.714, 0.761)   // #56B6C2（与预处理同族）
         }
     }
 
@@ -49,6 +50,7 @@ enum CodePalette {
         case .tag:      return NSColor.sRGB(0.788, 0.247, 0.196)   // #C93F32
         case .property: return NSColor.sRGB(0.541, 0.392, 0.000)   // #8A6400
         case .constant: return NSColor.sRGB(0.596, 0.408, 0.004)   // #986801
+        case .escape:   return NSColor.sRGB(0.004, 0.420, 0.608)   // #016B9B
         }
     }
 

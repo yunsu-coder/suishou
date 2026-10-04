@@ -3,6 +3,8 @@ import Foundation
 /// 代码着色 token 语义（跨语言统一；具体颜色由 CodePalette 给「最流行的配色」）
 enum CodeKind: CaseIterable {
     case keyword, type, string, comment, number, preproc, function, variable, tag, property, constant
+    /// 字符串里的转义序列（\n \t \" \\ …）—— 单独一色，读代码时一眼能看出转义
+    case escape
 }
 
 struct CodeToken {
@@ -42,6 +44,8 @@ enum CodeHighlighter {
         let len = ns.length
         var i = 0
         var lineStart = true
+        /// 刚扫过 class / struct / enum … → 下一个标识符是类型名（VS Code 同款上色）
+        var expectTypeName = false
 
         while i < len {
             let c = ns.character(at: i)
@@ -70,6 +74,10 @@ enum CodeHighlighter {
             if wasLineStart, c < 128, syntax.lineDirectives.contains(ascii(c)) {
                 let e = directiveEnd(ns, at: i, toEndOfLine: c == 35)
                 add(&out, i, e, .preproc)
+                // #include <vector>：尖括号里的头文件名按字符串上色
+                if c == 35, syntax.lineDirectives.contains("#") {
+                    addAngleBracketInclude(ns, from: i, to: e, out: &out)
+                }
                 i = e
                 continue
             }
@@ -87,12 +95,14 @@ enum CodeHighlighter {
                 let after = nextNonSpace(ns, from: e)
                 let isKey = syntax.keyBeforeColon && after < len && ns.character(at: after) == 58
                 add(&out, i, e, isKey ? .property : .string)
+                if !isKey { addEscapes(ns, from: i, to: e, out: &out) }
                 i = e
                 continue
             }
             if syntax.backtickString, c == 96 {
                 let e = skipString(ns, at: i, allowNewline: true)
                 add(&out, i, e, .string)
+                addEscapes(ns, from: i, to: e, out: &out)
                 i = e
                 continue
             }
@@ -117,8 +127,12 @@ enum CodeHighlighter {
                 var j = i + 1
                 while j < len, isIdentBody(ns.character(at: j), allowDash: false) { j += 1 }
                 let word = ns.substring(with: NSRange(location: i, length: j - i))
-                if let kind = classify(word, syntax: syntax, ns: ns, end: j) {
+                if expectTypeName, !syntax.keywords.contains(word) {
+                    add(&out, i, j, .type)
+                    expectTypeName = false
+                } else if let kind = classify(word, syntax: syntax, ns: ns, end: j) {
                     add(&out, i, j, kind)
+                    expectTypeName = Self.typeIntroducers.contains(word)
                 }
                 i = j
                 continue
@@ -340,6 +354,53 @@ enum CodeHighlighter {
         "screen", "print", "ease", "ease-in", "ease-out", "ease-in-out", "linear", "infinite",
         "both", "forwards", "backwards", "row", "column", "space-between", "space-around",
     ]
+
+    /// 这些关键字后面跟的标识符是"类型名"（class Foo / struct Bar / trait Baz …）
+    static let typeIntroducers: Set<String> = [
+        "class", "struct", "enum", "union", "interface", "trait", "impl", "type", "namespace",
+        "protocol", "extension", "record", "actor", "typedef", "extends", "implements",
+    ]
+
+    /// 字符串里的转义序列（\n \t \" \\ \u1234 …）：在字符串 token 之后追加，覆盖成转义色
+    private static func addEscapes(_ ns: NSString, from start: Int, to end: Int, out: inout [CodeToken]) {
+        let len = ns.length
+        var i = start
+        while i < min(end, len) - 1 {
+            if ns.character(at: i) == 92 {                       // 反斜杠
+                var j = i + 2
+                // \uXXXX / \xNN / \NNN 之类多字符转义一起吃掉
+                if i + 1 < len, ns.character(at: i + 1) == 117 || ns.character(at: i + 1) == 120 {   // u / x
+                    while j < min(end, len), isHexDigit(ns.character(at: j)) { j += 1 }
+                } else if i + 1 < len, isDigit(ns.character(at: i + 1)) {
+                    var k = i + 1
+                    while k < min(end, len), isDigit(ns.character(at: k)) { k += 1 }
+                    j = k
+                }
+                add(&out, i, min(j, end), .escape)
+                i = j
+            } else {
+                i += 1
+            }
+        }
+    }
+
+    /// `#include <vector>` / `#include "local.h"`：头文件名按字符串色（VS Code 的行为）
+    private static func addAngleBracketInclude(_ ns: NSString, from start: Int, to end: Int, out: inout [CodeToken]) {
+        let len = ns.length
+        var open = -1
+        var i = start
+        while i < min(end, len) {
+            let c = ns.character(at: i)
+            if (c == 60 || c == 34), open < 0 {                    // < 或 "
+                open = i
+            } else if (c == 62 && ns.character(at: open) == 60) ||   // > 收尾（尖括号）
+                      (c == 34 && open >= 0 && ns.character(at: open) == 34) {   // " 收尾（引号）
+                add(&out, open, i + 1, .string)
+                return
+            }
+            i += 1
+        }
+    }
 
     // MARK: - 扫描辅助
 
