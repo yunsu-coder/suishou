@@ -155,7 +155,6 @@ struct MarkNoteApp: App {
             for t in templates {
                 print(" - \(t.id) | \(t.displayName) | \(t.category) | \(t.fileName ?? "-")")
             }
-            print("MENU \(_L("空白笔记", "Blank note")) | \(_L("从模板新建", "New from template")) | \(_L("网络代理", "Proxy"))")
             exit(0)
         }
         if args.contains("--create-note") {

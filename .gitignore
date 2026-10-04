@@ -6,3 +6,6 @@ scripts/__pycache__/
 plugins-market/_review/archive/
 plugins-market/_review/
 tmp/
+
+# 构建产物（历史上误提交过一次，勿再入库）
+.build-fresh/

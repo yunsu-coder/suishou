@@ -7,10 +7,7 @@ import Foundation
 final class RenderPluginWebTests: XCTestCase {
 
     private func loadPreviewWeb() throws -> WKWebView {
-        let pkg = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let bundlePath = pkg.appendingPathComponent(".build/arm64-apple-macosx/debug/MarkNote_MarkNote.bundle")
-        let resources = bundlePath.appendingPathComponent("Resources", isDirectory: true)
+        let resources = try TestResources.requirePreviewResources()
         let html = resources.appendingPathComponent("preview.html")
         XCTAssertTrue(FileManager.default.fileExists(atPath: html.path))
 
@@ -22,16 +19,15 @@ final class RenderPluginWebTests: XCTestCase {
             web.evaluateJavaScript("typeof window.renderMd") { r, _ in ok = r; e.fulfill() }
             wait(for: [e], timeout: 2)
             if (ok as? String) == "function" { return web }
+            // 页面要加载 markdown-it / 渲染插件等一堆脚本，别把 60 次轮询在 1 秒内烧完
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
         }
         XCTFail("渲染管线应就绪")
         return web
     }
 
     func testPluginInjectionProducesDOMAndCSS() throws {
-        let pkg = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let bundlePath = pkg.appendingPathComponent(".build/arm64-apple-macosx/debug/MarkNote_MarkNote.bundle")
-        let resources = bundlePath.appendingPathComponent("Resources", isDirectory: true)
+        let resources = try TestResources.requirePreviewResources()
         let html = resources.appendingPathComponent("preview.html")
         XCTAssertTrue(FileManager.default.fileExists(atPath: html.path))
 
@@ -45,6 +41,7 @@ final class RenderPluginWebTests: XCTestCase {
             web.evaluateJavaScript("typeof window.renderMd") { r, _ in ok = r; e.fulfill() }
             wait(for: [e], timeout: 2)
             if (ok as? String) == "function" { ready = true; break }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
         }
         XCTAssertTrue(ready, "渲染管线应就绪")
 

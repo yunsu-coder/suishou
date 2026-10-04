@@ -586,10 +586,8 @@ struct SidebarView: View {
             onCancelCreate: {
                 creatingTarget = nil
             },
-            onRename: { id in
-                if let item = store.index.first(where: { $0.id == id }) {
-                    renameTarget = item
-                }
+            onNewNoteIn: { folderID in
+                beginCreating(folderID.isEmpty ? "=root" : folderID)
             },
             onDelete: { id in
                 if let item = store.index.first(where: { $0.id == id }) {

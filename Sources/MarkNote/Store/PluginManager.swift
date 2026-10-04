@@ -46,6 +46,9 @@ final class PluginManager {
         guard let raw = try? Data(contentsOf: manifestURL),
               let manifest = try? JSONDecoder().decode(PluginManifest.self, from: raw) else { return nil }
         guard !manifest.id.isEmpty, !manifest.name.isEmpty else { return nil }
+        // 模板插件（kind = templates）暂时下线：用户 2026-10-04 决定「先不要，不实用」。
+        // 引擎与包结构都保留，恢复时删掉这一行即可（入口 UI 在 EditorView / ContentView / CommandPalette）。
+        if manifest.kind == .templates { return nil }
         let enabled = UserDefaults.standard.bool(forKey: "pluginEnabled.\(manifest.id)")
         var pkg = PluginPackage.placeholder(id: manifest.id, name: manifest.name,
                                             version: manifest.version, kind: manifest.kind,

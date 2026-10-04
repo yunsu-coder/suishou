@@ -127,9 +127,12 @@ final class NoteTemplateTests: XCTestCase {
 
     // MARK: - 市场模板包
 
-    /// 三个模板包都要能加载，且通过质量门槛（变量白名单、文件名规则、动态内容）
+    /// 模板插件已暂停（2026-10-04 用户决定「先不要，不实用」）：
+    /// - 包必须仍留在仓库，内容仍要过质量门槛（变量白名单、文件名规则、动态内容）——自检不依赖注册
+    /// - 暂停期内即使把包装进工作台也不注册（PluginManager 跳过 kind = templates）
+    /// 恢复插件时，把最后的「不注册」断言改回「注册出模板」即可。
     @MainActor
-    func testMarketTemplatePackagesLoad() throws {
+    func testMarketTemplatePackagesQualityGateWhilePaused() throws {
         let market = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("plugins-market")
@@ -138,6 +141,24 @@ final class NoteTemplateTests: XCTestCase {
         for name in expected {
             let src = market.appendingPathComponent(name)
             XCTAssertTrue(FileManager.default.fileExists(atPath: src.path), "缺模板包：\(name)")
+
+            // 质量门槛（直接按引擎规则验包内容）
+            let specs = try JSONDecoder().decode(
+                [PluginManager.TemplateSpec].self,
+                from: Data(contentsOf: src.appendingPathComponent("templates.json")))
+            XCTAssertFalse(specs.isEmpty, "\(name) 没有模板")
+            for spec in specs {
+                let unknown = NoteTemplateEngine.variables(in: spec.body)
+                    .subtracting(NoteTemplateEngine.knownVariables)
+                XCTAssertTrue(unknown.isEmpty, "\(name)/\(spec.name)：未知变量 \(unknown.sorted())")
+                XCTAssertFalse((spec.fileName ?? "").contains("<#"),
+                               "\(name)/\(spec.name)：文件名规则不能带字段")
+                XCTAssertFalse((spec.category ?? "").isEmpty, "\(name)/\(spec.name)：模板要有分类")
+                XCTAssertTrue(spec.body.contains("{{") || spec.body.contains("<#"),
+                              "\(name)/\(spec.name)：至少要有一处动态内容")
+            }
+
+            // 暂停期行为：装上也注册不出来
             let (_, temp) = try TestEnv.makeStore()
             defer { try? FileManager.default.removeItem(at: temp) }
             let dest = temp.appendingPathComponent(".plugins/\(name)")
@@ -147,13 +168,8 @@ final class NoteTemplateTests: XCTestCase {
             UserDefaults.standard.set(true, forKey: "pluginEnabled.\(name)")
             defer { UserDefaults.standard.removeObject(forKey: "pluginEnabled.\(name)") }
             pm.scan(workspaceDir: temp)
-            XCTAssertTrue(pm.templateIssues(for: name).isEmpty,
-                          "\(name) 未过质量门槛：\(pm.templateIssues(for: name))")
-            let templates = pm.allTemplates().filter { $0.id.contains(name) }
-            XCTAssertFalse(templates.isEmpty, "\(name) 应该注册出模板")
-            XCTAssertTrue(templates.allSatisfy { !$0.category.isEmpty }, "模板要有分类")
-            XCTAssertTrue(templates.allSatisfy { $0.displayBody.contains("{{") || $0.displayBody.contains("<#") },
-                          "模板至少要有一处动态内容")
+            XCTAssertTrue(pm.allTemplates().filter { $0.id.contains(name) }.isEmpty,
+                          "\(name)：模板插件处于暂停期，不应注册")
         }
     }
 }

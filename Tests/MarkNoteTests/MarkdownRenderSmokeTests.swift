@@ -7,9 +7,7 @@ import Foundation
 final class MarkdownRenderSmokeTests: XCTestCase {
 
     private func loadPreviewWeb() throws -> WKWebView {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let resources = root.appendingPathComponent(".build/arm64-apple-macosx/debug/MarkNote_MarkNote.bundle/Resources")
+        let resources = try TestResources.requirePreviewResources()
         let html = resources.appendingPathComponent("preview.html")
         XCTAssertTrue(FileManager.default.fileExists(atPath: html.path))
 
@@ -283,9 +281,7 @@ final class MarkdownRenderSmokeTests: XCTestCase {
 final class PreviewImageBehaviorTests: XCTestCase {
 
     private func loadPreviewWeb() throws -> WKWebView {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let resources = root.appendingPathComponent(".build/arm64-apple-macosx/debug/MarkNote_MarkNote.bundle/Resources")
+        let resources = try TestResources.requirePreviewResources()
         let html = resources.appendingPathComponent("preview.html")
         XCTAssertTrue(FileManager.default.fileExists(atPath: html.path))
         let web = WKWebView(frame: NSRect(x: -5000, y: -5000, width: 800, height: 600))
@@ -373,9 +369,7 @@ final class PreviewImageBehaviorTests: XCTestCase {
 /// 本地媒体绝对化：预览页在「工作台根/.preview」下，相对 source/… 会指错 → 宿主注入根路径后必须改写成绝对 file://
 final class PreviewAssetBaseTests: XCTestCase {
     private func loadPreviewWeb() throws -> WKWebView {
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let resources = root.appendingPathComponent(".build/arm64-apple-macosx/debug/MarkNote_MarkNote.bundle/Resources")
+        let resources = try TestResources.requirePreviewResources()
         let html = resources.appendingPathComponent("preview.html")
         let web = WKWebView(frame: NSRect(x: -5000, y: -5000, width: 800, height: 600))
         web.loadFileURL(html, allowingReadAccessTo: resources)

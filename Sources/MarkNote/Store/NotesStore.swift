@@ -1381,12 +1381,19 @@ final class NotesStore {
     // MARK: - 新建 / 删除 / 重命名
 
     /// 新建文件（空名）→ 根目录“无标题.md”，随后内联命名（VSCode）
+    /// 同名已存在时自动加序号（无标题 (1).md…）——绝不覆盖已有文件
     func createNote() {
         flush()
-        let note = Note(id: _L("无标题", "Untitled") + ".md", title: _L("无标题", "Untitled"))
-        ioQueue.sync { writeNote(note) }
+        let base = _L("无标题", "Untitled")
+        var createdID = base + ".md"
+        ioQueue.sync {
+            let name = Workspace.uniqueName(in: notesDir, fileName: base + ".md")
+            let note = Note(id: name, title: (name as NSString).deletingPathExtension)
+            writeNote(note)
+            createdID = name
+        }
         reloadIndex()
-        openNote(note.id)
+        openNote(createdID)
     }
 
     /// 指定标题与目录新建（文件夹内新建）；同目录同名文件存在 → 拒绝（返回 false）

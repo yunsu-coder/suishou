@@ -159,11 +159,6 @@ struct EditorView: View {
                     insertAIText(text)
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .templateInsertRequested)) { note in
-                if let tpl = note.object as? NoteTemplate {
-                    insertTemplate(tpl)
-                }
-            }
             .sheet(item: $zoomImage) { target in
                 ImageZoomView(url: target.url)
             }
@@ -186,39 +181,6 @@ struct EditorView: View {
             }
             .buttonStyle(.plain)
             .help(_LL("显示 / 隐藏资源管理器（⌘B）", "Show / Hide Explorer (⌘B)"))
-            // 新建（含模板）：放在标签行最左侧，一眼能看到
-            Menu {
-                Button {
-                    store.createNote()
-                } label: {
-                    Label(_LL("空白笔记", "Blank note"), systemImage: "doc")
-                }
-                let templates = PluginManager.shared.allTemplates()
-                if !templates.isEmpty {
-                    Divider()
-                    ForEach(templateCategories(templates), id: \.self) { cat in
-                        Section(cat) {
-                            ForEach(templates.filter { $0.category == cat }) { tpl in
-                                Button {
-                                    store.createNoteFromTemplate(
-                                        tpl, context: TemplateContext(title: tpl.displayName))
-                                } label: {
-                                    Label(tpl.displayName, systemImage: tpl.icon)
-                                }
-                            }
-                        }
-                    }
-                }
-            } label: {
-                ThemeIcon(name: "plus", fallback: "plus", size: 13)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22, height: 22)
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .help(_LL("新建笔记：空白（⌘N）或从模板（日记 / 待办 / 课堂笔记…）ZZMARKER1",
-                      "New note: blank (⌘N) or from a template"))
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 4) {
                     ForEach(store.openTabs, id: \.self) { id in
@@ -519,31 +481,10 @@ struct EditorView: View {
     }
 
     /// 把 AI 面板的回答插入当前光标处
-    /// 模板分类（按分类排序，菜单里分组显示）
-    private func templateCategories(_ templates: [NoteTemplate]) -> [String] {
-        Array(Set(templates.map(\.category))).sorted()
-    }
-
     private func insertAIText(_ text: String) {
         guard let tv = textViewRef else { return }
         tv.window?.makeFirstResponder(tv)
         tv.insertText(text, replacementRange: tv.selectedRange())
-    }
-
-    /// 把模板插到光标处：变量当场替换、字段进入 Tab 填空（范围按插入点偏移）
-    private func insertTemplate(_ template: NoteTemplate) {
-        guard let tv = textViewRef as? MarkdownTextView else { return }
-        let sel = tv.selectedRange()
-        let selected = sel.length > 0 ? (tv.string as NSString).substring(with: sel) : nil
-        var ctx = TemplateContext(title: store.currentTitle)
-        ctx.selection = selected
-        let expansion = NoteTemplateEngine.expand(template, context: ctx)
-        tv.window?.makeFirstResponder(tv)
-        tv.insertText(expansion.text, replacementRange: sel)
-        guard expansion.hasFields else { return }
-        let base = sel.location
-        let shifted = expansion.fields.map { (($0.lowerBound + base)..<($0.upperBound + base)) }
-        tv.startFill(TemplateFillPlan(fields: shifted))
     }
 
     /// 拖拽 .md/.txt 文件到编辑器 → 导入为新文件

@@ -103,8 +103,8 @@ struct TreeTableView: NSViewRepresentable {
     let onImportFiles: ([URL], String?) -> Void // 外部文件拖入（folderID 可空=根）
     let onCreate: (String, [String: String]) -> Void  // 内联命名提交（名，元数据[target]）
     let onCancelCreate: () -> Void
-    /// hover 行内快捷操作（VSCode 式：✎ 重命名 / 🗑 删除）
-    let onRename: (String) -> Void
+    /// hover 行内快捷操作（VSCode 式：＋ 在此新建 / 🗑 删除；参数 = 文件夹 id，空串 = 根目录）
+    let onNewNoteIn: (String) -> Void
     let onDelete: (String) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -332,20 +332,28 @@ struct TreeTableView: NSViewRepresentable {
                 c.setContentHuggingPriority(.required, for: .horizontal)
                 content.addArrangedSubview(c)
             }
-            // hover 行内快捷操作（✎ / 🗑）；默认隐藏，hover 显示
+            // hover 行内快捷操作（＋ 新建 / 🗑 删除）；默认隐藏，hover 显示
+            // （重命名保留在右键菜单里，行内让位给最高频的「新建」）
             if !rows[row].isCreating {
                 let actions = NSStackView()
                 actions.orientation = .horizontal
                 actions.spacing = 4
                 actions.setHuggingPriority(.required, for: .horizontal)
-                let idForAction = rows[row].id
-                let renameB = Self.actionButton("pencil", help: _L("重命名", "Rename")) { [weak self] in
-                    self?.parent.onRename(idForAction)
+                // 新建目标：文件夹行 → 该文件夹内；文件行 → 同目录；根 → 根目录
+                let newTarget: String
+                switch rows[row] {
+                case .folder(let cat, _, _, _): newTarget = cat.id
+                case .note(let n, _): newTarget = n.category
+                case .creating: newTarget = ""
                 }
+                let newB = Self.actionButton("doc.badge.plus", help: _L("在此新建笔记", "New Note Here")) { [weak self] in
+                    self?.parent.onNewNoteIn(newTarget)
+                }
+                let idForAction = rows[row].id
                 let delB = Self.actionButton("trash", help: _L("删除", "Delete")) { [weak self] in
                     self?.parent.onDelete(idForAction)
                 }
-                actions.addArrangedSubview(renameB)
+                actions.addArrangedSubview(newB)
                 actions.addArrangedSubview(delB)
                 actions.alphaValue = row == hoveredRow ? 1.0 : 0.0
                 content.addArrangedSubview(actions)
