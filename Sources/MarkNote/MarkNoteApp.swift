@@ -471,6 +471,10 @@ struct MarkNoteApp: App {
                     UserDefaults.standard.set(!open, forKey: "terminalPanelOpen")
                 }
                 .keyboardShortcut("j", modifiers: [.command])
+                Button(_LL("清空终端", "Clear Terminal")) {
+                    TerminalStore.shared.active?.clear()
+                }
+                .keyboardShortcut("k", modifiers: [.command])
                 Divider()
                 ForEach(themeCatalog.options) { t in
                     Button {

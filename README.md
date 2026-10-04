@@ -111,6 +111,8 @@ open build/随手.app
 
 ## 技术要点
 
+- 内置终端：真 xterm 模拟器 [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm)（MIT，`vendor/SwiftTerm`，vendor 副本随仓库走，`swift build` 不需要联网）
+
 | 组件 | 方案 |
 | --- | --- |
 | 编辑 | NSTextView(NSViewRepresentable)+ LineNumberRulerView |

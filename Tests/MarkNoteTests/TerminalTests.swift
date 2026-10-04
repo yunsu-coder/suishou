@@ -34,68 +34,46 @@ final class TerminalTests: XCTestCase {
         XCTAssertEqual(RunCommand.shellQuote("$HOME/x"), "'$HOME/x'")
     }
 
-    // MARK: - 输出清洗
-
-    func testAnsiAndCarriageReturnCleaning() {
-        XCTAssertEqual(TerminalSession.clean("\u{1B}[31m红\u{1B}[0m"), "红")
-        XCTAssertEqual(TerminalSession.clean("a\r\nb"), "a\nb")
-        XCTAssertEqual(TerminalSession.clean("10%\r50%\r100%"), "100%", "覆盖式刷新只留最后一段")
-        XCTAssertEqual(TerminalSession.clean("\u{1B}]8;;http://x\u{07}link"), "link")
-        XCTAssertEqual(TerminalSession.clean("\u{1B}]7;file://h/Users/me\u{1B}\\out"), "out",
-                       "OSC 7（cwd 通知）用 ESC\\ 结束时也要吃掉")
-        XCTAssertEqual(TerminalSession.clean("a\u{1B}[0Kb"), "ab", "CSI 的 K 类也要吃掉")
-        XCTAssertEqual(TerminalSession.clean("\u{1B}[?2004h$ "), "$ ", "括号粘贴模式开关")
+    /// 终端配色：ANSI 16 色齐全（VS Code 默认 Dark+ / Light+ 两套），明暗各一套
+    func testTerminalThemePalettes() {
+        XCTAssertEqual(TerminalTheme.vsCodeDark.count, 16)
+        XCTAssertEqual(TerminalTheme.vsCodeLight.count, 16)
+        XCTAssertEqual(TerminalTheme.vsCodeDark[1].red, UInt16(0xCD) * 257, "红色 #CD3131")
+        XCTAssertEqual(TerminalTheme.vsCodeLight[2].green, UInt16(0xBC) * 257, "绿色 #00BC00")
+        let theme = TerminalTheme.current(fontFamily: "mono")
+        XCTAssertEqual(theme.ansi.count, 16)
+        XCTAssertGreaterThan(theme.font.pointSize, 8)
     }
 
-    func testSplitEscapeSequenceIsHeldBack() {
-        // OSC 7 被拆包：前半段不能漏成 "]7;file://…" 乱码
-        XCTAssertEqual(TerminalSession.danglingEscapeIndex("ok\u{1B}]7;file://h/Us"), 2)
-        XCTAssertNil(TerminalSession.danglingEscapeIndex("\u{1B}]7;file://h/Us\u{07}done"))
-        XCTAssertEqual(TerminalSession.danglingEscapeIndex("x\u{1B}[32"), 1)
-        XCTAssertNil(TerminalSession.danglingEscapeIndex("x\u{1B}[32m"))
-        XCTAssertNil(TerminalSession.danglingEscapeIndex("plain"))
-        // 回归：完整的 CSI 后面跟正文（提示符块就是这种形态）不能被当成未闭合，
-        // 否则后续输出会被无限压进缓冲、连哨兵都收不到
-        XCTAssertNil(TerminalSession.danglingEscapeIndex("\u{1B}[0m      \r \r"))
-        XCTAssertNil(TerminalSession.danglingEscapeIndex("\u{1B}[1m%\u{1B}[27m tail"))
-    }
-
-    // MARK: - 真会话
-
+    /// 真终端集成：SwiftTerm 起登录 shell → 打进一条命令 → 终端缓冲里能看到输出
+    /// （等于验证了 pty 分配、shell 启动、xterm 解析三个环节）
     @MainActor
-    func testSessionStreamsOutputAndExitCode() async throws {
-        let session = TerminalSession(cwd: FileManager.default.temporaryDirectory)
-        session.startIfNeeded()
-        session.run("echo MARKNOTE_TERM_OK")
+    func testTerminalTabRunsCommandThroughRealPty() async throws {
+        let tab = TerminalTab(theme: TerminalTheme.current(fontFamily: "mono"),
+                              cwd: FileManager.default.temporaryDirectory)
+        defer { tab.stop() }
+        XCTAssertFalse(tab.exited, "shell 应该在跑")
 
-        let deadline = Date().addingTimeInterval(10)
-        while Date() < deadline, !(session.output.contains("MARKNOTE_TERM_OK") && session.lastExitCode == 0) {
+        tab.run("echo MARKNOTE_TERM_OK")
+        var screen = ""
+        for _ in 0..<60 {
             try await Task.sleep(nanoseconds: 100_000_000)
+            screen = Self.screenText(of: tab)
+            if screen.contains("MARKNOTE_TERM_OK") { break }
         }
-        XCTAssertTrue(session.isStarted, "登录 shell 应已起来")
-        XCTAssertTrue(session.output.contains("MARKNOTE_TERM_OK"), "输出应流式回来：\(session.output.suffix(200))")
-        XCTAssertEqual(session.lastExitCode, 0, "哨兵应回传退出码")
-        XCTAssertFalse(session.isRunning, "命令结束后运行态应复位")
-        // 用户实测到的乱码：提示符残留、OSC 7、哨兵外泄，都不该出现
-        XCTAssertFalse(session.output.contains("]7;"), "不应有 OSC 7（cwd 通知）残留")
-        XCTAssertFalse(session.output.contains("__MARKNOTE_EXIT__"), "退出码哨兵不该露出来")
-        XCTAssertFalse(session.output.contains("__MARKNOTE_READY__"), "握手哨兵不该露出来")
-        let hits = session.output.split(separator: "\n")
-            .filter { $0.trimmingCharacters(in: .whitespaces) == "MARKNOTE_TERM_OK" }
-        XCTAssertEqual(hits.count, 1, "命令输出只该出现一次（回显不算）：\(session.output)")
+        XCTAssertTrue(screen.contains("MARKNOTE_TERM_OK"),
+                      "命令输出应出现在终端缓冲：\(screen.suffix(200))")
+    }
 
-        // 中断：长命令点 ⏹ 要真的停下（^C → 前台进程组）
-        session.run("sleep 30")
-        try await Task.sleep(nanoseconds: 600_000_000)
-        XCTAssertTrue(session.isRunning, "长命令应在跑")
-        session.interrupt()
-        let deadline2 = Date().addingTimeInterval(8)
-        while Date() < deadline2, session.isRunning {
-            try await Task.sleep(nanoseconds: 100_000_000)
+    private static func screenText(of tab: TerminalTab) -> String {
+        let term = tab.view.getTerminal()
+        var out = ""
+        for row in 0..<term.rows {
+            if let line = term.getLine(row: row) {
+                out += line.translateToString(trimRight: true) + "\n"
+            }
         }
-        XCTAssertFalse(session.isRunning, "中断后应结束：\(session.output.suffix(160))")
-        XCTAssertNotEqual(session.lastExitCode, 0, "被中断的命令不该是 0")
-        session.shutdown()
+        return out
     }
 
     /// 插件包能被扫描成 terminal 视图（面板与入口都依赖它）

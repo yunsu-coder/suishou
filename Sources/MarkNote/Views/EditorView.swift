@@ -56,8 +56,15 @@ struct EditorView: View {
         // 以"真正装载"或"媒体查看"为显示条件：单击仅选中不闪空编辑器；装载后显示
         Group {
         if store.loadedNoteID == nil && store.previewMedium == nil {
-            EmptyStateView()
-                .frame(minWidth: 520)
+            // 没打开文件时也能用终端（VS Code：面板与有没有打开文件无关）
+            VStack(spacing: 0) {
+                EmptyStateView()
+                    .frame(minWidth: 520)
+                if terminalOpen, hasTerminalView, !readerFocus {
+                    Divider()
+                    TerminalPanel { terminalOpen = false }
+                }
+            }
         } else {
             VStack(spacing: 0) {
                 if !readerFocus { header }
