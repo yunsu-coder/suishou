@@ -96,6 +96,19 @@ open build/随手.app
 - 视频 / 音频:素材面板拖入即生成 `<video>` / `<audio>` 内嵌播放器
 - 附件卡:`@[文件名](相对路径)` → 预览渲染为卡片,点击打开
 
+## 专业文件类型(原生语法渲染)
+
+工作台里的代码文件不是"当 Markdown 显示",而是按语言原生着色:编辑区与预览共用同一套语法解析,
+预览是整页代码视图(没有代码块卡片边框),配色固定采用最流行的方案 ——
+**暗色 One Dark Pro / 亮色 One Light**(不跟随主题包,换主题不会把代码染成主题色)。
+
+- C / C++ / Objective-C / C# / Java / Kotlin、Swift、Rust、Go、Python、JavaScript、TypeScript
+- HTML / XML / Vue / Svelte、CSS / SCSS / Less、Shell、SQL、Ruby、PHP、Lua、Assembly
+- JSON / YAML / TOML / INI、Markdown(走渲染管线;其余按纯文本)
+
+着色覆盖关键字、类型、字符串(含 Python 三引号 / JS 模板串 / Go 反引号跨行)、
+注释、数字、预处理指令、函数名、HTML 标签与属性、CSS 属性与选择器;状态栏会显示当前语言。
+
 ## 技术要点
 
 | 组件 | 方案 |

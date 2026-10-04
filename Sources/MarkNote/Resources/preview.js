@@ -847,27 +847,47 @@ if (typeof katex !== 'undefined') {
     }
   }
 
-  // ===== 代码文件预览（VSCode 式：非 Markdown 文本 → 语法高亮只读视图）=====
+  // ===== 代码文件预览（原生代码视图：非 Markdown 文本 → 语法高亮只读视图）=====
+  // 配色固定走 One Dark Pro / One Light（行业最流行的两套），不跟随主题包 —— 见 preview.css
   function escForCode(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
-  window.renderCode = function (text, lang, opts) {
+  // 扩展名 → highlight.js 语言 id（vendor/highlight.min.js 已注册的语言；未命中回落 plaintext）
+  var CODE_LANG = {
+    c: 'c', h: 'c', cpp: 'cpp', cc: 'cpp', cxx: 'cpp', hpp: 'cpp', hh: 'cpp', ipp: 'cpp', mpp: 'cpp',
+    m: 'objectivec', mm: 'objectivec',
+    cs: 'csharp', java: 'java', kt: 'kotlin', kts: 'kotlin',
+    swift: 'swift', rs: 'rust', go: 'go',
+    py: 'python', pyw: 'python', pyi: 'python',
+    js: 'javascript', jsx: 'javascript', mjs: 'javascript', cjs: 'javascript',
+    ts: 'typescript', tsx: 'typescript', mts: 'typescript', cts: 'typescript',
+    html: 'xml', htm: 'xml', xhtml: 'xml', xml: 'xml', svg: 'xml', vue: 'xml', svelte: 'xml',
+    xib: 'xml', storyboard: 'xml', plist: 'xml',
+    css: 'css', scss: 'scss', sass: 'scss', less: 'less', styl: 'css',
+    sh: 'bash', bash: 'bash', zsh: 'bash', fish: 'bash', ksh: 'bash',
+    json: 'json', jsonc: 'json', json5: 'json', yaml: 'yaml', yml: 'yaml',
+    toml: 'ini', ini: 'ini', cfg: 'ini', conf: 'ini', properties: 'properties', gradle: 'plaintext',
+    sql: 'sql', rb: 'ruby', rake: 'ruby', gemspec: 'ruby', php: 'php', phtml: 'php', lua: 'lua',
+    diff: 'diff', patch: 'diff', http: 'http', log: 'plaintext',
+  };
+  window.renderCode = function (text, ext, opts) {
     var container = document.getElementById('content');
     opts = opts || {};
-    var cls = (lang || 'plaintext').toLowerCase();
+    var dark = !!opts.dark;
+    var cls = CODE_LANG[String(ext || '').toLowerCase()] || 'plaintext';
     var html = '';
-    if (typeof hljs !== 'undefined' && lang && hljs.getLanguage(cls)) {
+    if (typeof hljs !== 'undefined' && hljs.getLanguage(cls)) {
       try { html = hljs.highlight(text, { language: cls, ignoreIllegals: true }).value; }
       catch (e) { html = escForCode(text); }
     } else {
+      cls = 'plaintext';
       html = escForCode(text);
     }
-    var lines = text.split('\n').length;
-    container.innerHTML =
-      '<div class="codefile"><div class="codefile-head">' +
-      '<span class="codefile-lang">' + escForCode(lang || 'text') + '</span>' +
-      '<span class="codefile-lines">' + lines + ' 行</span>' +
-      '</div><pre class="codefile-pre"><code class="language-' + cls + '">' + html + '</code></pre></div>';
+    // 原生代码视图：整页铺代码底色，不套「代码块卡片」（无边框 / 无语言条）
+    document.documentElement.classList.add('code-mode');
+    document.documentElement.setAttribute('data-code-scheme', dark ? 'dark' : 'light');
+    container.className = 'code-body';
+    container.innerHTML = '<pre class="codefile-pre"><code class="language-' + cls + '">' + html + '</code></pre>';
     if (opts.resetScroll) { window.scrollTo(0, 0); }
     return container.scrollHeight;
   };
@@ -877,6 +897,11 @@ window.renderMd = function (md, baseDir, opts) {
     var t0 = performance ? performance.now() : Date.now();
     var container = document.getElementById('content');
     opts = opts || {};
+    // 从代码文件切回 Markdown：撤掉原生代码视图（底色 / token 覆盖）
+    if (document.documentElement.classList.contains('code-mode')) {
+      document.documentElement.classList.remove('code-mode');
+      container.className = 'markdown-body';
+    }
     // 渲染扩展（内置 renders/*.js + 用户渲染插件）：注册 markdown-it 插件并注入它们的 CSS。
     // 必须在 md2html 之前调用 —— 否则 before/after 钩子生效、而 use 插件与 CSS 被静默丢弃。
     __applyRenderPlugins();

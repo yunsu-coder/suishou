@@ -273,7 +273,7 @@ struct PreviewView: NSViewRepresentable {
             \(renderPluginJS)
             if (window.renderMd) {
               if (\(isCode)) {
-                window.renderCode(\(mdJSON), \(langJSON));
+                window.renderCode(\(mdJSON), \(langJSON), { dark: \(dark), resetScroll: \(resetScroll) });
               } else {
                 window.renderMd(\(mdJSON), \(baseJSON), { dark: \(dark), resetScroll: \(resetScroll) });
               }

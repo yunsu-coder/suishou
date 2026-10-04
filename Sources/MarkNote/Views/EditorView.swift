@@ -357,6 +357,15 @@ struct EditorView: View {
         return ext.isEmpty ? "md" : ext
     }
 
+    /// 状态栏语言标签：文件类型一眼可见（Markdown / Python / C++ / JSON…）
+    static func languageLabel(for noteID: String) -> String {
+        let ext = (noteID as NSString).pathExtension.lowercased()
+        if ext.isEmpty || MarkdownEditorView.isMarkdownExt(ext) { return "Markdown" }
+        guard Workspace.isEditorText(ext) else { return "Text" }
+        let lang = CodeLanguage.of(ext: ext)
+        return lang == .plain ? "Text" : lang.displayName
+    }
+
     /// 预览字体完全由主题提供；非主题主题回退系统字体。
     private var previewFontFamily: String {
         if let family = appAppearance.uiFontFamily, !family.isEmpty {
@@ -521,8 +530,8 @@ struct EditorView: View {
 
     private var statusBar: some View {
         HStack(spacing: 14) {
-            if store.loadedNoteID != nil {
-                Text("LF · Markdown")
+            if let id = store.loadedNoteID {
+                Text("LF · \(Self.languageLabel(for: id))")
                     .foregroundStyle(.tertiary)
             }
             if store.selectedNoteID != nil {

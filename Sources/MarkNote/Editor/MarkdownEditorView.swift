@@ -418,13 +418,16 @@ struct MarkdownEditorView: NSViewRepresentable {
             let isMarkdown = MarkdownEditorView.isMarkdownExt(parent.fileExtension)
             if !isMarkdown && !FeatureModules.isEnabled(FeatureModules.editorCodeSmart) { return }
             let isCode = MarkdownEditorView.isCodeExt(parent.fileExtension)
+            let codeLanguage = CodeLanguage.of(ext: parent.fileExtension)
             highlightToken &+= 1
             let token = highlightToken
             // 解析放后台串行队列：以前这里排在**主队列**上（还 tokenize 两遍），
             // 长笔记每敲一个字就全量解析一次 → 输入直接卡死（已复现）。
             let item = DispatchWorkItem { [weak self] in
                 let mdTokens = isMarkdown ? MarkdownHighlighter.tokenize(text) : []
-                let codeTokens = isCode && !isMarkdown ? CodeHighlighter.tokenize(text) : []
+                let codeTokens = isCode && !isMarkdown
+                    ? CodeHighlighter.tokenize(text, language: codeLanguage)
+                    : []
                 DispatchQueue.main.async {
                     guard let self, let tv = self.textView,
                           self.highlightToken == token,      // 已被更新的调度取代 → 丢弃
@@ -461,17 +464,9 @@ struct MarkdownEditorView: NSViewRepresentable {
             }
         }
 
-        /// 代码语法色（明暗自适应：暗色变体 ≥4.5:1）
+        /// 代码语法色：固定流行方案（One Dark Pro / One Light），不跟随主题
         static func codeColor(for kind: CodeKind) -> NSColor {
-            let dark = appAppearance.dark
-            switch kind {
-            case .keyword: return dark ? NSColor.sRGB(1.00, 0.48, 0.45) : NSColor.sRGB(0.65, 0.15, 0.65)   // #FF7B72 / #A626A4
-            case .type:    return dark ? NSColor.sRGB(0.47, 0.75, 1.00) : NSColor.sRGB(0.58, 0.22, 0.00)   // #79C0FF / #953800
-            case .string:  return dark ? NSColor.sRGB(0.65, 0.84, 1.00) : NSColor.sRGB(0.01, 0.20, 0.38)   // #A5D6FF / #032F62
-            case .comment: return dark ? NSColor.sRGB(0.55, 0.58, 0.62) : NSColor.sRGB(0.42, 0.46, 0.49)   // #8B949E / #6A737D
-            case .preproc: return dark ? NSColor.sRGB(0.82, 0.66, 1.00) : NSColor.sRGB(0.40, 0.22, 0.73)   // #D2A8FF / #6639BA
-            case .number:  return dark ? NSColor.sRGB(0.47, 0.75, 1.00) : NSColor.sRGB(0.00, 0.36, 0.77)   // #79C0FF / #005CC5
-            }
+            CodePalette.color(for: kind)
         }
 
         // MARK: - 括号匹配高亮（VSCode 式：光标贴括号 → 配对高亮）

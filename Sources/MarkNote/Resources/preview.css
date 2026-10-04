@@ -494,12 +494,49 @@ html { scroll-behavior: smooth; }
 .markdown-body h4.anchored:hover a.anchor { opacity: 0.7; }
 
 
-/* ═══ 代码文件视图（renderCode：VSCode 式高亮预览） ═══ */
-.codefile { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.codefile-head { display: flex; justify-content: space-between; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); }
-.codefile-lang { font-weight: 600; }
-.codefile-pre { margin: 0; padding: 14px 16px; overflow: auto; font-size: 13px; line-height: 1.55; }
-.codefile-pre code { background: transparent; padding: 0; font-family: var(--theme-code-font, "SF Mono", Menlo, monospace); }
+/* ═══ 代码文件视图（renderCode：原生代码渲染） ═══
+   配色固定 One Dark Pro / One Light —— 行业装机量最高的两套主题（VS Code / Atom 同源），
+   刻意**不跟随主题包**：换主题不会把代码染成主题色，代码在明暗两边都保持稳定可读。
+   形态是"原生代码视图"：整页铺代码底色，没有代码块卡片边框与语言条。 */
+html.code-mode[data-code-scheme="dark"] {
+  --code-bg: #282C34; --code-fg: #ABB2BF; --code-border: #3E4451;
+  --code-kw: #C678DD; --code-type: #E5C07B; --code-str: #98C379; --code-comment: #7F848E;
+  --code-num: #D19A66; --code-preproc: #56B6C2; --code-func: #61AFEF;
+  --code-var: #E06C75; --code-tag: #E06C75; --code-prop: #D19A66;
+}
+html.code-mode[data-code-scheme="light"] {
+  --code-bg: #FAFAFA; --code-fg: #383A42; --code-border: #E5E5E6;
+  --code-kw: #A626A4; --code-type: #8A6400; --code-str: #3D7A3C; --code-comment: #6E727C;
+  --code-num: #986801; --code-preproc: #016B9B; --code-func: #3457C8;
+  --code-var: #C93F32; --code-tag: #C93F32; --code-prop: #8A6400;
+}
+html.code-mode { background: var(--code-bg); }
+html.code-mode body { background: var(--code-bg); color: var(--code-fg); }
+.code-body { margin: 0; }
+.codefile-pre {
+  margin: 0; padding: 16px 20px 56px; overflow: auto;
+  min-height: 100vh; box-sizing: border-box;
+  font-family: var(--theme-code-font, "SF Mono", Menlo, monospace);
+  font-size: 13px; line-height: 1.6; tab-size: 4;
+  color: var(--code-fg); background: var(--code-bg);
+}
+.codefile-pre code { background: transparent; padding: 0; font: inherit; color: inherit; }
+/* token 覆盖（作用域限定在代码文件视图内 → Markdown 笔记里的代码块仍跟随主题） */
+html.code-mode .hljs-comment, html.code-mode .hljs-quote { color: var(--code-comment); font-style: italic; }
+html.code-mode .hljs-keyword, html.code-mode .hljs-literal, html.code-mode .hljs-selector-tag { color: var(--code-kw); }
+html.code-mode .hljs-string, html.code-mode .hljs-regexp, html.code-mode .hljs-addition { color: var(--code-str); }
+html.code-mode .hljs-number, html.code-mode .hljs-symbol, html.code-mode .hljs-bullet, html.code-mode .hljs-link { color: var(--code-num); }
+html.code-mode .hljs-title, html.code-mode .hljs-section, html.code-mode .hljs-built_in,
+html.code-mode .hljs-type, html.code-mode .hljs-class { color: var(--code-type); }
+html.code-mode .hljs-function .hljs-title, html.code-mode .hljs-title.function_ { color: var(--code-func); }
+html.code-mode .hljs-meta, html.code-mode .hljs-meta .hljs-keyword { color: var(--code-preproc); }
+html.code-mode .hljs-tag, html.code-mode .hljs-name,
+html.code-mode .hljs-selector-class, html.code-mode .hljs-selector-id { color: var(--code-tag); }
+html.code-mode .hljs-attr, html.code-mode .hljs-attribute, html.code-mode .hljs-property,
+html.code-mode .hljs-variable, html.code-mode .hljs-template-variable, html.code-mode .hljs-params { color: var(--code-prop); }
+html.code-mode .hljs-emphasis { font-style: italic; }
+html.code-mode .hljs-strong { font-weight: 700; }
+html.code-mode .hljs-doctag, html.code-mode .hljs-formula { color: var(--code-type); }
 
 
 /* ═══ 主题字体桥 ═══
