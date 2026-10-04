@@ -1,5 +1,6 @@
 import XCTest
 import Foundation
+import SwiftTerm
 @testable import MarkNote
 
 /// 终端插件：运行命令解析 + PTY 会话（真跑一条命令验证流式输出与退出码）
@@ -65,15 +66,88 @@ final class TerminalTests: XCTestCase {
                       "命令输出应出现在终端缓冲：\(screen.suffix(200))")
     }
 
+    /// 读一行文本：SwiftTerm 缓冲里宽字符/空白用 NUL 占位，测试侧统一清掉
+    private static func rowText(_ term: Terminal, _ row: Int) -> String {
+        (term.getLine(row: row)?.translateToString(trimRight: true, skipNullCellsFollowingWide: true) ?? "")
+            .replacingOccurrences(of: "\0", with: "")
+    }
+
     private static func screenText(of tab: TerminalTab) -> String {
         let term = tab.view.getTerminal()
         var out = ""
         for row in 0..<term.rows {
             if let line = term.getLine(row: row) {
-                out += line.translateToString(trimRight: true) + "\n"
+                out += line.translateToString(trimRight: true, skipNullCellsFollowingWide: true).replacingOccurrences(of: "\0", with: "") + "\n"
             }
         }
         return out
+    }
+
+    /// 真仿真验证：直接喂字节给模拟器（不经 shell，排除回显干扰），
+    /// 光标定位（CUP）、清屏（ED）、SGR 颜色都必须如实生效。
+    @MainActor
+    func testTerminalEmulatesCupColorAndWideChars() async throws {
+        let tab = TerminalTab(theme: TerminalTheme.current(fontFamily: "mono"),
+                              cwd: FileManager.default.temporaryDirectory)
+        defer { tab.stop() }
+        let term = tab.view.getTerminal()
+
+        // 清屏 → 第 3 行第 5 列写红字 RED → 换行后写中文
+        let bytes = Array("\u{1B}[2J\u{1B}[3;5H\u{1B}[31mRED\u{1B}[0m\n中文宽字符\n".utf8)
+        tab.view.feed(byteArray: bytes[...])
+        try await Task.sleep(nanoseconds: 200_000_000)
+
+        // 空白格在缓冲里是 NUL 占位：原样读出应是「4 个占位 + RED」→ R 落在第 5 列
+        let raw2 = term.getLine(row: 2)?.translateToString(trimRight: false, skipNullCellsFollowingWide: true) ?? ""
+        XCTAssertTrue(raw2.hasPrefix("\u{0}\u{0}\u{0}\u{0}RED"),
+                      "CUP 3;5 应让 RED 从第 5 列开始，实际：[[\(Self.rowText(term, 2))]]")
+        XCTAssertEqual(Self.rowText(term, 2), "RED", "第 3 行只有 RED")
+
+        // 颜色：RED 的 R 应该带非默认前景
+        if let cell = term.getCharData(col: 4, row: 2) {
+            if case .defaultColor = cell.attribute.fg {
+                XCTFail("SGR 31 应让 R 带上红色前景")
+            }
+        } else {
+            XCTFail("取不到 RED 的 cell")
+        }
+
+        // 清屏生效：第 0/1 行应为空
+        XCTAssertEqual(term.getLine(row: 0)?.translateToString(trimRight: true), "")
+
+        // 宽字符：第 4 行应是中文，且每个汉字占 2 列
+        let row3 = Self.rowText(term, 3)
+        XCTAssertEqual(row3, "中文宽字符", "宽字符应原样落在下一行（NUL 占位格按宽字符处理）")
+    }
+
+    /// 诊断用：跑一圈真实输出（颜色 / 宽字符 / 中英混排 / 彩色 ls），把终端画面渲染成 PNG
+    @MainActor
+    func testTerminalRenderToPNG() async throws {
+        let tab = TerminalTab(theme: TerminalTheme.current(fontFamily: "mono"),
+                              cwd: FileManager.default.temporaryDirectory)
+        defer { tab.stop() }
+        tab.view.frame = NSRect(x: 0, y: 0, width: 900, height: 300)
+        func wait(_ t: Double) async { try? await Task.sleep(nanoseconds: UInt64(t * 1_000_000_000)) }
+
+        tab.run("clear")
+        await wait(0.5)
+        tab.run("printf '\\033[31m红\\033[32m绿\\033[34m蓝\\033[0m 普通中文与 English 混排\\n'")
+        await wait(0.5)
+        tab.run("printf '\\033[1;33m加粗黄\\033[0m \\033[4m下划线\\033[0m \\033[7m反色\\033[0m\\n'")
+        await wait(0.5)
+        tab.run("ls -la --color=always / | head -8")
+        await wait(0.8)
+
+        guard let rep = tab.view.bitmapImageRepForCachingDisplay(in: tab.view.bounds) else {
+            return XCTFail("无法缓存终端画面")
+        }
+        tab.view.cacheDisplay(in: tab.view.bounds, to: rep)
+        guard let data = rep.representation(using: .png, properties: [:]) else {
+            return XCTFail("PNG 编码失败")
+        }
+        let out = URL(fileURLWithPath: "/tmp/terminal-render.png")
+        try data.write(to: out)
+        print("TERM-PNG \(out.path) \(rep.pixelsWide)x\(rep.pixelsHigh)")
     }
 
     /// 插件包能被扫描成 terminal 视图（面板与入口都依赖它）

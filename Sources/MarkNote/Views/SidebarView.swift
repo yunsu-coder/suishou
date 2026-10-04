@@ -82,6 +82,7 @@ struct SidebarView: View {
                 if viewsSnapshot.contains(where: { $0.type == .terminal }) {
                     activityIcon("terminal", _L("终端", "Terminal"), active: terminalOpen) {
                         terminalOpen.toggle()
+                        if terminalOpen { TerminalStore.shared.pendingFocus = true }
                     }
                 }
                 Spacer()

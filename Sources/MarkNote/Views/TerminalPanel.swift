@@ -8,6 +8,11 @@ final class TerminalStore {
     static let shared = TerminalStore()
     var tabs: [TerminalTab] = []
     var activeID: UUID?
+    /// 拆分出来的第二个终端（VS Code 的 split terminal）
+    var split: TerminalTab?
+    /// 只有用户**主动**打开面板/新建/运行时才抢焦点 —— 换文件重建面板不许抢，
+    /// 否则你刚点开一篇笔记，敲的字全进了 shell（实测过这个 bug）。
+    var pendingFocus = false
 
     private init() {}
 
@@ -18,19 +23,35 @@ final class TerminalStore {
         let tab = TerminalTab(theme: theme, cwd: cwd)
         tabs.append(tab)
         activeID = tab.id
+        pendingFocus = true
         return tab
     }
 
     func close(_ tab: TerminalTab) {
         tab.stop()
         tabs.removeAll { $0.id == tab.id }
+        if split?.id == tab.id { split = nil }
         if activeID == tab.id { activeID = tabs.last?.id }
     }
 
     func closeAll() {
         tabs.forEach { $0.stop() }
+        split?.stop()
+        split = nil
         tabs = []
         activeID = nil
+    }
+
+    /// 拆分 / 合并终端（新终端落在当前终端的工作目录）
+    func toggleSplit(theme: TerminalTheme, fallbackCwd: URL) {
+        if let s = split {
+            s.stop()
+            split = nil
+            return
+        }
+        let cwd = active?.cwd.flatMap { URL(fileURLWithPath: $0) } ?? fallbackCwd
+        split = TerminalTab(theme: theme, cwd: cwd)
+        pendingFocus = true
     }
 }
 
@@ -56,10 +77,17 @@ struct TerminalPanel: View {
             tabBar
             Divider()
             ZStack {
-                ForEach(term.tabs) { tab in
-                    TerminalHost(tab: tab, theme: theme)
-                        .opacity(tab.id == term.active?.id ? 1 : 0)
-                        .allowsHitTesting(tab.id == term.active?.id)
+                if let split = term.split, let active = term.active {
+                    HSplitView {
+                        TerminalHost(tab: active, theme: theme).frame(minWidth: 240)
+                        TerminalHost(tab: split, theme: theme).frame(minWidth: 240)
+                    }
+                } else {
+                    ForEach(term.tabs) { tab in
+                        TerminalHost(tab: tab, theme: theme)
+                            .opacity(tab.id == term.active?.id ? 1 : 0)
+                            .allowsHitTesting(tab.id == term.active?.id)
+                    }
                 }
                 if term.tabs.isEmpty {
                     Text(_LL("没有终端：点右上角「＋」或 ⌘J 开关面板",
@@ -74,8 +102,12 @@ struct TerminalPanel: View {
         .frame(height: height)
         .onAppear {
             if term.tabs.isEmpty { newTab() }
-            // 等 SwiftUI 把 NSView 挂进窗口层级再抢焦点，否则 window 还是 nil
-            DispatchQueue.main.async { term.active?.focus() }
+            wireMenuActions()
+            // 只在用户主动打开/新建时抢焦点；换文件导致的面板重建不抢（见 pendingFocus 注释）
+            if term.pendingFocus {
+                term.pendingFocus = false
+                DispatchQueue.main.async { term.active?.focus() }
+            }
         }
     }
 
@@ -124,6 +156,16 @@ struct TerminalPanel: View {
             .help(_LL("新建终端", "New Terminal"))
 
             Spacer(minLength: 4)
+
+            Button {
+                term.toggleSplit(theme: theme, fallbackCwd: store.notesDir)
+                wireMenuActions()
+            } label: {
+                Image(systemName: "square.split.2x1")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .buttonStyle(.borderless)
+            .help(_LL("拆分终端（⌘\\）", "Split Terminal (⌘\\)"))
 
             Button {
                 runCurrentFile()
@@ -207,7 +249,28 @@ struct TerminalPanel: View {
 
     private func newTab() {
         term.newTab(theme: theme, cwd: store.notesDir)
+        wireMenuActions()
         term.active?.focus()
+    }
+
+    /// 右键菜单动作接到面板逻辑上（复制/粘贴由 SwiftTerm 自带，这里只处理清屏/重启/关闭）
+    private func wireMenuActions() {
+        for tab in term.tabs + [term.split].compactMap({ $0 }) {
+            tab.onMenuAction = { action in
+                switch action {
+                case .clear: tab.clear()
+                case .restart: tab.restart(theme: theme)
+                case .close:
+                    if term.split?.id == tab.id {
+                        term.split?.stop()
+                        term.split = nil
+                    } else {
+                        term.close(tab)
+                        if term.tabs.isEmpty { onClose() }
+                    }
+                }
+            }
+        }
     }
 
     private var runHelp: String {
@@ -223,6 +286,8 @@ struct TerminalPanel: View {
     /// ▶ 运行当前文件：等价于在终端里敲 `cd 目录 && 运行命令`（先落盘，跑的是最新内容）
     private func runCurrentFile() {
         guard let id = store.selectedNoteID else { return }
+        term.pendingFocus = true
+        DispatchQueue.main.async { term.active?.focus() }
         if term.tabs.isEmpty { newTab() }
         guard let tab = term.active else { return }
         let url = store.notesDir.appendingPathComponent(id)
@@ -247,7 +312,7 @@ private struct TerminalHost: NSViewRepresentable {
     let theme: TerminalTheme
 
     func makeNSView(context: Context) -> LocalProcessTerminalView {
-        tab.view as? LocalProcessTerminalView ?? LocalProcessTerminalView(frame: .zero)
+        tab.view as? LocalProcessTerminalView ?? MarkNoteTerminalView(frame: .zero)
     }
 
     func updateNSView(_ view: LocalProcessTerminalView, context: Context) {

@@ -469,12 +469,21 @@ struct MarkNoteApp: App {
                 Button(_LL("终端面板", "Terminal Panel")) {
                     let open = UserDefaults.standard.bool(forKey: "terminalPanelOpen")
                     UserDefaults.standard.set(!open, forKey: "terminalPanelOpen")
+                    if !open { TerminalStore.shared.pendingFocus = true }
                 }
                 .keyboardShortcut("j", modifiers: [.command])
                 Button(_LL("清空终端", "Clear Terminal")) {
                     TerminalStore.shared.active?.clear()
                 }
                 .keyboardShortcut("k", modifiers: [.command])
+                Button(_LL("拆分终端", "Split Terminal")) {
+                    let store = TerminalStore.shared
+                    let cwd = store.active?.cwd.flatMap { URL(fileURLWithPath: $0) }
+                        ?? FileManager.default.homeDirectoryForCurrentUser
+                    store.toggleSplit(theme: TerminalTheme.current(fontFamily: appAppearance.codeFontFamily),
+                                      fallbackCwd: cwd)
+                }
+                .keyboardShortcut("\\", modifiers: [.command])
                 Divider()
                 ForEach(themeCatalog.options) { t in
                     Button {
