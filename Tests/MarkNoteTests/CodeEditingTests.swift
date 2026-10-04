@@ -52,4 +52,19 @@ final class CodeEditingTests: XCTestCase {
         XCTAssertFalse(MarkdownTextView.isDeletablePair(prev: "(", next: "]"), "不匹配的括号不能一起删")
         XCTAssertFalse(MarkdownTextView.isDeletablePair(prev: "a", next: "b"))
     }
+
+    // MARK: - 代码文件与散文分开对待
+
+    func testCodeFilesAreClassifiedAsCode() {
+        XCTAssertTrue(EditorView.isCodeNote("test/1.cpp"))
+        XCTAssertTrue(EditorView.isCodeNote("script.py"))
+        XCTAssertTrue(EditorView.isCodeNote("web/index.html"))
+        XCTAssertTrue(EditorView.isCodeNote("data.json"))
+        // 散文类：Markdown 与纯文本仍走「编辑 + 预览」那套
+        XCTAssertFalse(EditorView.isCodeNote("note.md"))
+        XCTAssertFalse(EditorView.isCodeNote("readme.txt"))
+        XCTAssertFalse(EditorView.isCodeNote("run.log"))
+        XCTAssertFalse(EditorView.isCodeNote(""))
+        XCTAssertFalse(EditorView.isCodeNote(nil))
+    }
 }

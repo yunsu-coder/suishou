@@ -327,8 +327,10 @@ struct MarkNoteApp: App {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { onFinish() }
     }
 
-    private static func setEditorMode(_ raw: String) {
-        UserDefaults.standard.set(raw, forKey: "editorMode")
+    /// 切视图模式：代码文件与散文分开记（代码默认「仅编辑」，写代码不该被预览占地方）
+    private static func setEditorMode(_ raw: String, noteID: String?) {
+        let key = EditorView.isCodeNote(noteID) ? "editorModeCode" : "editorMode"
+        UserDefaults.standard.set(raw, forKey: key)
         NotificationCenter.default.post(name: .editorModeDidChange, object: nil)
     }
 
@@ -438,21 +440,25 @@ struct MarkNoteApp: App {
             }
 
             CommandMenu(_L("视图", "View")) {
-                let currentMode = UserDefaults.standard.string(forKey: "editorMode") ?? EditorMode.split.rawValue
+                let noteID = store.loadedNoteID ?? store.selectedNoteID
+                let isCode = EditorView.isCodeNote(noteID)
+                let modeKey = isCode ? "editorModeCode" : "editorMode"
+                let currentMode = UserDefaults.standard.string(forKey: modeKey)
+                    ?? (isCode ? EditorMode.editor.rawValue : EditorMode.split.rawValue)
                 Button {
-                    Self.setEditorMode(EditorMode.editor.rawValue)
+                    Self.setEditorMode(EditorMode.editor.rawValue, noteID: noteID)
                 } label: {
                     Text((currentMode == EditorMode.editor.rawValue ? "✓ " : "") + _L("仅编辑", "Editor Only"))
                 }
                 .keyboardShortcut("1", modifiers: [.command])
                 Button {
-                    Self.setEditorMode(EditorMode.split.rawValue)
+                    Self.setEditorMode(EditorMode.split.rawValue, noteID: noteID)
                 } label: {
                     Text((currentMode == EditorMode.split.rawValue ? "✓ " : "") + _L("分屏", "Split"))
                 }
                 .keyboardShortcut("2", modifiers: [.command])
                 Button {
-                    Self.setEditorMode(EditorMode.preview.rawValue)
+                    Self.setEditorMode(EditorMode.preview.rawValue, noteID: noteID)
                 } label: {
                     Text((currentMode == EditorMode.preview.rawValue ? "✓ " : "") + _L("仅预览", "Preview Only"))
                 }

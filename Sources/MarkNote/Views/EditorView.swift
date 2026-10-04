@@ -25,12 +25,25 @@ struct EditorView: View {
     @State private var findCurrent = 0
     @FocusState private var findFocused: Bool
     @AppStorage("editorMode") private var mode = EditorMode.split.rawValue
+    /// 代码文件单独一份视图偏好：写代码不需要预览，默认「仅编辑」（Markdown/散文沿用 mode）
+    @AppStorage("editorModeCode") private var codeMode = EditorMode.editor.rawValue
     /// 阅读专注态（ContentView 注入）：隐藏 tab 栏/状态栏，只留预览
     var readerFocus: Bool = false
 
+    /// 代码文件判定：Markdown 与纯文本（txt/log/rst）算散文，其余可编辑文本都算代码
+    static func isCodeNote(_ id: String?) -> Bool {
+        let ext = (id as NSString?)?.pathExtension.lowercased() ?? ""
+        guard !ext.isEmpty, Workspace.isEditorText(ext), !MarkdownEditorView.isMarkdownExt(ext) else { return false }
+        return !["txt", "log", "rst"].contains(ext)
+    }
+
+    private var isCodeNote: Bool { Self.isCodeNote(store.loadedNoteID ?? store.selectedNoteID) }
+    /// 当前文件对应的模式偏好键值
+    private var modeRaw: String { isCodeNote ? codeMode : mode }
+
     /// 实际生效的视图模式：阅读专注态下强制「仅预览」（不改用户偏好，退出即还原）
     private var effectiveMode: EditorMode {
-        readerFocus ? .preview : (EditorMode(rawValue: mode) ?? .split)
+        readerFocus ? .preview : (EditorMode(rawValue: modeRaw) ?? (isCodeNote ? .editor : .split))
     }
     // 字体/字号/缩放直接用 @AppStorage（与设置窗口同键）：UserDefaults 变更即时触发本视图重渲
     // （store.editorFontSize 这类经 store 计算的属性不追踪 UserDefaults —— 设置窗口改完主窗口不动）
