@@ -4,7 +4,7 @@
     "name": "雾青",
     "desc": "纸感亮色 + 青瓷主色；植物语义图标、叶片光尘动效与开花彩蛋",
     "reviewed": true,
-    "auditVersion": 5,
+    "auditVersion": 6,
     "cssFile": "theme.css",
     "displayFont": {
       "file": "fonts/ZCOOLXiaoWei-Regular.ttf",
@@ -35,7 +35,31 @@
       "magnifyingglass": "icons/search-64.png",
       "sparkles": "icons/sparkle-64.png",
       "clock.arrow.circlepath": "icons/history-64.png",
-      "paw": "icons/paw-64.png"
+      "paw": "icons/paw-64.png",
+      "file.python": "icons/file.python-64.png",
+      "file.javascript": "icons/file.javascript-64.png",
+      "file.typescript": "icons/file.typescript-64.png",
+      "file.go": "icons/file.go-64.png",
+      "file.rust": "icons/file.rust-64.png",
+      "file.c": "icons/file.c-64.png",
+      "file.cpp": "icons/file.cpp-64.png",
+      "file.csharp": "icons/file.csharp-64.png",
+      "file.java": "icons/file.java-64.png",
+      "file.kotlin": "icons/file.kotlin-64.png",
+      "file.swift": "icons/file.swift-64.png",
+      "file.html": "icons/file.html-64.png",
+      "file.css": "icons/file.css-64.png",
+      "file.xml": "icons/file.xml-64.png",
+      "file.vue": "icons/file.vue-64.png",
+      "file.shell": "icons/file.shell-64.png",
+      "file.json": "icons/file.json-64.png",
+      "file.yaml": "icons/file.yaml-64.png",
+      "file.sql": "icons/file.sql-64.png",
+      "file.ruby": "icons/file.ruby-64.png",
+      "file.php": "icons/file.php-64.png",
+      "file.lua": "icons/file.lua-64.png",
+      "file.asm": "icons/file.asm-64.png",
+      "file.r": "icons/file.r-64.png"
     },
     "easterEgg": {
       "trigger": "icon-click",
@@ -57,6 +81,6 @@
     },
     "glass": 0,
     "swatchHex": "#1FA084",
-    "reviewedHash": "edd69d0a2f246e002a711632e01fed91c11985005e234b2270e2b143529d067b"
+    "reviewedHash": "74723ff0b93908c5ba7b2e0f147aef3b487e04d3de60f2a91eb65ccb7f8e10ea"
   }
 ]

@@ -4,7 +4,7 @@
     "name": "深林夜",
     "desc": "松林深处的夜色：墨绿底 + 苔藓绿，楷书标题、多色植物图标、叶片光尘与萤火彩蛋",
     "reviewed": true,
-    "auditVersion": 5,
+    "auditVersion": 6,
     "cssFile": "theme.css",
     "swatchHex": "#4FD1A5",
     "displayFont": {
@@ -36,7 +36,31 @@
       "magnifyingglass": "icons/search-64.png",
       "sparkles": "icons/sparkle-64.png",
       "clock.arrow.circlepath": "icons/history-64.png",
-      "paw": "icons/paw-64.png"
+      "paw": "icons/paw-64.png",
+      "file.python": "icons/file.python-64.png",
+      "file.javascript": "icons/file.javascript-64.png",
+      "file.typescript": "icons/file.typescript-64.png",
+      "file.go": "icons/file.go-64.png",
+      "file.rust": "icons/file.rust-64.png",
+      "file.c": "icons/file.c-64.png",
+      "file.cpp": "icons/file.cpp-64.png",
+      "file.csharp": "icons/file.csharp-64.png",
+      "file.java": "icons/file.java-64.png",
+      "file.kotlin": "icons/file.kotlin-64.png",
+      "file.swift": "icons/file.swift-64.png",
+      "file.html": "icons/file.html-64.png",
+      "file.css": "icons/file.css-64.png",
+      "file.xml": "icons/file.xml-64.png",
+      "file.vue": "icons/file.vue-64.png",
+      "file.shell": "icons/file.shell-64.png",
+      "file.json": "icons/file.json-64.png",
+      "file.yaml": "icons/file.yaml-64.png",
+      "file.sql": "icons/file.sql-64.png",
+      "file.ruby": "icons/file.ruby-64.png",
+      "file.php": "icons/file.php-64.png",
+      "file.lua": "icons/file.lua-64.png",
+      "file.asm": "icons/file.asm-64.png",
+      "file.r": "icons/file.r-64.png"
     },
     "easterEgg": {
       "trigger": "icon-click",
@@ -57,6 +81,6 @@
       "respectReduceMotion": true
     },
     "glass": 0,
-    "reviewedHash": "4100f46f43e8e31d67bfcce418165dd0433b51a3ab0cbc5def0b8f919f88c267"
+    "reviewedHash": "d92e28508093cf899bfb4fe3f330bdd44181ad6eb645a2a6216c182c7ed585af"
   }
 ]
