@@ -510,12 +510,14 @@ private struct AssetThumbView: View {
     let item: NotesStore.AttachmentItem
     let symbol: String
     @State private var poster: AssetGridView.PosterInfo?
+    /// 图片缩略图：后台降采样（不再在主线程全量解码原图）
+    @State private var thumbImage: NSImage?
 
     private var kind: AssetSyntax.Kind { AssetSyntax.kind(forExt: item.url.pathExtension) }
 
     var body: some View {
         ZStack {
-            if item.isImage, let img = NSImage(contentsOf: item.url) {
+            if item.isImage, let img = thumbImage {
                 thumb(img)
             } else if kind == .video, let poster {
                 thumb(poster.image)
@@ -540,14 +542,24 @@ private struct AssetThumbView: View {
             }
         }
         .task(id: item.url) {
-            guard kind == .video, poster == nil else { return }
-            poster = await AssetGridView.poster(for: item.url)
+            // 图片：后台降采样出缩略图（最长边 512 已足够 2x 网格清晰，且不卡主线程）
+            if item.isImage, thumbImage == nil {
+                let url = item.url
+                thumbImage = await Task.detached(priority: .userInitiated) {
+                    AssetThumbnail.image(for: url, maxPixel: 512)
+                }.value
+            }
+            if kind == .video, poster == nil {
+                poster = await AssetGridView.poster(for: item.url)
+            }
         }
     }
 
     private func thumb(_ img: NSImage) -> some View {
         Image(nsImage: img)
             .resizable()
+            .interpolation(.high)          // 降采样后的图再缩放也不发糊
+            .antialiased(true)
             // 完整显示整张图（不裁切）——缩略图被裁掉一半时很像"图坏了"
             .aspectRatio(contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 6))
