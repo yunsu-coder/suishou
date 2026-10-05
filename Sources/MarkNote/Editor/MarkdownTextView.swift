@@ -261,41 +261,6 @@ final class MarkdownTextView: NSTextView {
     }
 
 
-    /// Tab 跳出（空配对才生效）：光标与"成对符号"之间**只有空白**时，
-    /// 返回跳出后的光标位置（闭合符之后）；否则 nil。
-    /// 例：`{|}`、`{\n    |\n}`、`"|"` 里按 Tab → 跳到闭合符之后，
-    /// 而不是再插一层缩进。里面有代码（`(a|)`）时不生效，照常缩进。
-    static func tabOutTarget(in text: String, caret: Int) -> Int? {
-        let ns = text as NSString
-        guard caret >= 0, caret <= ns.length else { return nil }
-        // 向右跳过空白，必须撞到闭合符 / 引号
-        var r = caret
-        while r < ns.length {
-            let c = ns.substring(with: NSRange(location: r, length: 1))
-            if c == " " || c == "\t" || c == "\n" || c == "\r" { r += 1; continue }
-            break
-        }
-        guard r < ns.length else { return nil }
-        let closer = ns.substring(with: NSRange(location: r, length: 1))
-        guard isCloserOrQuote(closer) else { return nil }
-        let opener: String
-        switch closer {
-        case ")": opener = "("
-        case "]": opener = "["
-        case "}": opener = "{"
-        default: opener = closer          // 引号自配
-        }
-        // 向左跳过空白，必须撞到配对的开启符（中间有代码就不算空配对）
-        var l = caret - 1
-        while l >= 0 {
-            let c = ns.substring(with: NSRange(location: l, length: 1))
-            if c == " " || c == "\t" || c == "\n" || c == "\r" { l -= 1; continue }
-            break
-        }
-        guard l >= 0, ns.substring(with: NSRange(location: l, length: 1)) == opener else { return nil }
-        return r + 1
-    }
-
     /// 光标两侧恰好是一对空符号 → 一次退格删掉整对
     static func isDeletablePair(prev: String, next: String) -> Bool {
         let pairs: [String: String] = ["(": ")", "[": "]", "{": "}", "\"": "\"", "'": "'", "`": "`"]
@@ -574,23 +539,14 @@ final class MarkdownTextView: NSTextView {
         super.insertNewline(sender)
     }
 
-    /// Tab：多行选中 = 整块缩进；空配对里 = **跳出**（到闭合符之后）；
-    /// 其余 = 对齐到下一个制表位 / 插入一个缩进单位
+    /// Tab：多行选中 = 整块缩进；否则在行首空白里对齐到下一个制表位、
+    /// 或在光标处插入一个缩进单位（缩进就是缩进，不做"跳出"）
     override func insertTab(_ sender: Any?) {
         let text = string as NSString
         let sel = selectedRange()
         if sel.length > 0,
            text.range(of: "\n", options: [], range: NSRange(location: sel.location, length: sel.length)) != nil {
             blockIndent(indent: true)
-            return
-        }
-        // Tab 跳出：只在"空配对"里生效，不会影响正常缩进
-        if FeatureModules.isEnabled(FeatureModules.editorCodeSmart),
-           Workspace.isEditorText(fileExtension),
-           !MarkdownEditorView.isMarkdownExt(fileExtension),
-           sel.length == 0,
-           let target = Self.tabOutTarget(in: string, caret: sel.location) {
-            setSelectedRange(NSRange(location: target, length: 0))
             return
         }
         // 行首空白里 → 对齐到下一个制表位；否则插入一个缩进单位（C/C++/Python 4、HTML/CSS 2）
