@@ -65,11 +65,14 @@ struct AssetGridView: View {
             if filtered.isEmpty {
                 emptyState
             } else {
-                grid
-            }
-            if let sel = selected {
+                // 剪映式上下结构：上面大预览，下面横向素材条
+                previewPane
                 Divider()
-                footer(sel)
+                strip
+                if let sel = selected {
+                    Divider()
+                    footer(sel)
+                }
             }
         }
         .background(Color(nsColor: appAppearance.editorBackground))
@@ -230,17 +233,135 @@ struct AssetGridView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - 网格
+    // MARK: - 上：预览区（剪映式：选中什么就在这里看什么）
 
-    private var grid: some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 86), spacing: 8)], spacing: 8) {
-                ForEach(filtered) { item in
-                    tile(item)
+    private var previewPane: some View {
+        ZStack {
+            Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground)
+            if let item = selected {
+                let kind = AssetSyntax.kind(forExt: item.url.pathExtension)
+                if kind == .video {
+                    // 本地视频直接放；远程的交给预览窗口（要带防盗链头先本地化）
+                    if item.url.isFileURL {
+                        MediaPlayerBox(url: item.url)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        previewPlaceholder(item, symbol: "play.rectangle")
+                    }
+                } else if kind == .image {
+                    if let img = AssetThumbnail.image(for: item.url, maxPixel: 2048) {
+                        Image(nsImage: img)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: .fit)
+                            .padding(8)
+                    } else {
+                        previewPlaceholder(item, symbol: Self.symbol(for: item.url.pathExtension))
+                    }
+                } else {
+                    previewPlaceholder(item, symbol: Self.symbol(for: item.url.pathExtension))
+                }
+            } else {
+                VStack(spacing: 6) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.system(size: 26))
+                        .foregroundStyle(.tertiary)
+                    Text(_LL("点下面的素材看大图", "Pick an asset below to preview"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
-            .padding(10)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(minHeight: 200)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { if let item = selected { openPreview(item) } }
+        .overlay(alignment: .topTrailing) {
+            if let item = selected {
+                let kind = AssetSyntax.kind(forExt: item.url.pathExtension)
+                if kind == .image || kind == .video {
+                    Button {
+                        openPreview(item)
+                    } label: {
+                        Label(kind == .video ? _L("播放", "Play") : _L("看原图", "Full Size"),
+                              systemImage: kind == .video ? "play.circle" : "arrow.up.left.and.arrow.down.right")
+                            .font(.caption)
+                    }
+                    .controlSize(.small)
+                    .padding(8)
+                    .help(_L("打开大图预览（双击预览区同样可以）", "Open full preview (or double-click the preview)"))
+                }
+            }
+        }
+    }
+
+    private func previewPlaceholder(_ item: NotesStore.AttachmentItem, symbol: String) -> some View {
+        VStack(spacing: 8) {
+            Image(systemName: symbol)
+                .font(.system(size: 30))
+                .foregroundStyle(.tertiary)
+            Text(item.name)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Text(_L("这个类型没有内嵌预览，用下面的「插入 / 复制 / Finder」处理",
+                    "No inline preview for this type — use the buttons below"))
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(12)
+    }
+
+    // MARK: - 下：横向素材条（剪映式胶片条）
+
+    private var strip: some View {
+        ScrollView(.horizontal, showsIndicators: true) {
+            LazyHStack(spacing: 8) {
+                ForEach(filtered) { item in
+                    stripTile(item)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+        }
+        .frame(height: 108)
+    }
+
+    private func stripTile(_ item: NotesStore.AttachmentItem) -> some View {
+        let isSel = selectedIDs.contains(item.id)
+        return VStack(spacing: 3) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground))
+                AssetThumbView(item: item, symbol: Self.symbol(for: item.url.pathExtension))
+                if isSel, selectedIDs.count > 1 {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(appAppearance.accent)
+                        .padding(2)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
+            }
+            .frame(width: 68, height: 62)
+            .overlay(RoundedRectangle(cornerRadius: 6)
+                .stroke(isSel ? appAppearance.accent : Color(nsColor: appAppearance.editorForeground.withAlphaComponent(0.12)),
+                        lineWidth: isSel ? 2 : 1))
+            Text(item.name)
+                .font(.system(size: 9))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(width: 68)
+                .foregroundStyle(isSel ? Color.primary : Color.secondary)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { selectedIDs = [item.id]; selectionAnchor = item.id; selected = item; openPreview(item) }
+        .onTapGesture { select(item) }
+        .onDrag {
+            NSItemProvider(object: AssetSyntax.reference(name: item.name, path: relativePath(item)) as NSString)
+        }
+        .contextMenu { tileMenu(item) }
+        .help("\(item.name) · \(Self.sizeLabel(item.size))")
     }
 
 
@@ -254,73 +375,31 @@ struct AssetGridView: View {
         previewItem = item
     }
 
-    private func tile(_ item: NotesStore.AttachmentItem) -> some View {
-        let isSel = selectedIDs.contains(item.id)
-        let refs = refCounts[item.name] ?? 0
-        let kind = AssetSyntax.kind(forExt: item.url.pathExtension)
-        return VStack(alignment: .leading, spacing: 4) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground))
-                AssetThumbView(item: item, symbol: Self.symbol(for: item.url.pathExtension))
-                if isSel, selectedIDs.count > 1 {
-                    // 多选时给个勾标记（单选只用描边，不干扰拖拽）
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 13))
-                        .foregroundStyle(appAppearance.accent)
-                        .padding(3)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                }
-            }
-            .frame(height: 64)
-            .overlay(RoundedRectangle(cornerRadius: 6)
-                .stroke(isSel ? appAppearance.accent : Color(nsColor: appAppearance.editorForeground.withAlphaComponent(0.12)),
-                        lineWidth: isSel ? 2 : 1))
-            Text(item.name)
-                .font(.system(size: 10))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .foregroundStyle(Color(nsColor: appAppearance.editorForeground))
-            Text(refs > 0 ? _L("引用 \(refs)", "Used \(refs)") : _L("未引用", "Unused"))
-                .font(.system(size: 9))
-                .foregroundStyle(refs > 0 ? .secondary : .tertiary)
+
+    /// 选中一个素材（⌘/⇧ 多选）
+    private func select(_ item: NotesStore.AttachmentItem) {
+        let mods = NSEvent.modifierFlags
+        let result = AssetSelection.apply(current: selectedIDs, clicked: item.id,
+                                          ordered: filtered.map(\.id), anchor: selectionAnchor,
+                                          command: mods.contains(.command),
+                                          shift: mods.contains(.shift))
+        selectedIDs = result.selection
+        selectionAnchor = result.anchor
+        selected = result.selection.contains(item.id) ? item : filtered.first { selectedIDs.contains($0.id) }
+    }
+
+    @ViewBuilder
+    private func tileMenu(_ item: NotesStore.AttachmentItem) -> some View {
+        let k = AssetSyntax.kind(forExt: item.url.pathExtension)
+        if k == .image || k == .video {
+            Button(k == .video ? _L("播放", "Play") : _L("预览大图", "Preview")) { openPreview(item) }
         }
-        .contentShape(Rectangle())
-        // 双击缩略图 = 打开大图预览（图片）/ 播放（视频）—— 选中 + 底部按钮仍然可用，
-        // 但"想看一眼大图"不该还要先去底下找按钮。
-        .onTapGesture(count: 2) {
-            selectedIDs = [item.id]
-            selectionAnchor = item.id
-            selected = item
-            openPreview(item)
+        Button(_L("插入到光标处", "Insert")) { insert(item) }
+        Button(_L("复制引用", "Copy Reference")) { copyRef(item) }
+        Divider()
+        Button(_L("在 Finder 中显示", "Reveal in Finder")) {
+            NSWorkspace.shared.activateFileViewerSelecting([item.url])
         }
-        .onTapGesture {
-            let mods = NSEvent.modifierFlags
-            let result = AssetSelection.apply(current: selectedIDs, clicked: item.id,
-                                              ordered: filtered.map(\.id), anchor: selectionAnchor,
-                                              command: mods.contains(.command),
-                                              shift: mods.contains(.shift))
-            selectedIDs = result.selection
-            selectionAnchor = result.anchor
-            selected = result.selection.contains(item.id) ? item : filtered.first { selectedIDs.contains($0.id) }
-        }
-        .contextMenu {
-            let k = AssetSyntax.kind(forExt: item.url.pathExtension)
-            if k == .image || k == .video {
-                Button(k == .video ? _L("播放", "Play") : _L("预览大图", "Preview")) { openPreview(item) }
-            }
-            Button(_L("插入到光标处", "Insert")) { insert(item) }
-            Button(_L("复制引用", "Copy Reference")) { copyRef(item) }
-            Divider()
-            Button(_L("在 Finder 中显示", "Reveal in Finder")) {
-                NSWorkspace.shared.activateFileViewerSelecting([item.url])
-            }
-        }
-        // 拖到编辑器：携带**短引用文本**（不是文件 URL —— 否则编辑器会再存一份素材）
-        .onDrag {
-            NSItemProvider(object: AssetSyntax.reference(name: item.name, path: relativePath(item)) as NSString)
-        }
-        .help("\(item.name) · \(Self.sizeLabel(item.size))")
     }
 
     fileprivate final class PosterInfo: NSObject, @unchecked Sendable {
