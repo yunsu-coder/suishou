@@ -67,6 +67,19 @@ final class DropAssetRefTests: XCTestCase {
         }
     }
 
+    /// 编辑区兜底拖放的判定（与文本视图共用同一份规则）
+    func testAssetReferencePredicate() {
+        XCTAssertTrue(MarkdownTextView.isAssetReference("![照片](img/a.png)"))
+        XCTAssertTrue(MarkdownTextView.isAssetReference("@[报告.pdf](source/pdf/报告.pdf)"))
+        XCTAssertTrue(MarkdownTextView.isAssetReference("<video src=\"source/mp4/a.mp4\" controls></video>"))
+        XCTAssertTrue(MarkdownTextView.isAssetReference("<audio src=\"source/audio/a.mp3\" controls></audio>"))
+        XCTAssertTrue(MarkdownTextView.isAssetReference("  ![带空格](img/a.png)  "), "首尾空白要容忍")
+        XCTAssertFalse(MarkdownTextView.isAssetReference("普通文本"))
+        XCTAssertFalse(MarkdownTextView.isAssetReference("![缺右括号](img/a.png"))
+        XCTAssertFalse(MarkdownTextView.isAssetReference("<video 但没闭合"))
+        XCTAssertFalse(MarkdownTextView.isAssetReference(""))
+    }
+
     func testPlainTextDropFallsThrough() {
         let tv = makeTextView(ext: "cpp")
         let drag = FakeDrag(text: "普通文本，不是素材引用")

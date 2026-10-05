@@ -116,6 +116,13 @@ struct EditorView: View {
                 }
                 .layoutPriority(1)
                 .animation(.timingCurve(0.25, 1, 0.4, 1, duration: 0.18), value: effectiveMode)
+                // 素材拖放兜底：文本视图只吃"落在正文上"的拖拽，落到预览区/代码预览区就没了。
+                // 这里在整块编辑区兜一层：只要是"素材引用"形态的文本，就插到当前光标处。
+                // （落在编辑器正文上的拖拽仍由 MarkdownTextView 处理，那一层更靠内、优先级更高，
+                //   不会重复插入。）
+                .onDrop(of: [UTType.utf8PlainText, UTType.plainText], isTargeted: nil) { providers in
+                    dropAssetReference(providers)
+                }
                 // 内置终端面板（视图插件 view-terminal 启用时才存在；⌘J 开关）
                 if terminalOpen, hasTerminalView, !readerFocus {
                     Divider()
@@ -409,6 +416,25 @@ struct EditorView: View {
             previewFont: previewFontFamily,
             workspaceRoot: store.notesDir
         ))
+    }
+
+
+    /// 兜底拖放：把"素材引用"文本插到光标处；不是素材引用就放行（返回 false）
+    private func dropAssetReference(_ providers: [NSItemProvider]) -> Bool {
+        guard let p = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else { return false }
+        var handled = false
+        let sem = DispatchSemaphore(value: 0)
+        p.loadObject(ofClass: NSString.self) { obj, _ in
+            if let text = obj as? String, MarkdownTextView.isAssetReference(text) {
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .insertTextAtCursor, object: text)
+                }
+                handled = true
+            }
+            sem.signal()
+        }
+        _ = sem.wait(timeout: .now() + 2)   // 拖放回调必须在返回前给出答案
+        return handled
     }
 
     /// 图片相对路径解析基准 = 文件目录（相对于笔记库根）

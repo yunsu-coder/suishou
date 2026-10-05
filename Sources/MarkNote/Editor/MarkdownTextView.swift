@@ -811,13 +811,18 @@ final class MarkdownTextView: NSTextView {
         guard let text = pb.string(forType: .string)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
             !text.isEmpty else { return nil }
-        if (text.hasPrefix("![") || text.hasPrefix("@[")),
-           text.hasSuffix(")"), text.contains("](") {
-            return text
-        }
-        if text.hasPrefix("<video"), text.hasSuffix("</video>") { return text }
-        if text.hasPrefix("<audio"), text.hasSuffix("</audio>") { return text }
-        return nil
+        return Self.isAssetReference(text) ? text : nil
+    }
+
+    /// 这段文本是不是"素材引用"（素材面板拖拽 / 复制出来的那几种固定形态）。
+    /// 抽成静态方法：文本视图的拖放、编辑区的兜底拖放、测试都共用同一份判定。
+    static func isAssetReference(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return false }
+        if (t.hasPrefix("![") || t.hasPrefix("@[")), t.hasSuffix(")"), t.contains("](") { return true }
+        if t.hasPrefix("<video"), t.hasSuffix("</video>") { return true }
+        if t.hasPrefix("<audio"), t.hasSuffix("</audio>") { return true }
+        return false
     }
 
     private static func dragImageData(_ sender: NSDraggingInfo) -> (Data, String?)? {
