@@ -1484,13 +1484,14 @@ final class NotesStore {
     @discardableResult
     func deleteNotes(ids: [String]) -> Int {
         flush()
-        // 工作台语义：删除 = 物理删除（回收站机制已移除；确认弹窗在视图层）
+        // 工作台语义：删除 = 移到系统废纸篓（可恢复）。
+        // 不做二次确认弹窗 —— 用户明确要求"不要提示框"，安全性靠废纸篓兜底。
         let before = filteredIndex
         let deletedSet = Set(ids)
         var count = 0
         for id in ids {
             do {
-                try FileManager.default.removeItem(at: noteURL(id))
+                try FileManager.default.trashItem(at: noteURL(id), resultingItemURL: nil)
                 count += 1
             } catch {
                 showHint(_L("删除失败：\(noteURL(id).lastPathComponent)", "Failed to delete: \(noteURL(id).lastPathComponent)"))
@@ -1676,11 +1677,15 @@ final class NotesStore {
         loadCategories()
     }
 
-    /// 删除文件夹**连同其中的文件**（删除是物理删除，视图层已用二次确认警告过）
+    /// 删除文件夹（连同其中的文件）—— 整个文件夹移进系统废纸篓，可恢复；
+    /// 不弹任何确认框（用户要求"不要提示框"）。
     func deleteCategoryWithContents(_ id: String) {
-        let ids = index.filter { $0.category == id }.map(\.id)
-        if !ids.isEmpty { deleteNotes(ids: ids) }
-        deleteCategory(id)
+        flush()
+        let dir = notesDir.appendingPathComponent(id, isDirectory: true)
+        try? FileManager.default.trashItem(at: dir, resultingItemURL: nil)
+        if categoryFilter == id { categoryFilter = "" }
+        reloadIndex()
+        loadCategories()
     }
 
     /// 文件夹里有多少文件（删除确认框里显示用）
@@ -1752,9 +1757,9 @@ final class NotesStore {
             }
             return
         }
-        if !conflictHandled {
-            externalConflict = true
-        }
+        // 有未保存改动 → 以编辑器内容为准（外部版本先写历史快照），不弹任何冲突框：
+        // 用户要求"不要提示框"，而且编辑器里的内容是用户当下正在写的东西。
+        resolveExternalConflict(.keepMine)
     }
 
     /// 用户选择后的处理入口（三选）
@@ -2308,14 +2313,11 @@ final class NotesStore {
     private var hintTask: Task<Void, Never>?
 
     func showHint(_ text: String) {
-        hintMessage = text
-        hintToken += 1
-        hintTask?.cancel()
-        hintTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 3_500_000_000)
-            guard let self, !Task.isCancelled else { return }
-            self.hintMessage = nil
-        }
+        // 用户要求：不要再弹任何提示条 / 提示框。
+        // 保留调用点（各功能仍在正常工作），只是不再往界面上抛 toast；需要排查时看控制台。
+        #if DEBUG
+        print("hint: \(text)")
+        #endif
     }
 
     func hideHint() {

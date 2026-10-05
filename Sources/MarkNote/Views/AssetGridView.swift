@@ -80,15 +80,6 @@ struct AssetGridView: View {
         .onReceive(NotificationCenter.default.publisher(for: .assetsChanged)) { _ in
             reload()
         }
-        .alert(pendingTrash.count > 1 ? _L("删除这些素材？", "Delete these assets?")
-                                      : _L("删除素材？", "Delete this asset?"),
-               isPresented: Binding(get: { !pendingTrash.isEmpty },
-                                    set: { if !$0 { pendingTrash = [] } })) {
-            Button(_L("移到废纸篓", "Move to Trash"), role: .destructive) { trashPending() }
-            Button(_L("取消", "Cancel"), role: .cancel) { pendingTrash = [] }
-        } message: {
-            Text(batchDeleteWarning(pendingTrash))
-        }
         .sheet(isPresented: $showImport) {
             AssetImportSheet { urls in
                 let result = store.importAssets(from: urls)
@@ -188,6 +179,7 @@ struct AssetGridView: View {
                 // 批量清理：选中 N 个一起删 / 一键清理当前列表里所有「未被引用」
                 Button {
                     pendingTrash = unreferencedInList()
+                    trashPending()
                 } label: {
                     Text(_L("清理未引用", "Clean unused"))
                         .font(.system(size: 10))
@@ -211,6 +203,7 @@ struct AssetGridView: View {
                     .buttonStyle(.plain)
                     Button(_L("删除选中", "Delete selected"), role: .destructive) {
                         pendingTrash = filtered.filter { selectedIDs.contains($0.id) }
+                        trashPending()
                     }
                     .buttonStyle(.plain)
                     Button(_L("取消选择", "Clear")) { clearSelection() }
@@ -381,6 +374,7 @@ struct AssetGridView: View {
                 .help(_L("在 Finder 中显示", "Reveal in Finder"))
                 Button {
                     pendingTrash = [item]
+                    trashPending()
                 } label: {
                     Image(systemName: "trash")
                 }

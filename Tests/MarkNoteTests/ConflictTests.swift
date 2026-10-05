@@ -39,9 +39,10 @@ final class ConflictTests: XCTestCase {
         XCTAssertEqual(store.workingText, "另一端的修改", "应自动载入磁盘版本")
     }
 
-    /// 反之：有未保存改动 → 仍然进冲突态，不能覆盖也不能被覆盖
+    /// 有未保存改动 → 以编辑器内容为准自动落盘（外部版本进历史快照），不弹任何冲突框。
+    /// 旧策略会弹冲突并暂停自动保存，实测把用户卡死在"改了不落盘"。
     @MainActor
-    func testExternalChangeWithLocalEditsEntersConflict() throws {
+    func testExternalChangeWithLocalEditsKeepsEditorContent() throws {
         let (store, dir) = try TestEnv.makeStore()
         defer { try? FileManager.default.removeItem(at: dir) }
         let id = create(store, "并发笔记2.md")
@@ -51,83 +52,11 @@ final class ConflictTests: XCTestCase {
 
         injectExternal(store, id: id, text: "另一端的修改")
         store.reloadIndex()
-        TestEnv.pump(0.5)
+        TestEnv.pump(0.6)
 
-        XCTAssertTrue(store.externalConflict, "有未保存改动时外部修改应进入冲突状态")
-        XCTAssertEqual(store.workingText, "我的本地修改", "冲突未解决时编辑器内容不应被外部版本替换")
-    }
-
-    @MainActor
-    func testResolveReloadKeepsMyContentAsVersion() throws {
-        let (store, dir) = try TestEnv.makeStore()
-        defer { try? FileManager.default.removeItem(at: dir) }
-        let id = create(store, "并发笔记.md")
-        TestEnv.pump()
-        store.workingText = "我的本地修改"
-        store.dirty = true
-
-        injectExternal(store, id: id, text: "外部版本内容")
-        store.reloadIndex()
-        TestEnv.pump(0.5)
-        XCTAssertTrue(store.externalConflict)
-
-        store.resolveExternalConflict(.reload)
-        TestEnv.pump(0.5)
-
-        XCTAssertFalse(store.externalConflict)
-        XCTAssertEqual(store.workingText, "外部版本内容", "reload 后编辑器应显示外部版本")
-        let versions = store.listVersions(id)
-        XCTAssertFalse(versions.isEmpty, "reload 前应给本地内容留快照")
-        let latest = versions.first!
-        let archived = store.versionNote(id, latest.ts)
-        XCTAssertEqual(archived?.content, "我的本地修改", "本地改动先入快照（原始文本）")
-    }
-
-    @MainActor
-    func testResolveKeepMineSnapshotsExternalThenOverwrite() throws {
-        let (store, dir) = try TestEnv.makeStore()
-        defer { try? FileManager.default.removeItem(at: dir) }
-        let id = create(store, "并发笔记.md")
-        TestEnv.pump()
-        store.workingText = "我的坚持"
-        store.dirty = true
-
-        injectExternal(store, id: id, text: "外部先改的")
-        store.reloadIndex()
-        TestEnv.pump(0.5)
-        store.resolveExternalConflict(.keepMine)
-        TestEnv.pump(0.5)
-
-        XCTAssertEqual(fileText(store, id), "我的坚持", "keepMine 后磁盘应是我的内容")
-        let archived = store.listVersions(id).first.flatMap { store.versionNote(id, $0.ts) }
-        XCTAssertEqual(archived?.content, "外部先改的", "外部版本应入快照")
-    }
-
-    @MainActor
-    func testLaterPausesAutoSaveAndFlushSavesCopy() throws {
-        let (store, dir) = try TestEnv.makeStore()
-        defer { try? FileManager.default.removeItem(at: dir) }
-        let id = create(store, "并发笔记.md")
-        TestEnv.pump()
-        store.workingText = "未决定的内容"
-        store.dirty = true
-
-        injectExternal(store, id: id, text: "外部版本")
-        store.reloadIndex()
-        TestEnv.pump(0.5)
-        store.resolveExternalConflict(.later)
-        XCTAssertTrue(store.conflictHandled)
-
-        // 冲突挂起时：手动保存被阻止（文件仍为外部版本）
-        store.saveCurrent()
-        TestEnv.pump()
-        XCTAssertEqual(fileText(store, id), "外部版本")
-
-        // 退出兜底：flush → 另存为副本，不覆盖
-        store.flush()
-        TestEnv.pump(0.5)
-        let files = try FileManager.default.contentsOfDirectory(atPath: dir.path)
-            .filter { $0.hasSuffix(".md") }
-        XCTAssertGreaterThan(files.count, 1, "flush 应另存副本而非覆盖")
+        XCTAssertFalse(store.externalConflict, "不该再进入需要人工处理的冲突态")
+        XCTAssertEqual(store.workingText, "我的本地修改", "编辑器内容不被外部版本替换")
+        XCTAssertEqual(fileText(store, id), "我的本地修改", "编辑器内容应已落盘")
+        XCTAssertFalse(store.listVersions(id).isEmpty, "外部版本应留在历史快照里，可回查")
     }
 }

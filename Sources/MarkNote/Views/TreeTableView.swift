@@ -332,28 +332,24 @@ struct TreeTableView: NSViewRepresentable {
                 c.setContentHuggingPriority(.required, for: .horizontal)
                 content.addArrangedSubview(c)
             }
-            // hover 行内快捷操作（＋ 新建 / 🗑 删除）；默认隐藏，hover 显示
-            // （重命名保留在右键菜单里，行内让位给最高频的「新建」）
+            // hover 行内快捷操作：**文件夹行** = ＋ 新建 / 🗑；**文件行** = 只有 🗑
+            // （文件行上挂"在此新建"语义不清 —— 用户反馈"很奇怪"）
             if !rows[row].isCreating {
                 let actions = NSStackView()
                 actions.orientation = .horizontal
                 actions.spacing = 4
                 actions.setHuggingPriority(.required, for: .horizontal)
-                // 新建目标：文件夹行 → 该文件夹内；文件行 → 同目录；根 → 根目录
-                let newTarget: String
-                switch rows[row] {
-                case .folder(let cat, _, _, _): newTarget = cat.id
-                case .note(let n, _): newTarget = n.category
-                case .creating: newTarget = ""
-                }
-                let newB = Self.actionButton("doc.badge.plus", help: _L("在此新建笔记", "New Note Here")) { [weak self] in
-                    self?.parent.onNewNoteIn(newTarget)
+                if case .folder(let cat, _, _, _) = rows[row] {
+                    let newB = Self.actionButton("doc.badge.plus",
+                                                 help: _L("在这个文件夹里新建", "New Note in This Folder")) { [weak self] in
+                        self?.parent.onNewNoteIn(cat.id)
+                    }
+                    actions.addArrangedSubview(newB)
                 }
                 let idForAction = rows[row].id
-                let delB = Self.actionButton("trash", help: _L("删除", "Delete")) { [weak self] in
+                let delB = Self.actionButton("trash", help: _L("移到废纸篓", "Move to Trash")) { [weak self] in
                     self?.parent.onDelete(idForAction)
                 }
-                actions.addArrangedSubview(newB)
                 actions.addArrangedSubview(delB)
                 actions.alphaValue = row == hoveredRow ? 1.0 : 0.0
                 content.addArrangedSubview(actions)

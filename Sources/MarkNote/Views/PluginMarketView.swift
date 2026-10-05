@@ -8,7 +8,6 @@ struct PluginMarketView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var packages: [PluginPackage] = []
     @State private var selectedID: String?
-    @State private var uninstallTarget: PluginPackage?
     @State private var note = ""
 
     private var selected: PluginPackage? {
@@ -35,15 +34,6 @@ struct PluginMarketView: View {
         .frame(width: 780, height: 560)
         .onAppear { reload() }
         .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in reload() }
-        .confirmationDialog(_L("卸载插件？", "Uninstall plugin?"),
-                            isPresented: Binding(get: { uninstallTarget != nil },
-                                                 set: { if !$0 { uninstallTarget = nil } }),
-                            presenting: uninstallTarget) { pkg in
-            Button(_LL("卸载（删除包目录）", "Uninstall (delete folder)"), role: .destructive) { uninstall(pkg) }
-            Button(_LL("取消", "Cancel"), role: .cancel) {}
-        } message: { pkg in
-            Text(_L("将移除：\(pkg.displayName)", "Remove: \(pkg.displayName)"))
-        }
     }
 
     // MARK: - 头部
@@ -228,7 +218,7 @@ struct PluginMarketView: View {
                     }
                     .buttonStyle(.bordered).controlSize(.small)
                     Button(_LL("卸载…", "Uninstall…"), role: .destructive) {
-                        uninstallTarget = pkg
+                        uninstall(pkg)
                     }
                     .buttonStyle(.bordered).controlSize(.small)
                     Spacer()

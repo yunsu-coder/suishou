@@ -19,9 +19,6 @@ struct SidebarView: View {
     // 文件面板状态
     @State private var renameTarget: NoteIndexItem?
     @State private var renameText = ""
-    @State private var deleteTarget: NoteIndexItem?
-    /// 文件夹行的删除目标（树行 hover 的 🗑 也要能删文件夹）
-    @State private var deleteFolderTarget: NoteCategory?
     @State private var newCategoryText = ""
     @State private var showNewCategory = false
     @State private var categoryManageTarget: NoteCategory?
@@ -278,36 +275,6 @@ struct SidebarView: View {
             Button(_LL("取消", "Cancel"), role: .cancel) { renameTarget = nil }
         } message: {
             Text(_LL("修改文件标题", "Edit file title"))
-        }
-        .confirmationDialog(
-            _LL("删除文件？", "Delete File?"),
-            isPresented: Binding<Bool>(get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } }),
-            presenting: deleteTarget
-        ) { item in
-            Button(_LL("删除", "Delete"), role: .destructive) { store.deleteNote(item.id) }
-            Button(_LL("取消", "Cancel"), role: .cancel) {}
-        } message: { item in
-            Text(_L("“\(item.title.isEmpty ? "无标题" : item.title)”将被物理删除（无法撤销）", "“\(item.title.isEmpty ? "Untitled" : item.title)” will be permanently deleted (cannot be undone)"))
-        }
-        .confirmationDialog(
-            _LL("删除文件夹？", "Delete Folder?"),
-            isPresented: Binding<Bool>(get: { deleteFolderTarget != nil },
-                                       set: { if !$0 { deleteFolderTarget = nil } }),
-            presenting: deleteFolderTarget
-        ) { cat in
-            Button(_LL("删除文件夹（文件移到根目录）", "Delete Folder (files move to root)")) {
-                store.deleteCategory(cat.id)
-            }
-            Button(_LL("连同其中的文件一起删除", "Delete Folder and Its Files"), role: .destructive) {
-                store.deleteCategoryWithContents(cat.id)
-            }
-            Button(_LL("取消", "Cancel"), role: .cancel) {}
-        } message: { cat in
-            let n = store.noteCount(inCategory: cat.id)
-            Text(n == 0
-                 ? _L("「\(cat.name)」是空文件夹，删除后不可恢复。", "“\(cat.name)” is empty; deleting it cannot be undone.")
-                 : _L("「\(cat.name)」里有 \(n) 个文件：可以只删文件夹（文件移到根目录），或把文件一起物理删除（不可恢复）。",
-                      "“\(cat.name)” contains \(n) file(s): delete just the folder (files move to root), or delete the files permanently too."))
         }
     }
 
@@ -621,10 +588,11 @@ struct SidebarView: View {
                 beginCreating(folderID.isEmpty ? "=root" : folderID)
             },
             onDelete: { id in
-                if let item = store.index.first(where: { $0.id == id }) {
-                    deleteTarget = item
-                } else if let cat = store.categories.first(where: { $0.id == id }) {
-                    deleteFolderTarget = cat   // 文件夹行：🗑 之前完全没反应，现在给确认框
+                // 不弹确认框：文件 → 废纸篓；文件夹 → 整个文件夹进废纸篓（都可恢复）
+                if store.index.contains(where: { $0.id == id }) {
+                    store.deleteNote(id)
+                } else if store.categories.contains(where: { $0.id == id }) {
+                    store.deleteCategoryWithContents(id)
                 }
             }
         )
@@ -661,7 +629,7 @@ struct SidebarView: View {
             moveItem.submenu = moveMenu
             menu.addItem(moveItem)
             menu.addItem(.separator())
-            menu.addItem(item(_L("删除…", "Delete…"), { deleteTarget = row }))
+            menu.addItem(item(_L("移到废纸篓", "Move to Trash"), { store.deleteNote(row.id) }))
         } else if let cat = store.categories.first(where: { $0.id == rowID }) {
             menu.addItem(item(_L("重命名文件夹…", "Rename Folder…"), { categoryManageTarget = cat }))
             menu.addItem(item(_L("新建文件到此文件夹", "New Note in This Folder"), { beginCreating(cat.id) }))
@@ -704,7 +672,7 @@ private final class MenuActionHandler: NSObject {
             }
         }
         Divider()
-        Button(_L("删除…", "Delete…"), role: .destructive) { deleteTarget = item }
+        Button(_L("移到废纸篓", "Move to Trash"), role: .destructive) { store.deleteNote(item.id) }
     }
 
     private var footer: some View {
