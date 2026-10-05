@@ -416,7 +416,8 @@ struct MarkdownEditorView: NSViewRepresentable {
             highlightWork?.cancel()
             let text = tv.string
             let isMarkdown = MarkdownEditorView.isMarkdownExt(parent.fileExtension)
-            if !isMarkdown && !FeatureModules.isEnabled(FeatureModules.editorCodeSmart) { return }
+            // 语法着色与「代码智能编辑」分开：关掉自动配对/智能缩进，不该连带把颜色也关掉
+            if !isMarkdown && !FeatureModules.isEnabled(FeatureModules.editorSyntaxColor) { return }
             let isCode = MarkdownEditorView.isCodeExt(parent.fileExtension)
             let codeLanguage = CodeLanguage.of(ext: parent.fileExtension)
             highlightToken &+= 1
