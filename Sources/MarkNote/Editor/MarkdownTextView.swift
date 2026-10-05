@@ -801,6 +801,11 @@ final class MarkdownTextView: NSTextView {
     /// · 图片 `![名称](img/xxx.png)`；附件卡 `@[名称](path)`；
     /// · 视频 / 音频内嵌播放器 `<video src="…" controls></video>`、`<audio …></audio>`。
     /// 只认这几种「素材引用」形态，避免把普通文本拖拽也吃掉。
+    /// 仅供测试：这条拖拽是不是"素材引用"（true = 会被本视图消费）
+    func dragConsumedAssetRefForTesting(_ sender: NSDraggingInfo) -> Bool {
+        Self.dragAssetRef(sender) != nil
+    }
+
     private static func dragAssetRef(_ sender: NSDraggingInfo) -> String? {
         let pb = sender.draggingPasteboard
         guard let text = pb.string(forType: .string)?
