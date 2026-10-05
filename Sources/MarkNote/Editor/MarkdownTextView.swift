@@ -124,7 +124,7 @@ final class MarkdownTextView: NSTextView {
                 let next = characterAfterCaret()
                 // ① 下一个字符就是我要敲的符号 → 直接越过（VS Code type-over）：
                 //    这样 `{|}` 里再敲 `}`、`{|}` 前敲 `{` 都不会多出一个符号
-                if Self.isPairSymbol(ch), Self.stealsNext(next: next, typing: ch) {
+                if Self.isCloserOrQuote(ch), Self.stealsNext(next: next, typing: ch) {
                     setSelectedRange(NSRange(location: selectedRange().location + 1, length: 0))
                     return
                 }
@@ -233,9 +233,9 @@ final class MarkdownTextView: NSTextView {
     }
 
 
-    /// 成对符号（括号 + 引号）
-    static func isPairSymbol(_ ch: String) -> Bool {
-        ["(", ")", "[", "]", "{", "}", "\"", "'", "`"].contains(ch)
+    /// 闭合符与引号：只有它们享受 type-over（VS Code 里开符号不越过，是直接插入）
+    static func isCloserOrQuote(_ ch: String) -> Bool {
+        [")", "]", "}", "\"", "'", "`"].contains(ch)
     }
 
     /// 下一个字符正好是我要输入的符号 → 越过，不再插入（VS Code type-over）
@@ -333,11 +333,17 @@ final class MarkdownTextView: NSTextView {
         let beforeCore = before.trimmingCharacters(in: .whitespaces)
         let afterCore = after.trimmingCharacters(in: .whitespaces)
 
-        // 1) 自动补全的空对：光标夹在中间 → 只缩进，绝不再补一个闭合符
+        // 1) 自动补全的空对 `{|}`：换行 → 中间起一行缩进，**闭合符推到独立一行**（VS Code 行为）：
+        //    {
+        //        |
+        //    }
+        // 闭合符后面还跟着别的代码（如 `{});`）时不拆行，只缩进，别把后面的代码顶走。
         let pairs: [(open: Character, close: Character)] = [("{", "}"), ("[", "]"), ("(", ")")]
         if let p = pairs.first(where: { beforeCore.last == $0.open && afterCore.first == $0.close }) {
             _ = p
-            return "\n" + indent + pad
+            let onlyCloser = afterCore.count == 1
+            return onlyCloser ? "\n" + indent + pad + "\n" + indent
+                              : "\n" + indent + pad
         }
         // 2) 整行只剩闭括号 → 回退一级
         if beforeCore.isEmpty, let c = afterCore.first, ")]}".contains(c) {

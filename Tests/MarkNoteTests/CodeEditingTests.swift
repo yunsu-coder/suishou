@@ -106,19 +106,24 @@ final class CodeEditingTests: XCTestCase {
                        "\n  # ")
     }
 
-    func testNewlineInsideAutoClosedBraceOnlyIndents() {
-        // `{|}` 回车 → 中间起一行缩进；**不再补第二个 }**
-        XCTAssertEqual(MarkdownTextView.smartNewline(before: "    {", after: "}",
-                                                     indent: "    ", unit: 4, isPython: false),
-                       "\n        ", "光标夹在自动补全的 {} 中间：只缩进")
-        let out = MarkdownTextView.smartNewline(before: "    int main() {", after: "}",
-                                                indent: "    ", unit: 4, isPython: false)
-        XCTAssertFalse(out.contains("}\n") || out.hasSuffix("}"), "自动补全已给了 }，不能再来一个：\(out.debugDescription)")
-        // 数组 / 调用同理
-        XCTAssertEqual(MarkdownTextView.smartNewline(before: "x = [", after: "]", indent: "", unit: 4, isPython: false),
-                       "\n    ")
-        XCTAssertEqual(MarkdownTextView.smartNewline(before: "f(", after: ")", indent: "", unit: 4, isPython: false),
-                       "\n    ")
+    func testNewlineInsideAutoClosedPairPushesCloserDown() {
+        // VS Code：`{|}` 回车 → 中间缩进一行、闭合符单独一行
+        //     {
+        //         |
+        //     }
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "    {", after: "}", indent: "    ",
+                                                     unit: 4, isPython: false),
+                       "\n        \n    ")
+        let out = try? XCTUnwrap(MarkdownTextView.smartNewline(before: "    int main() {", after: "}",
+                                                               indent: "    ", unit: 4, isPython: false))
+        XCTAssertEqual(out?.filter { $0 == "}" }.count, 0, "不应该再补一个 }（VS Code 也不补）")
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "x = [", after: "]", indent: "",
+                                                     unit: 4, isPython: false), "\n    \n")
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "f(", after: ")", indent: "",
+                                                     unit: 4, isPython: false), "\n    \n")
+        // 闭合符后面还跟着代码（如 `{});`）→ 不拆行，只缩进
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "f(", after: ");", indent: "",
+                                                     unit: 4, isPython: false), "\n    ")
     }
 
     func testNewlineAfterBareOpenBraceAddsCloser() {
