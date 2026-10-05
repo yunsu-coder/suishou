@@ -472,6 +472,11 @@ struct MarkNoteApp: App {
                     NotificationCenter.default.post(name: .readerFocusToggle, object: nil)
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
+                Button(_LL("素材面板（工作区上方）", "Asset Panel (Above Workspace)")) {
+                    let open = UserDefaults.standard.bool(forKey: "assetTopPanelOpen")
+                    UserDefaults.standard.set(!open, forKey: "assetTopPanelOpen")
+                }
+                .keyboardShortcut("m", modifiers: [.command, .shift])
                 Button(_LL("终端面板", "Terminal Panel")) {
                     let open = UserDefaults.standard.bool(forKey: "terminalPanelOpen")
                     UserDefaults.standard.set(!open, forKey: "terminalPanelOpen")

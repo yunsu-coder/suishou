@@ -48,6 +48,8 @@ struct SidebarView: View {
     @State private var flowSpec: PluginView?
     /// 终端面板开关（与 EditorView 共用同一个 UserDefaults key）
     @AppStorage("terminalPanelOpen") private var terminalOpen = false
+    /// 素材上方面板开关（与 EditorView 同一个 key）
+    @AppStorage("assetTopPanelOpen") private var assetPanelOpen = false
     /// 主题彩蛋点击计数（按主题声明次数触发）
     @State private var easterEggClicks = 0
 
@@ -58,10 +60,11 @@ struct SidebarView: View {
                 activityIcon("folder", _L("工作台", "Workspace"), active: sidebarPanel == "explorer") {
                     sidebarPanel = "explorer"
                 }
-                // 视图插件提供素材网格时，功能栏出现第三个图标（面板内切换，不占编辑宽度）
+                // 素材：开/关「工作区上方面板」——侧栏继续留在文件树，不用切走再切回来
                 if viewsSnapshot.contains(where: { $0.type == .assetGrid }) {
-                    activityIcon("photo.on.rectangle", _L("素材", "Assets"), active: sidebarPanel == "assets") {
-                        sidebarPanel = "assets"
+                    activityIcon("photo.on.rectangle", _L("素材（工作区上方）", "Assets (top panel)"),
+                                 active: assetPanelOpen) {
+                        assetPanelOpen.toggle()
                     }
                 }
                 activityIcon("puzzlepiece.extension", _L("插件市场", "Plugin Market"), active: false) {

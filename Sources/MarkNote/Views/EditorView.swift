@@ -59,10 +59,28 @@ struct EditorView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// 终端面板开关（侧栏图标 / 视图菜单共用同一个 key）
     @AppStorage("terminalPanelOpen") private var terminalOpen = false
+    /// 素材上方面板：从工作区上方直接挑素材插入，侧栏继续留在文件树
+    @AppStorage("assetTopPanelOpen") private var assetPanelOpen = false
 
     /// 终端视图插件是否就位（未启用时 ⌘J 与面板都不出现）
     private var hasTerminalView: Bool {
         PluginManager.shared.allViews().contains { $0.type == .terminal }
+    }
+
+    /// 素材面板（上方）：插件就位且开着时才占地方
+    private var hasAssetView: Bool {
+        PluginManager.shared.allViews().contains { $0.type == .assetGrid }
+    }
+
+    private var assetTopPanel: some View {
+        VStack(spacing: 0) {
+            if let spec = PluginManager.shared.allViews().first(where: { $0.type == .assetGrid }) {
+                AssetGridView(spec: spec)
+                    .environment(store)
+                    .frame(height: 300)
+            }
+        }
+        .background(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground))
     }
 
     var body: some View {
@@ -71,6 +89,7 @@ struct EditorView: View {
         if store.loadedNoteID == nil && store.previewMedium == nil {
             // 没打开文件时也能用终端（VS Code：面板与有没有打开文件无关）
             VStack(spacing: 0) {
+                if assetPanelOpen, hasAssetView, !readerFocus { assetTopPanel; Divider() }
                 EmptyStateView()
                     .frame(minWidth: 520)
                 if terminalOpen, hasTerminalView, !readerFocus {
@@ -80,6 +99,7 @@ struct EditorView: View {
             }
         } else {
             VStack(spacing: 0) {
+                if assetPanelOpen, hasAssetView, !readerFocus { assetTopPanel; Divider() }
                 if !readerFocus { header }
                 // 冲突横幅：选过「稍后处理」之后也一直挂着，避免"忘了处理 = 一直在丢改动"
                 if store.conflictHandled || store.externalConflict {
