@@ -267,7 +267,10 @@ struct EditorView: View {
     /// 单个 Tab：标题按钮（点击切换）+ 关闭按钮；当前 Tab 高亮
     private func tabItem(_ id: String) -> some View {
         let active = store.loadedNoteID == id
+        let ext = (id as NSString).pathExtension
         return HStack(spacing: 5) {
+            // 文件类型：主题专属语言图标（与文件树同一套），没有就 SF Symbol + 语言色
+            FileTypeIcon(ext: ext, size: 13)
             Button {
                 store.openNote(id)
             } label: {
@@ -279,6 +282,15 @@ struct EditorView: View {
                     .foregroundStyle(active ? Color.primary : Color.secondary)
             }
             .buttonStyle(.plain)
+
+            if let label = FileTypeStyle.extensionLabel(for: id) {
+                Text(label)
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(active ? Color.secondary : Color.secondary.opacity(0.6))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(Color(nsColor: .quaternaryLabelColor).opacity(0.28), in: Capsule())
+            }
 
             Button {
                 store.closeTab(id)
