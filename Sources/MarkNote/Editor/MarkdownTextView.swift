@@ -167,8 +167,10 @@ final class MarkdownTextView: NSTextView {
             toggleComment()
             return
         }
-        // HTML 自动闭合（仅保留此项；成对补全已按用户决策删除）：无修饰键纯输入 ">"
-        if event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
+        // HTML 标签自动闭合：**只对标记语言**（HTML/XML/Vue/Svelte… 以及 Markdown）
+        // 生效。以前没判类型，于是 C++ 里 `#include <iostream>` 被补成 `</iostream>`（用户实测）。
+        if Self.allowsTagAutoClose(fileExtension: fileExtension),
+           event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
            event.charactersIgnoringModifiers == ">" {
             if htmlGreaterCloses() { return }
         }
@@ -475,6 +477,15 @@ final class MarkdownTextView: NSTextView {
     /// 打 `>` 时：仅在“正在输入一个未闭合的开标签”时补 `</tag>`。
     /// 判定要点：最近一段 `<name`（无 `>`、不包含换行、不以 `/` 开头）且参数名合法；
     /// 若用户本就在写 `</span>`（前趋含 `/`）→ 放过；后文已有同名闭合 → 放过。
+    /// `<tag>` 自动补 `</tag>` 的适用范围：标记语言 + Markdown；
+    /// C/C++/Python/Java… 里 `<` `>` 是运算符或模板/包含符，绝不能当标签补。
+    static func allowsTagAutoClose(fileExtension: String) -> Bool {
+        let ext = fileExtension.lowercased()
+        if ext.isEmpty { return false }
+        if MarkdownEditorView.isMarkdownExt(ext) { return true }
+        return CodeLanguage.of(ext: ext) == .markup
+    }
+
     private func htmlGreaterCloses() -> Bool {
         let ns = string as NSString
         let caret = selectedRange().location

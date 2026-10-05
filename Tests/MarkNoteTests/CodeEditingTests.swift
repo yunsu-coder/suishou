@@ -59,6 +59,19 @@ final class CodeEditingTests: XCTestCase {
 
     // MARK: - 补全规则（对齐 VS Code）
 
+    /// HTML 标签自动闭合只能作用于标记语言：C++ 的 `#include <iostream>` 被补成
+    /// `</iostream>` 就是这条规则漏出去的（用户实测报的 bug）。
+    func testTagAutoCloseOnlyForMarkup() {
+        for ext in ["html", "htm", "xhtml", "xml", "svg", "vue", "svelte", "md", "markdown"] {
+            XCTAssertTrue(MarkdownTextView.allowsTagAutoClose(fileExtension: ext),
+                          "\(ext) 是标记语言，允许 <tag> 自动补闭合")
+        }
+        for ext in ["cpp", "c", "h", "hpp", "py", "js", "ts", "go", "rs", "java", "swift", "sh", "json", ""] {
+            XCTAssertFalse(MarkdownTextView.allowsTagAutoClose(fileExtension: ext),
+                           "\(ext) 里的 <> 不是标签，不能补闭合")
+        }
+    }
+
     func testTypeOverAndAutoCloseRules() {
         // 下一个字符就是我要敲的符号 → 越过，不再插入
         XCTAssertTrue(MarkdownTextView.stealsNext(next: "}", typing: "}"))
