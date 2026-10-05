@@ -121,14 +121,22 @@ final class MarkdownTextView: NSTextView {
                 return
             }
             if selectedRange().length == 0 {
+                let next = characterAfterCaret()
+                // ① 下一个字符就是我要敲的符号 → 直接越过（VS Code type-over）：
+                //    这样 `{|}` 里再敲 `}`、`{|}` 前敲 `{` 都不会多出一个符号
+                if Self.isPairSymbol(ch), Self.stealsNext(next: next, typing: ch) {
+                    setSelectedRange(NSRange(location: selectedRange().location + 1, length: 0))
+                    return
+                }
                 if ch == "(" || ch == "[" || ch == "{" {
-                    if autoCloseBracket(ch) { return }
+                    // ② 后面紧跟单词字符 / 正处在注释或字符串里 → 不补对，只输入本身
+                    if Self.shouldAutoClose(next: next), !isInCommentOrString() {
+                        if autoCloseBracket(ch) { return }
+                    }
                 } else if ch == ")" || ch == "]" || ch == "}" {
-                    // 光标已停在闭合符上 → 直接越过（不重复输入）
                     if skipOverCloser(ch) { return }
                 } else if ch == "\"" || ch == "'" || ch == "`" {
-                    // 引号补全：后面紧跟字母/数字时不补（避免在词中间乱插）
-                    if autoCloseQuote(ch) { return }
+                    if !isInCommentOrString(), autoCloseQuote(ch) { return }
                 }
             }
         }
@@ -167,6 +175,26 @@ final class MarkdownTextView: NSTextView {
         super.keyDown(with: event)
     }
 
+
+    /// 光标后面的一个字符（用于 type-over / 补全判定）
+    private func characterAfterCaret() -> String? {
+        let ns = string as NSString
+        let loc = selectedRange().location
+        guard loc < ns.length else { return nil }
+        return ns.substring(with: NSRange(location: loc, length: 1))
+    }
+
+    /// 光标是否落在注释或字符串 token 里（用同一套代码着色器判断，避免在注释里乱补引号/括号）
+    private func isInCommentOrString() -> Bool {
+        let text = string
+        guard text.utf16.count <= 100_000 else { return false }   // 大文件不为一次按键做全量解析
+        let loc = selectedRange().location
+        guard loc > 0 else { return false }
+        let kind = CodeHighlighter.tokenize(text, language: CodeLanguage.of(ext: fileExtension))
+            .last { loc > $0.range.location && loc <= $0.range.location + $0.range.length }?.kind
+        return kind == .comment || kind == .string
+    }
+
     /// 输入开括号：补闭合符并把光标移到中间
     private func autoCloseBracket(_ ch: String) -> Bool {
         let close: String
@@ -200,6 +228,34 @@ final class MarkdownTextView: NSTextView {
         let pairs: [String: String] = ["(": ")", "[": "]", "{": "}", "\"": "\"", "'": "'", "`": "`"]
         guard let close = pairs[ch] else { return nil }
         return ch + selection + close
+    }
+
+
+    /// 成对符号（括号 + 引号）
+    static func isPairSymbol(_ ch: String) -> Bool {
+        ["(", ")", "[", "]", "{", "}", "\"", "'", "`"].contains(ch)
+    }
+
+    /// 下一个字符正好是我要输入的符号 → 越过，不再插入（VS Code type-over）
+    static func stealsNext(next: String?, typing ch: String) -> Bool {
+        guard let next, !next.isEmpty else { return false }
+        return next == ch
+    }
+
+    /// 下一位是单词字符（字母/数字/下划线）→ 不自动补对（VS Code 规则）；
+    /// 行尾或空白/符号则补。
+    static func shouldAutoClose(next: String?) -> Bool {
+        guard let next, let c = next.first else { return true }
+        return !(c.isLetter || c.isNumber || c == "_")
+    }
+
+    /// 行注释续行：在 `//` 注释里回车 → 新行继续 `// `；空注释行不再续
+    static func commentContinuation(beforeCaretInLine: String, indent: String, marker: String) -> String? {
+        let trimmed = beforeCaretInLine.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix(marker) else { return nil }
+        let body = trimmed.dropFirst(marker.count).trimmingCharacters(in: .whitespaces)
+        guard !body.isEmpty else { return nil }
+        return "\n" + indent + marker + " "
     }
 
     /// 光标两侧恰好是一对空符号 → 一次退格删掉整对
@@ -264,33 +320,68 @@ final class MarkdownTextView: NSTextView {
     }
 
     /// 代码智能换行：返回应插入的文本（含换行+缩进+括号补全）；nil = 走默认
+    /// 智能换行的纯逻辑（可单测）：before/after = 光标前/后的**行内**文本
+    /// - `{| }` / `[|]` / `(|)`（自动补全出来的空对）→ 中间起新行并按单位缩进，闭合符留在原处
+    /// - 行尾是开括号且**没有**配对的闭合符 → 缩进一级，并补上闭合符
+    /// - 整行只有闭括号 → 回退缩进
+    /// - Python 冒号块 / 括号续行 → 缩进一级
+    /// - 其余 → 沿用当前行缩进（普通换行）
+    static func smartNewline(before: String, after: String, indent: String, unit: Int, isPython: Bool) -> String {
+        let pad = String(repeating: " ", count: max(1, unit))
+        let beforeCore = before.trimmingCharacters(in: .whitespaces)
+        let afterCore = after.trimmingCharacters(in: .whitespaces)
+
+        // 1) 自动补全的空对：光标夹在中间 → 只缩进，绝不再补一个闭合符
+        let pairs: [(open: Character, close: Character)] = [("{", "}"), ("[", "]"), ("(", ")")]
+        if let p = pairs.first(where: { beforeCore.last == $0.open && afterCore.first == $0.close }) {
+            _ = p
+            return "\n" + indent + pad
+        }
+        // 2) 整行只剩闭括号 → 回退一级
+        if beforeCore.isEmpty, let c = afterCore.first, ")]}".contains(c) {
+            return "\n" + (indent.count >= pad.count ? String(indent.dropLast(pad.count)) : "")
+        }
+        // 3) 行尾是开括号（没有自动补全的闭合符）→ 缩进一级；`{` 再补一行闭合符
+        if let last = beforeCore.last, "{[(".contains(last) {
+            if last == "{" { return "\n" + indent + pad + "\n" + indent + "}" }
+            return "\n" + indent + pad
+        }
+        // 4) Python 的冒号块
+        if isPython, beforeCore.hasSuffix(":") { return "\n" + indent + pad }
+        // 5) 普通换行：沿用当前缩进
+        return "\n" + indent
+    }
+
+    /// 行注释续行：只在"真的是注释"时触发，且只认行注释符（// # 等）
+    private func commentContinuationAtCaret() -> String? {
+        let marker = Workspace.lineComment(for: fileExtension)
+        guard !marker.isEmpty, !marker.hasPrefix("<!--") else { return nil }
+        let ns = string as NSString
+        let sel = selectedRange()
+        let lineRange = ns.lineRange(for: NSRange(location: min(sel.location, ns.length), length: 0))
+        let line = ns.substring(with: lineRange).replacingOccurrences(of: "\n", with: "")
+        let indent = String(line.prefix(while: { $0 == " " || $0 == "\t" }))
+        let caretInLine = max(0, min(sel.location - lineRange.location, (line as NSString).length))
+        let before = (line as NSString).substring(to: caretInLine)
+        return Self.commentContinuation(beforeCaretInLine: before, indent: indent, marker: marker)
+    }
+
     private func codeSmarterNewline() -> String? {
         let ns = string as NSString
         let sel = selectedRange()
         guard ns.length > 0 else { return nil }
         let lineRange = ns.lineRange(for: NSRange(location: min(sel.location, ns.length), length: 0))
         let line = ns.substring(with: lineRange).replacingOccurrences(of: "\n", with: "")
-        let ws = String(line.prefix(while: { $0 == " " || $0 == "\t" }))
-        let core = String(line.dropFirst(ws.count)).trimmingCharacters(in: .whitespaces)
-        let indentUnit = MarkdownEditorView.indentUnit(for: fileExtension)
-        let unit = String(repeating: " ", count: indentUnit)   // 统一空格缩进（tabStops 同规）
-        if core.isEmpty {
-            return "\n" + ws
+        let caretInLine = max(0, min(sel.location - lineRange.location, (line as NSString).length))
+        let before = (line as NSString).substring(to: caretInLine)
+        let after = (line as NSString).substring(from: caretInLine)
+        let indent = String(line.prefix(while: { $0 == " " || $0 == "\t" }))
+        if after.isEmpty, before.trimmingCharacters(in: .whitespaces).isEmpty {
+            return "\n" + indent          // 空行照原缩进
         }
-        if core.hasSuffix("{") {
-            // VSCode：{ 回车 → {⏎    ⏎}  光标落在中间行
-            let middle = "\n" + ws + unit
-            return middle + "\n" + ws + "}"
-        }
-        // Python 的冒号块 + 括号未闭合的续行：往里缩一级（VS Code 同款）
-        let pyColon = fileExtension.lowercased() == "py" && core.hasSuffix(":")
-        if pyColon || core.hasSuffix("(") || core.hasSuffix("[") {
-            return "\n" + ws + unit
-        }
-        if core.hasPrefix("}") || core == "}" {
-            return "\n" + (ws.count >= unit.count ? String(ws.dropLast(unit.count)) : ws)
-        }
-        return "\n" + ws
+        return Self.smartNewline(before: before, after: after, indent: indent,
+                                 unit: MarkdownEditorView.indentUnit(for: fileExtension),
+                                 isPython: fileExtension.lowercased() == "py")
     }
 
     /// ⌘⇧\：跳转到匹配括号（光标可停在任一端）
@@ -412,6 +503,14 @@ final class MarkdownTextView: NSTextView {
     // MARK: - 手感：列表延续 / 缩进 / Tab
 
     override func insertNewline(_ sender: Any?) {
+        // 代码文件里在行注释中回车 → 自动续上注释符（VS Code 行为）
+        if FeatureModules.isEnabled(FeatureModules.editorCodeSmart),
+           Workspace.isEditorText(fileExtension), !MarkdownEditorView.isMarkdownExt(fileExtension),
+           isInCommentOrString(),
+           let cont = commentContinuationAtCaret() {
+            insertText(cont, replacementRange: selectedRange())
+            return
+        }
         // 代码文件（C/C++ 等）：VSCode 智能换行 —— 括号自动补/缩进延续/回退
         if Workspace.isEditorText(fileExtension), !MarkdownEditorView.isMarkdownExt(fileExtension),
            let replacement = codeSmarterNewline() {

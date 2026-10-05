@@ -55,6 +55,83 @@ final class CodeEditingTests: XCTestCase {
 
     // MARK: - 代码文件与散文分开对待
 
+    // MARK: - 智能换行（自动补全后的回车）
+
+    // MARK: - 补全规则（对齐 VS Code）
+
+    func testTypeOverAndAutoCloseRules() {
+        // 下一个字符就是我要敲的符号 → 越过，不再插入
+        XCTAssertTrue(MarkdownTextView.stealsNext(next: "}", typing: "}"))
+        XCTAssertTrue(MarkdownTextView.stealsNext(next: "{", typing: "{"))
+        XCTAssertTrue(MarkdownTextView.stealsNext(next: "\"", typing: "\""))
+        XCTAssertFalse(MarkdownTextView.stealsNext(next: "a", typing: "{"))
+        XCTAssertFalse(MarkdownTextView.stealsNext(next: nil, typing: "{"))
+
+        // 后面紧跟单词字符 → 不自动补对（VS Code 规则）
+        XCTAssertTrue(MarkdownTextView.shouldAutoClose(next: nil), "行尾要补")
+        XCTAssertTrue(MarkdownTextView.shouldAutoClose(next: " "), "空格要补")
+        XCTAssertTrue(MarkdownTextView.shouldAutoClose(next: ";"), "符号要补")
+        XCTAssertFalse(MarkdownTextView.shouldAutoClose(next: "int"), "后面是单词就不补")
+        XCTAssertFalse(MarkdownTextView.shouldAutoClose(next: "9"))
+        XCTAssertFalse(MarkdownTextView.shouldAutoClose(next: "_x"))
+    }
+
+    func testCommentContinuation() {
+        // `// 说明` 回车 → 新行继续 `// `
+        XCTAssertEqual(MarkdownTextView.commentContinuation(beforeCaretInLine: "    // 说明",
+                                                            indent: "    ", marker: "//"),
+                       "\n    // ")
+        // 只有注释符（空注释）→ 不续，普通换行
+        XCTAssertNil(MarkdownTextView.commentContinuation(beforeCaretInLine: "    //",
+                                                          indent: "    ", marker: "//"))
+        // 不是注释 → 不续
+        XCTAssertNil(MarkdownTextView.commentContinuation(beforeCaretInLine: "    int a = 1;",
+                                                          indent: "    ", marker: "//"))
+        // Python 注释符
+        XCTAssertEqual(MarkdownTextView.commentContinuation(beforeCaretInLine: "  # 步骤一",
+                                                            indent: "  ", marker: "#"),
+                       "\n  # ")
+    }
+
+    func testNewlineInsideAutoClosedBraceOnlyIndents() {
+        // `{|}` 回车 → 中间起一行缩进；**不再补第二个 }**
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "    {", after: "}",
+                                                     indent: "    ", unit: 4, isPython: false),
+                       "\n        ", "光标夹在自动补全的 {} 中间：只缩进")
+        let out = MarkdownTextView.smartNewline(before: "    int main() {", after: "}",
+                                                indent: "    ", unit: 4, isPython: false)
+        XCTAssertFalse(out.contains("}\n") || out.hasSuffix("}"), "自动补全已给了 }，不能再来一个：\(out.debugDescription)")
+        // 数组 / 调用同理
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "x = [", after: "]", indent: "", unit: 4, isPython: false),
+                       "\n    ")
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "f(", after: ")", indent: "", unit: 4, isPython: false),
+                       "\n    ")
+    }
+
+    func testNewlineAfterBareOpenBraceAddsCloser() {
+        // 行尾是 `{` 且没有闭合符 → 缩进一级 + 补一行 }（VS Code 行为）
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "if (x) {", after: "",
+                                                     indent: "", unit: 4, isPython: false),
+                       "\n    \n}")
+        // 只有 ( 或 [ 时补缩进即可，不补闭合符
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "while (", after: "", indent: "", unit: 4, isPython: false),
+                       "\n    ")
+    }
+
+    func testNewlineDedentAndPythonColon() {
+        // 整行只剩 } → 回退一级
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "    ", after: "}", indent: "    ", unit: 4, isPython: false),
+                       "\n")
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "        ", after: "}", indent: "        ", unit: 4, isPython: false),
+                       "\n    ")
+        // Python 冒号块缩进一级
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "    if x:", after: "", indent: "    ", unit: 4, isPython: true),
+                       "\n        ")
+        // 普通行沿用缩进
+        XCTAssertEqual(MarkdownTextView.smartNewline(before: "    int a = 1;", after: "", indent: "    ", unit: 4, isPython: false),
+                       "\n    ")
+    }
+
     func testCodeFilesAreClassifiedAsCode() {
         XCTAssertTrue(EditorView.isCodeNote("test/1.cpp"))
         XCTAssertTrue(EditorView.isCodeNote("script.py"))
