@@ -13,7 +13,7 @@ final class TerminalTests: XCTestCase {
         func cmd(_ ext: String, _ file: String = "/w/a.py") -> String? {
             RunCommand.command(forExt: ext, file: file, buildDir: dir)
         }
-        XCTAssertEqual(cmd("py"), "python3 '/w/a.py'")
+        XCTAssertTrue(cmd("py")?.contains("python3 '/w/a.py'") == true, "Python 无 venv 时回落系统 python3")
         XCTAssertEqual(cmd("js"), "node '/w/a.py'")
         XCTAssertTrue(cmd("ts")?.contains("tsx '/w/a.py'") == true, "TS 优先 tsx")
         XCTAssertEqual(cmd("go"), "go run '/w/a.py'")
@@ -33,6 +33,73 @@ final class TerminalTests: XCTestCase {
         XCTAssertEqual(RunCommand.shellQuote("/a b/c.py"), "'/a b/c.py'")
         XCTAssertEqual(RunCommand.shellQuote("/a/it's.py"), "'/a/it'\\''s.py'")
         XCTAssertEqual(RunCommand.shellQuote("$HOME/x"), "'$HOME/x'")
+    }
+
+    // MARK: - 第三方库 / 项目识别（IDE 式运行）
+
+    func testThirdPartyLibsArePassedViaPkgConfig() throws {
+        let ws = FileManager.default.temporaryDirectory.appendingPathComponent("mn-run-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: ws, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: ws) }
+        let src = ws.appendingPathComponent("main.cpp")
+        try "int main(){}".write(to: src, atomically: true, encoding: .utf8)
+
+        var cfg = RunConfig()
+        cfg.libs = ["fmt", "sdl2"]
+        cfg.cxxFlags = ["-std=c++20", "-Wall"]
+        cfg.linkFlags = ["-lpthread"]
+        try cfg.save(to: ws)
+
+        let cmd = try XCTUnwrap(RunCommand.command(forExt: "cpp", file: src.path, workspace: ws))
+        XCTAssertTrue(cmd.contains("pkg-config --cflags --libs 'fmt' 'sdl2'"), "第三方库走 pkg-config：\(cmd)")
+        XCTAssertTrue(cmd.contains("-std=c++20"), "自定义编译参数要带上")
+        XCTAssertTrue(cmd.contains("-I/opt/homebrew/include"), "Homebrew 头文件路径要带上")
+        XCTAssertTrue(cmd.contains("-lpthread"), "链接参数要带上")
+        // 已经显式给了 -std= 就不该再塞默认的 -std=c++17
+        XCTAssertFalse(cmd.contains("-std=c++17"))
+    }
+
+    func testPythonPrefersWorkspaceVenv() throws {
+        let ws = FileManager.default.temporaryDirectory.appendingPathComponent("mn-venv-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: ws, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: ws) }
+        let src = ws.appendingPathComponent("a.py")
+        try "print(1)".write(to: src, atomically: true, encoding: .utf8)
+
+        let cmd = try XCTUnwrap(RunCommand.command(forExt: "py", file: src.path, workspace: ws))
+        XCTAssertTrue(cmd.contains(".venv/bin/python"), "有虚拟环境就用它：\(cmd)")
+
+        var cfg = RunConfig()
+        cfg.python = "/opt/homebrew/bin/python3.12"
+        try cfg.save(to: ws)
+        let cmd2 = try XCTUnwrap(RunCommand.command(forExt: "py", file: src.path, workspace: ws))
+        XCTAssertTrue(cmd2.contains("'/opt/homebrew/bin/python3.12'"), "手工指定的解释器优先：\(cmd2)")
+    }
+
+    func testProjectDetectionAndCustomCommands() throws {
+        let ws = FileManager.default.temporaryDirectory.appendingPathComponent("mn-proj-\(UUID().uuidString)")
+        let srcDir = ws.appendingPathComponent("src")
+        try FileManager.default.createDirectory(at: srcDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: ws) }
+        let src = srcDir.appendingPathComponent("main.cpp")
+        try "int main(){}".write(to: src, atomically: true, encoding: .utf8)
+
+        XCTAssertEqual(ProjectKind.detect(in: ws), .single)
+        XCTAssertEqual(ProjectKind.detect(from: src, workspace: ws).kind, .single, "没有项目文件就是单文件模式")
+
+        try "cmake_minimum_required(VERSION 3.20)".write(to: ws.appendingPathComponent("CMakeLists.txt"),
+                                                         atomically: true, encoding: .utf8)
+        XCTAssertEqual(ProjectKind.detect(in: ws), .cmake)
+        XCTAssertEqual(ProjectKind.detect(from: src, workspace: ws).kind, .cmake, "从 src/ 往上找到项目根")
+        let cmd = try XCTUnwrap(RunCommand.command(forExt: "cpp", file: src.path, workspace: ws))
+        XCTAssertTrue(cmd.contains("cmake -S . -B build"), "CMake 项目走 cmake 构建：\(cmd)")
+
+        // 自定义命令优先级最高，且支持占位符
+        var cfg = RunConfig()
+        cfg.commands["cpp"] = "echo custom {stem} in {dir}"
+        try cfg.save(to: ws)
+        let custom = try XCTUnwrap(RunCommand.command(forExt: "cpp", file: src.path, workspace: ws))
+        XCTAssertEqual(custom, "echo custom main in '\(srcDir.path)'")
     }
 
     /// 终端配色：ANSI 16 色齐全（VS Code 默认 Dark+ / Light+ 两套），明暗各一套

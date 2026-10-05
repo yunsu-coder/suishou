@@ -66,6 +66,7 @@ struct TerminalPanel: View {
     @State private var term = TerminalStore.shared
     @State private var dragBase: Double? = nil
     @AppStorage("terminalPanelHeight") private var height: Double = 260
+    @State private var showRunConfig = false
 
     private var theme: TerminalTheme {
         TerminalTheme.current(fontFamily: appAppearance.codeFontFamily)
@@ -100,6 +101,9 @@ struct TerminalPanel: View {
             .background(Color(nsColor: theme.background))
         }
         .frame(height: height)
+        .sheet(isPresented: $showRunConfig) {
+            RunConfigSheet().environment(store)
+        }
         .onAppear {
             if term.tabs.isEmpty { newTab() }
             wireMenuActions()
@@ -185,6 +189,15 @@ struct TerminalPanel: View {
             }
             .buttonStyle(.borderless)
             .help(_LL("重启终端", "Restart Terminal"))
+
+            Button {
+                showRunConfig = true
+            } label: {
+                Image(systemName: "shippingbox")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .buttonStyle(.borderless)
+            .help(_LL("运行配置：第三方库 / 编译参数", "Run Config: libraries and flags"))
 
             Button {
                 term.active?.clear()
@@ -304,7 +317,7 @@ struct TerminalPanel: View {
             return
         }
         let ext = (id as NSString).pathExtension
-        guard let cmd = RunCommand.command(forExt: ext, file: url.path) else {
+        guard let cmd = RunCommand.command(forExt: ext, file: url.path, workspace: store.notesDir) else {
             tab.run("echo \(RunCommand.shellQuote(_L("「.\(ext.isEmpty ? "无扩展名" : ext)」没有内置运行方式，直接敲命令吧", "No built-in runner for .\(ext.isEmpty ? "(none)" : ext); type the command yourself")))")
             return
         }
