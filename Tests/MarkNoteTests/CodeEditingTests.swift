@@ -59,6 +59,29 @@ final class CodeEditingTests: XCTestCase {
 
     // MARK: - 补全规则（对齐 VS Code）
 
+    /// Tab 跳出：空配对里按 Tab → 光标到闭合符之后（不再插空格）
+    func testTabOutOfEmptyPair() {
+        // `{|}` → Tab 跳到 } 之后
+        XCTAssertEqual(MarkdownTextView.tabOutTarget(in: "{}", caret: 1), 2)
+        XCTAssertEqual(MarkdownTextView.tabOutTarget(in: "()", caret: 1), 2)
+        XCTAssertEqual(MarkdownTextView.tabOutTarget(in: "[]", caret: 1), 2)
+        XCTAssertEqual(MarkdownTextView.tabOutTarget(in: "\"\"", caret: 1), 2)
+        // 回车展开后的三行结构：光标在中间行 → Tab 跳到 } 之后
+        let expanded = "int main() {\n    \n}"
+        let caret = (expanded as NSString).range(of: "    \n}").location + 4
+        XCTAssertEqual(MarkdownTextView.tabOutTarget(in: expanded, caret: caret),
+                       (expanded as NSString).length, "跳到 } 之后")
+        // 配对里有代码 → 不跳出，照常缩进
+        XCTAssertNil(MarkdownTextView.tabOutTarget(in: "(a)", caret: 2))
+        // 大括号里已经有代码（光标停在 ; 之后）→ 不跳出，照常缩进
+        XCTAssertNil(MarkdownTextView.tabOutTarget(in: "{\n  x();\n}", caret: 8))
+        // 但光标停在里面那对空 () 里 → 跳出是合理的
+        XCTAssertEqual(MarkdownTextView.tabOutTarget(in: "{\n  x();\n}", caret: 6), 7)
+        // 光标右边不是闭合符 → 不跳出
+        XCTAssertNil(MarkdownTextView.tabOutTarget(in: "abc", caret: 2))
+        XCTAssertNil(MarkdownTextView.tabOutTarget(in: "", caret: 0))
+    }
+
     /// HTML 标签自动闭合只能作用于标记语言：C++ 的 `#include <iostream>` 被补成
     /// `</iostream>` 就是这条规则漏出去的（用户实测报的 bug）。
     func testTagAutoCloseOnlyForMarkup() {
