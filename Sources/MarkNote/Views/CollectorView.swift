@@ -1389,6 +1389,7 @@ struct CollectorView: View {
             downloadSample = nil
             // 跳过重复：同一条链接本次已入库过就不再下
             let key = (c.fullURL ?? c.pageURL)?.absoluteString ?? c.id
+            var seenImageSources = Set<String>()   // 本批已下过的图（按原图 URL 去重）
             if request.skipDuplicates, importedURLs.contains(key) {
                 downloadPhase = _L("跳过重复", "Skipping duplicate")
                 skipped += 1
@@ -1412,8 +1413,18 @@ struct CollectorView: View {
                 if let note = outcome.note { failures.append("\(name)：\(note)") }
             } else if c.kind == "image" {
                 downloadPhase = _L("正在下载图片", "Downloading image")
-                guard let src = c.fullURL ?? c.thumbURL else {
+                guard let raw = c.fullURL ?? c.thumbURL else {
                     failures.append(_L("\(name)：这条没有图片地址", "\(name): no image URL"))
+                    continue
+                }
+                // 有原图地址就先把 URL 归一化成原图（缩略图参数/尺寸目录换掉）；
+                // 只有缩略图时保持原样（Bing 缓存的缩略图改参数反而取不到）
+                let src = c.fullURL != nil ? CollectImageQuality.upgrade(raw) : raw
+                // 同一张图在一批里出现多次（同图不同尺寸）→ 只下一次
+                let identity = CollectImageQuality.identity(for: src)
+                if !seenImageSources.insert(identity).inserted {
+                    failures.append(_L("\(name)：与前面某张是同一张图（已按原图去重）",
+                                       "\(name): duplicate of an earlier image (deduped at original size)"))
                     continue
                 }
                 switch await store.downloadCollectedImage(from: src, preferredName: name, referer: c.pageURL) {
