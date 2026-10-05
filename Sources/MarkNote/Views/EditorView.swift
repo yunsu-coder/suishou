@@ -81,6 +81,10 @@ struct EditorView: View {
         } else {
             VStack(spacing: 0) {
                 if !readerFocus { header }
+                // 冲突横幅：选过「稍后处理」之后也一直挂着，避免"忘了处理 = 一直在丢改动"
+                if store.conflictHandled || store.externalConflict {
+                    conflictBanner
+                }
                 Group {
                     switch effectiveMode {
                     case .editor:
@@ -202,6 +206,29 @@ struct EditorView: View {
     }
 
     // MARK: - 标题
+
+    /// 外部修改冲突的常驻横幅（比一闪而过的提示靠谱：没处理就一直提醒）
+    private var conflictBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundStyle(.orange)
+            Text(_LL("文件在外部被修改，自动保存已暂停", "File changed outside — autosave is paused"))
+                .font(.caption)
+            Spacer(minLength: 8)
+            Button(_LL("保留我的内容", "Keep Mine")) {
+                store.resolveExternalConflict(.keepMine)
+            }
+            .controlSize(.small)
+            Button(_LL("载入磁盘版本", "Load Disk Version")) {
+                store.resolveExternalConflict(.reload)
+            }
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(Color.orange.opacity(0.14))
+    }
 
     private var header: some View {
         HStack(spacing: 8) {

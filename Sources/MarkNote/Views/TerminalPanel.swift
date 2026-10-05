@@ -286,6 +286,12 @@ struct TerminalPanel: View {
     /// ▶ 运行当前文件：等价于在终端里敲 `cd 目录 && 运行命令`（先落盘，跑的是最新内容）
     private func runCurrentFile() {
         guard let id = store.selectedNoteID else { return }
+        // 冲突态下磁盘上不是编辑器里的内容：先让用户处理，别跑一份旧代码骗自己
+        if store.externalConflict || store.conflictHandled {
+            term.active?.run("echo \(RunCommand.shellQuote(_L("文件在外部被改过，编辑器内容还没落盘 —— 先在顶栏解决冲突（或 ⌘S），再运行", "File changed on disk and your edits are not saved yet — resolve the conflict in the banner above (or ⌘S) first")))")
+            store.reopenConflictPrompt()
+            return
+        }
         term.pendingFocus = true
         DispatchQueue.main.async { term.active?.focus() }
         if term.tabs.isEmpty { newTab() }

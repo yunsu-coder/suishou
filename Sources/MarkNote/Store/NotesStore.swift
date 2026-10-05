@@ -613,9 +613,16 @@ final class NotesStore {
             // 全新空文件：延迟到首次有内容再落地
             if !FileManager.default.fileExists(atPath: noteURL(id).path) { return }
         }
-        // 同目录同名校验：冲突时回退标题并提示
+        // 同名判定按「完整文件名（含扩展名）」：1.cpp 与 1.md 是两份不同文件，
+        // 不能因为去掉扩展名后都叫「1」就拒绝保存 —— 实测它会把 1.cpp 的保存整个挡掉。
+        let fileName = (id as NSString).lastPathComponent
         if let item = index.first(where: { $0.id == id }),
-           hasDuplicateTitle(title, category: item.category, excluding: id) {
+           index.contains(where: { other in
+               other.id != id
+                   && other.category == item.category
+                   && (other.id as NSString).lastPathComponent
+                        .caseInsensitiveCompare(fileName) == .orderedSame
+           }) {
             currentTitle = item.title
             showHint(_L("该文件夹下已存在同名文件（标题已还原）", "A file with the same name already exists in this folder (title has been reverted)"))
             return
@@ -1721,6 +1728,18 @@ final class NotesStore {
               let known = loadedExternalFingerprint,
               known != disk else { return }
         loadedExternalFingerprint = disk
+        // 自己这份没有未保存改动 → 直接静默载入磁盘版本。
+        // 否则「外部工具/另一处写了一下文件」会把编辑器永久卡在冲突态（自动保存停摆）。
+        if !dirty {
+            if let note = ioQueue.sync(execute: { readNote(id) }) {
+                workingText = note.content
+                currentTitle = Workspace.title(for: noteURL(id))
+                documentRevision &+= 1
+                showHint(_L("文件在外部被修改，已自动载入磁盘版本",
+                            "File changed on disk — reloaded automatically"))
+            }
+            return
+        }
         if !conflictHandled {
             externalConflict = true
         }

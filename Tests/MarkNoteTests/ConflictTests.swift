@@ -21,20 +21,40 @@ final class ConflictTests: XCTestCase {
         return store.selectedNoteID ?? ""
     }
 
+    /// 自己没有任何未保存改动 → 外部改了就直接静默载入磁盘版本（VS Code 同款行为）。
+    /// 旧策略会在这里弹冲突并暂停自动保存，实测把用户卡死在"改了不落盘"的状态。
     @MainActor
-    func testExternalChangeDetected() throws {
+    func testExternalChangeAutoReloadsWhenNoLocalEdits() throws {
         let (store, dir) = try TestEnv.makeStore()
         defer { try? FileManager.default.removeItem(at: dir) }
         let id = create(store, "并发笔记.md")
         TestEnv.pump()
-        XCTAssertFalse(store.externalConflict)
+        XCTAssertFalse(store.dirty)
 
         injectExternal(store, id: id, text: "另一端的修改")
         store.reloadIndex()
         TestEnv.pump(0.5)
 
-        XCTAssertTrue(store.externalConflict, "外部修改后应进入冲突状态")
-        XCTAssertEqual(store.workingText, "", "冲突未解决时编辑器内容不应被外部版本替换")
+        XCTAssertFalse(store.externalConflict, "无本地改动时不该弹冲突")
+        XCTAssertEqual(store.workingText, "另一端的修改", "应自动载入磁盘版本")
+    }
+
+    /// 反之：有未保存改动 → 仍然进冲突态，不能覆盖也不能被覆盖
+    @MainActor
+    func testExternalChangeWithLocalEditsEntersConflict() throws {
+        let (store, dir) = try TestEnv.makeStore()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let id = create(store, "并发笔记2.md")
+        TestEnv.pump()
+        store.workingText = "我的本地修改"
+        store.dirty = true
+
+        injectExternal(store, id: id, text: "另一端的修改")
+        store.reloadIndex()
+        TestEnv.pump(0.5)
+
+        XCTAssertTrue(store.externalConflict, "有未保存改动时外部修改应进入冲突状态")
+        XCTAssertEqual(store.workingText, "我的本地修改", "冲突未解决时编辑器内容不应被外部版本替换")
     }
 
     @MainActor
