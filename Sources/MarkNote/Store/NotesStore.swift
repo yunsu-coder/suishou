@@ -1676,6 +1676,18 @@ final class NotesStore {
         loadCategories()
     }
 
+    /// 删除文件夹**连同其中的文件**（删除是物理删除，视图层已用二次确认警告过）
+    func deleteCategoryWithContents(_ id: String) {
+        let ids = index.filter { $0.category == id }.map(\.id)
+        if !ids.isEmpty { deleteNotes(ids: ids) }
+        deleteCategory(id)
+    }
+
+    /// 文件夹里有多少文件（删除确认框里显示用）
+    func noteCount(inCategory id: String) -> Int {
+        index.filter { $0.category == id }.count
+    }
+
     /// 移动文件到指定目录（物理移动；id 重映射）
     func assignCategory(_ noteID: String, _ catID: String) -> Bool {
         let src = noteURL(noteID)

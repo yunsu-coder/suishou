@@ -44,4 +44,30 @@ final class SameNameSaveTests: XCTestCase {
         XCTAssertTrue(store.createNote(title: "note.md", category: ""))
         XCTAssertFalse(store.createNote(title: "note.md", category: ""), "同目录同名同扩展名必须拒绝")
     }
+
+    /// 文件夹删除：树行 hover 的 🗑 现在两种方式都要能用
+    @MainActor
+    func testDeleteFolderTwoWays() throws {
+        let (store, temp) = try TestEnv.makeStore()
+        defer { try? FileManager.default.removeItem(at: temp) }
+
+        XCTAssertTrue(store.createNote(title: "a.md", category: "docs"))
+        XCTAssertTrue(store.createNote(title: "b.md", category: "docs"))
+        TestEnv.pump(0.4)   // 索引刷新是异步的（后台扫描 → 主线程应用）
+        XCTAssertEqual(store.noteCount(inCategory: "docs"), 2, "确认框要能报出文件数")
+
+        // 方式一：只删文件夹，文件移到根目录
+        store.deleteCategory("docs")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.notesDir.appendingPathComponent("docs").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.notesDir.appendingPathComponent("a.md").path),
+                      "文件应被移到根目录而不是删掉")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: store.notesDir.appendingPathComponent("b.md").path))
+
+        // 方式二：连同文件一起删
+        XCTAssertTrue(store.createNote(title: "c.md", category: "tmp2"))
+        store.deleteCategoryWithContents("tmp2")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.notesDir.appendingPathComponent("tmp2").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: store.notesDir.appendingPathComponent("tmp2/c.md").path),
+                       "连同内容一起删时文件也不该留下")
+    }
 }
