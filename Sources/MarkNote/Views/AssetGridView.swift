@@ -243,6 +243,17 @@ struct AssetGridView: View {
         }
     }
 
+
+    /// 打开大图预览：图片/视频 → 预览窗口；其它类型 → 在 Finder 中显示
+    private func openPreview(_ item: NotesStore.AttachmentItem) {
+        let kind = AssetSyntax.kind(forExt: item.url.pathExtension)
+        guard kind == .image || kind == .video else {
+            NSWorkspace.shared.activateFileViewerSelecting([item.url])
+            return
+        }
+        previewItem = item
+    }
+
     private func tile(_ item: NotesStore.AttachmentItem) -> some View {
         let isSel = selectedIDs.contains(item.id)
         let refs = refCounts[item.name] ?? 0
@@ -275,6 +286,14 @@ struct AssetGridView: View {
                 .foregroundStyle(refs > 0 ? .secondary : .tertiary)
         }
         .contentShape(Rectangle())
+        // 双击缩略图 = 打开大图预览（图片）/ 播放（视频）—— 选中 + 底部按钮仍然可用，
+        // 但"想看一眼大图"不该还要先去底下找按钮。
+        .onTapGesture(count: 2) {
+            selectedIDs = [item.id]
+            selectionAnchor = item.id
+            selected = item
+            openPreview(item)
+        }
         .onTapGesture {
             let mods = NSEvent.modifierFlags
             let result = AssetSelection.apply(current: selectedIDs, clicked: item.id,
@@ -284,6 +303,18 @@ struct AssetGridView: View {
             selectedIDs = result.selection
             selectionAnchor = result.anchor
             selected = result.selection.contains(item.id) ? item : filtered.first { selectedIDs.contains($0.id) }
+        }
+        .contextMenu {
+            let k = AssetSyntax.kind(forExt: item.url.pathExtension)
+            if k == .image || k == .video {
+                Button(k == .video ? _L("播放", "Play") : _L("预览大图", "Preview")) { openPreview(item) }
+            }
+            Button(_L("插入到光标处", "Insert")) { insert(item) }
+            Button(_L("复制引用", "Copy Reference")) { copyRef(item) }
+            Divider()
+            Button(_L("在 Finder 中显示", "Reveal in Finder")) {
+                NSWorkspace.shared.activateFileViewerSelecting([item.url])
+            }
         }
         // 拖到编辑器：携带**短引用文本**（不是文件 URL —— 否则编辑器会再存一份素材）
         .onDrag {

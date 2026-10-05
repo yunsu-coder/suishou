@@ -58,7 +58,7 @@ struct MediaPreviewSheet: View {
             Divider()
             content
         }
-        .frame(minWidth: 620, minHeight: 460)
+        .frame(minWidth: 880, minHeight: 620)
         .background(Color(nsColor: appAppearance.editorBackground))
         .task {
             await loadImage()
