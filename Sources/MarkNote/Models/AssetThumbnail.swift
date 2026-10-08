@@ -34,8 +34,17 @@ enum AssetThumbnail {
                 cont.resume(returning: rep.nsImage)
             }
         }
-        if let image { cache.setObject(image, forKey: k) }
-        return image
+        if let image {
+            cache.setObject(image, forKey: k)
+            return image
+        }
+        // 兜底：QuickLook 偶尔对个别文件返回空（损坏缩略图缓存 / 冷启动）→ 直读原图，
+        // 画面上至少不会空白（大图由视图侧缩放）。
+        if let direct = NSImage(contentsOf: url) {
+            cache.setObject(direct, forKey: k)
+            return direct
+        }
+        return nil
     }
 
     static func clearCache() { cache.removeAllObjects() }

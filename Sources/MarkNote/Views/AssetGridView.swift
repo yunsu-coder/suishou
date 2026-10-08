@@ -74,19 +74,27 @@ struct AssetGridView: View {
                 // 参考用户的设计稿：左侧浏览器（工具条 / 平铺大预览 / 胶片条 / 信息操作条），
                 // 右侧一整列专门看原图。面板太窄（例如挂在侧栏里）自动退回单列。
                 GeometryReader { geo in
-                    let twoPane = geo.size.width >= 620
+                    let wide = geo.size.width >= 480
+                    let hasImage = selected.map { AssetSyntax.kind(forExt: $0.url.pathExtension) == .image } ?? false
                     HStack(spacing: 0) {
                         VStack(spacing: 0) {
                             previewPane
                             Divider()
                             strip
+                            // 窄面板（挂侧栏时）不并排：原图改为紧跟在预览下面的一行，
+                            // 保证"看原图"这个能力在任何宽度都在
+                            if !wide, hasImage, selected != nil {
+                                Divider()
+                                originalPane
+                                    .frame(height: 220)
+                            }
                             if let sel = selected {
                                 Divider()
                                 footer(sel)
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        if twoPane, selected != nil {
+                        if wide, hasImage, selected != nil {
                             Divider()
                             originalPane
                                 .frame(minWidth: 300, idealWidth: 380)
@@ -271,7 +279,9 @@ struct AssetGridView: View {
                         previewPlaceholder(item, symbol: "play.rectangle")
                     }
                 } else if kind == .image {
-                    if let img = previewImage {
+                    // 优先用刚算好的大图；还没好就先拿网格里那张 512 缩略图顶着，
+                    // 避免选中瞬间是空白的
+                    if let img = previewImage ?? AssetThumbnail.cached(for: item.url, maxPixel: 512) {
                         Image(nsImage: img)
                             .resizable()
                             .interpolation(.high)
@@ -368,7 +378,9 @@ struct AssetGridView: View {
             Divider()
             ZStack {
                 Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground)
-                if let img = originalImage, let item = selected {
+                if let img = originalImage
+                    ?? selected.flatMap({ AssetThumbnail.cached(for: $0.url, maxPixel: 512) }),
+                   let item = selected {
                     ScrollView([.horizontal, .vertical]) {
                         Image(nsImage: img)
                             .resizable()
