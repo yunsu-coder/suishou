@@ -89,17 +89,28 @@ struct EditorView: View {
         if store.loadedNoteID == nil && store.previewMedium == nil {
             // 没打开文件时也能用终端（VS Code：面板与有没有打开文件无关）
             VStack(spacing: 0) {
-                if assetPanelOpen, hasAssetView, !readerFocus { assetTopPanel; Divider() }
+                if assetPanelOpen, hasAssetView, !readerFocus {
+                    assetTopPanel
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    Divider()
+                }
                 EmptyStateView()
                     .frame(minWidth: 520)
                 if terminalOpen, hasTerminalView, !readerFocus {
                     Divider()
                     TerminalPanel { terminalOpen = false }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
+            .animation(AppMotion.panel(reduceMotion), value: assetPanelOpen)
+            .animation(AppMotion.panel(reduceMotion), value: terminalOpen)
         } else {
             VStack(spacing: 0) {
-                if assetPanelOpen, hasAssetView, !readerFocus { assetTopPanel; Divider() }
+                if assetPanelOpen, hasAssetView, !readerFocus {
+                    assetTopPanel
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                    Divider()
+                }
                 if !readerFocus { header }
                 // 冲突横幅：选过「稍后处理」之后也一直挂着，避免"忘了处理 = 一直在丢改动"
                 if store.conflictHandled || store.externalConflict {
@@ -151,7 +162,8 @@ struct EditorView: View {
                 }
                 if !readerFocus { statusBar }
             }
-            .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: terminalOpen)
+            .animation(AppMotion.panel(reduceMotion), value: terminalOpen)
+            .animation(AppMotion.panel(reduceMotion), value: assetPanelOpen)
             // 动画② 触发点（笔记切换 6pt + fade 0.12s）：整块内容随 loadedNoteID 换档（防卡：轻量） 
             .id("doc-\(store.loadedNoteID ?? "none")")
             .compositingGroup()
@@ -273,9 +285,14 @@ struct EditorView: View {
                 HStack(spacing: 4) {
                     ForEach(store.openTabs, id: \.self) { id in
                         tabItem(id)
+                            .transition(.asymmetric(
+                                insertion: .scale(scale: 0.88, anchor: .bottom).combined(with: .opacity),
+                                removal: .opacity.combined(with: .scale(scale: 0.94, anchor: .bottom))
+                            ))
                     }
                 }
                 .padding(.vertical, 2)
+                .animation(AppMotion.item(reduceMotion), value: store.openTabs)
             }
             .scrollClipDisabled()
         }

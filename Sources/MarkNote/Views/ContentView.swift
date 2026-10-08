@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var sidebarHidden = false
     /// 阅读专注态（临时 UI 状态：隐藏侧栏 / AI 面板 / tab 栏，只留预览；退出即还原，不写偏好）
     @State private var readerFocus = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotionSide
     @State private var readerKeyMonitor: Any?
     /// 鼠标是否停在窗口顶部 8pt 内（含标题栏区域，由 mouseMoved 监听驱动；
     /// 低频变化，可安全放在父级 —— 高频的条悬停状态留在 ReaderFocusOverlay 内部）
@@ -140,9 +141,11 @@ struct ContentView: View {
             if !sidebarHidden && !readerFocus {
                 SidebarView(showVersions: $showVersions)
                     .frame(width: explorerWidth)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
                 // 分隔线即拖拽手柄（3pt；拖动调整侧栏宽度，最小 110 / 最大 420）
                 ResizeHandle(width: $explorerWidth, minW: 110, maxW: 420)
                     .frame(width: 3)
+                    .transition(.opacity)
             }
             // 侧栏显隐按钮已并入编辑器标题栏最左侧（.toggleSidebarRequested 通知）
             // 编辑器 + AI 停靠面板（VSCode Copilot 范式：右侧副栏，可拖分栏调整宽度）
@@ -164,8 +167,11 @@ struct ContentView: View {
                         .environment(store)
                         .environment(aiModel)
                         .frame(minWidth: 300, idealWidth: 380, maxWidth: 480)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
+            .animation(AppMotion.panel(reduceMotionSide), value: sidebarHidden)
+            .animation(AppMotion.panel(reduceMotionSide), value: aiPanelVisible)
         }
         // 主题氛围特效（按 motion 配置组合；减少动态效果时自动关闭）
         .background { ThemeAmbientLayer() }

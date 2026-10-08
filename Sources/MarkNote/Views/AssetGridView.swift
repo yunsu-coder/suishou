@@ -36,6 +36,7 @@ struct AssetGridView: View {
     @State private var query = ""
     @State private var onlyUnreferenced = false
     @State private var selected: NotesStore.AttachmentItem?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotionGrid
     /// 多选（批量删除用）：存 url.path
     @State private var selectedIDs: Set<String> = []
     /// ⇧ 区间选择的锚点
@@ -274,6 +275,10 @@ struct AssetGridView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .frame(minHeight: 200)
+        // 换素材时上面的预览交叉淡入，而不是"啪"地换一张
+        .id(selected?.id ?? "none")
+        .transition(.opacity)
+        .animation(AppMotion.content(reduceMotionGrid), value: selected?.id)
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { if let item = selected { openPreview(item) } }
         .overlay(alignment: .topTrailing) {
@@ -354,6 +359,7 @@ struct AssetGridView: View {
                 .frame(width: 68)
                 .foregroundStyle(isSel ? Color.primary : Color.secondary)
         }
+        .animation(AppMotion.item(reduceMotionGrid), value: isSel)
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { selectedIDs = [item.id]; selectionAnchor = item.id; selected = item; openPreview(item) }
         .onTapGesture { select(item) }
