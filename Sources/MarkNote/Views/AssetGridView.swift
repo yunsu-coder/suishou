@@ -78,9 +78,7 @@ struct AssetGridView: View {
                     let hasImage = selected.map { AssetSyntax.kind(forExt: $0.url.pathExtension) == .image } ?? false
                     HStack(spacing: 0) {
                         VStack(spacing: 0) {
-                            previewPane
-                            Divider()
-                            strip
+                            tileGrid          // 平铺缩放图（替代原来那个大黑边的单图预览块）
                             // 窄面板（挂侧栏时）不并排：原图改为紧跟在预览下面的一行，
                             // 保证"看原图"这个能力在任何宽度都在
                             if !wide, hasImage, selected != nil {
@@ -265,83 +263,57 @@ struct AssetGridView: View {
 
     // MARK: - 上：预览区（剪映式：选中什么就在这里看什么）
 
-    private var previewPane: some View {
-        ZStack {
-            Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground)
-            if let item = selected {
-                let kind = AssetSyntax.kind(forExt: item.url.pathExtension)
-                if kind == .video {
-                    // 本地视频直接放；远程的交给预览窗口（要带防盗链头先本地化）
-                    if item.url.isFileURL {
-                        MediaPlayerBox(url: item.url)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        previewPlaceholder(item, symbol: "play.rectangle")
-                    }
-                } else if kind == .image {
-                    // 优先用刚算好的大图；还没好就先拿网格里那张 512 缩略图顶着，
-                    // 避免选中瞬间是空白的
-                    if let img = previewImage ?? AssetThumbnail.cached(for: item.url, maxPixel: 512) {
-                        Image(nsImage: img)
-                            .resizable()
-                            .interpolation(.high)
-                            .aspectRatio(contentMode: .fit)
-                            .padding(8)
-                    } else {
-                        previewPlaceholder(item, symbol: Self.symbol(for: item.url.pathExtension))
-                    }
-                } else {
-                    previewPlaceholder(item, symbol: Self.symbol(for: item.url.pathExtension))
-                }
-            } else {
-                VStack(spacing: 6) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 26))
-                        .foregroundStyle(.tertiary)
-                    Text(_LL("点下面的素材看大图", "Pick an asset below to preview"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+    /// 左栏主区：**平铺缩放图** —— 缩略图按可用宽度平铺（自适应列数），竖向滚动；
+    /// 右上角那个"单张大预览 + 大片黑边"的块按用户要求去掉了。
+    private var tileGrid: some View {
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], spacing: 8) {
+                ForEach(filtered) { item in
+                    gridTile(item)
                 }
             }
+            .padding(10)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .frame(minHeight: 180)
-        // 换素材时上面的预览交叉淡入，而不是"啪"地换一张
-        .id(selected?.id ?? "none")
-        .transition(.opacity)
-        .animation(AppMotion.content(reduceMotionGrid), value: selected?.id)
-        .contentShape(Rectangle())
-        .task(id: selected?.id) {
-            guard let item = selected, AssetSyntax.kind(forExt: item.url.pathExtension) == .image else {
-                previewImage = nil
-                originalImage = nil
-                return
-            }
-            previewImage = await AssetThumbnail.image(for: item.url, maxPixel: 2048)
-            originalImage = await AssetThumbnail.image(for: item.url, maxPixel: 4096)
-            originalFit = true
-        }
-        .onTapGesture(count: 2) { if let item = selected { openPreview(item) } }
-        .overlay(alignment: .topTrailing) {
-            if let item = selected {
-                let kind = AssetSyntax.kind(forExt: item.url.pathExtension)
-                if kind == .image || kind == .video {
-                    Button {
-                        openPreview(item)
-                    } label: {
-                        Label(kind == .video ? _L("播放", "Play") : _L("看原图", "Full Size"),
-                              systemImage: kind == .video ? "play.circle" : "arrow.up.left.and.arrow.down.right")
-                            .font(.caption)
-                    }
-                    .controlSize(.small)
-                    .padding(8)
-                    .help(_L("打开大图预览（双击预览区同样可以）", "Open full preview (or double-click the preview)"))
-                }
-            }
-        }
     }
 
-    /// 右侧：原图查看（支持滚动；适应 / 100% 切换；双击此处开完整预览窗口）
+    private func gridTile(_ item: NotesStore.AttachmentItem) -> some View {
+        let isSel = selectedIDs.contains(item.id)
+        return VStack(spacing: 4) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground))
+                AssetThumbView(item: item, symbol: Self.symbol(for: item.url.pathExtension))
+                if isSel, selectedIDs.count > 1 {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(appAppearance.accent)
+                        .padding(2)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
+            }
+            .frame(height: 84)
+            .overlay(RoundedRectangle(cornerRadius: 6)
+                .stroke(isSel ? appAppearance.accent : Color(nsColor: appAppearance.editorForeground.withAlphaComponent(0.12)),
+                        lineWidth: isSel ? 2 : 1))
+            Text(item.name)
+                .font(.system(size: 9))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .foregroundStyle(isSel ? Color.primary : Color.secondary)
+        }
+        .animation(AppMotion.item(reduceMotionGrid), value: isSel)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { selectedIDs = [item.id]; selectionAnchor = item.id; selected = item; openPreview(item) }
+        .onTapGesture { select(item) }
+        .onDrag {
+            NSItemProvider(object: AssetSyntax.reference(name: item.name, path: relativePath(item)) as NSString)
+        }
+        .contextMenu { tileMenu(item) }
+        .help("\(item.name) · \(Self.sizeLabel(item.size))")
+    }
+
+    /// 右侧：原图查看 —— 默认**整张适应显示（不加滚动条）**；只有切到 100% 才按原始像素滚动。
     private var originalPane: some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
@@ -381,15 +353,24 @@ struct AssetGridView: View {
                 if let img = originalImage
                     ?? selected.flatMap({ AssetThumbnail.cached(for: $0.url, maxPixel: 512) }),
                    let item = selected {
-                    ScrollView([.horizontal, .vertical]) {
-                        Image(nsImage: img)
-                            .resizable()
-                            .interpolation(.high)
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxWidth: originalFit ? .infinity : nil, maxHeight: originalFit ? .infinity : nil)
-                            .frame(width: originalFit ? nil : img.size.width,
-                                   height: originalFit ? nil : img.size.height)
-                            .padding(originalFit ? 8 : 0)
+                    Group {
+                        if originalFit {
+                            // 适应：整张图全部可见，不加滚动条
+                            Image(nsImage: img)
+                                .resizable()
+                                .interpolation(.high)
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .padding(8)
+                        } else {
+                            // 100%：这时才滚动，看原始像素
+                            ScrollView([.horizontal, .vertical]) {
+                                Image(nsImage: img)
+                                    .resizable()
+                                    .interpolation(.high)
+                                    .frame(width: img.size.width, height: img.size.height)
+                            }
+                        }
                     }
                     .id("\(item.id)-\(originalFit)")
                 } else {
@@ -405,6 +386,14 @@ struct AssetGridView: View {
             }
         }
         .background(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground))
+        .task(id: selected?.id) {
+            guard let item = selected, AssetSyntax.kind(forExt: item.url.pathExtension) == .image else {
+                originalImage = nil
+                return
+            }
+            originalFit = true
+            originalImage = await AssetThumbnail.image(for: item.url, maxPixel: 4096)
+        }
     }
 
     private func previewPlaceholder(_ item: NotesStore.AttachmentItem, symbol: String) -> some View {
@@ -426,19 +415,6 @@ struct AssetGridView: View {
     }
 
     // MARK: - 下：横向素材条（剪映式胶片条）
-
-    private var strip: some View {
-        ScrollView(.horizontal, showsIndicators: true) {
-            LazyHStack(spacing: 8) {
-                ForEach(filtered) { item in
-                    stripTile(item)
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-        }
-        .frame(height: 104)
-    }
 
     private func stripTile(_ item: NotesStore.AttachmentItem) -> some View {
         let isSel = selectedIDs.contains(item.id)
