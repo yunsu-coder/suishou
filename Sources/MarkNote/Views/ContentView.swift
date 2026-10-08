@@ -213,6 +213,9 @@ struct ContentView: View {
         .font(appAppearance.uiFontFamily.map { Font.custom($0, size: CGFloat(appAppearance.uiFontSize)) } ?? .body)
         .preferredColorScheme(appAppearance.scheme)
         .id("\(store.themeVersion)-\(pluginThemeToken)") // 内置/插件主题切换时整体重建（深浅/色调生效）
+        .transition(.opacity)
+        .animation(AppMotion.content(reduceMotionSide), value: pluginThemeToken)
+        .animation(AppMotion.content(reduceMotionSide), value: store.themeVersion)
         // 插件主题启用/切换 → 重建 token（.id 触发整体重建，插件主题作用于全局）
         .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
             syncPluginState()

@@ -91,7 +91,7 @@ struct EditorView: View {
             VStack(spacing: 0) {
                 if assetPanelOpen, hasAssetView, !readerFocus {
                     assetTopPanel
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .transition(AppMotion.panelTransition(reduceMotion, edge: .top))
                     Divider()
                 }
                 EmptyStateView()
@@ -99,7 +99,7 @@ struct EditorView: View {
                 if terminalOpen, hasTerminalView, !readerFocus {
                     Divider()
                     TerminalPanel { terminalOpen = false }
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(AppMotion.panelTransition(reduceMotion, edge: .bottom))
                 }
             }
             .animation(AppMotion.panel(reduceMotion), value: assetPanelOpen)
@@ -108,13 +108,14 @@ struct EditorView: View {
             VStack(spacing: 0) {
                 if assetPanelOpen, hasAssetView, !readerFocus {
                     assetTopPanel
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .transition(AppMotion.panelTransition(reduceMotion, edge: .top))
                     Divider()
                 }
                 if !readerFocus { header }
                 // 冲突横幅：选过「稍后处理」之后也一直挂着，避免"忘了处理 = 一直在丢改动"
                 if store.conflictHandled || store.externalConflict {
                     conflictBanner
+                        .transition(AppMotion.panelTransition(reduceMotion, edge: .top))
                 }
                 Group {
                     switch effectiveMode {
@@ -146,7 +147,7 @@ struct EditorView: View {
                     }
                 }
                 .layoutPriority(1)
-                .animation(.timingCurve(0.25, 1, 0.4, 1, duration: 0.18), value: effectiveMode)
+                .animation(AppMotion.content(reduceMotion), value: effectiveMode)
                 // 素材拖放兜底：文本视图只吃"落在正文上"的拖拽，落到预览区/代码预览区就没了。
                 // 这里在整块编辑区兜一层：只要是"素材引用"形态的文本，就插到当前光标处。
                 // （落在编辑器正文上的拖拽仍由 MarkdownTextView 处理，那一层更靠内、优先级更高，
@@ -158,7 +159,7 @@ struct EditorView: View {
                 if terminalOpen, hasTerminalView, !readerFocus {
                     Divider()
                     TerminalPanel { terminalOpen = false }
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(AppMotion.panelTransition(reduceMotion, edge: .bottom))
                 }
                 if !readerFocus { statusBar }
             }
@@ -167,8 +168,8 @@ struct EditorView: View {
             // 动画② 触发点（笔记切换 6pt + fade 0.12s）：整块内容随 loadedNoteID 换档（防卡：轻量） 
             .id("doc-\(store.loadedNoteID ?? "none")")
             .compositingGroup()
-            .transition(.opacity.combined(with: .offset(y: 6)))
-            .animation(.timingCurve(0.33, 1, 0.68, 1, duration: 0.12), value: store.loadedNoteID)
+            .transition(AppMotion.contentTransition(reduceMotion))
+            .animation(AppMotion.content(reduceMotion), value: store.loadedNoteID)
             // 「插入」菜单 → 光标处插入 Markdown 语法
             .onReceive(NotificationCenter.default.publisher(for: .insertMarkdown)) { note in
                 if let kind = note.object as? InsertKind {
@@ -285,10 +286,7 @@ struct EditorView: View {
                 HStack(spacing: 4) {
                     ForEach(store.openTabs, id: \.self) { id in
                         tabItem(id)
-                            .transition(.asymmetric(
-                                insertion: .scale(scale: 0.88, anchor: .bottom).combined(with: .opacity),
-                                removal: .opacity.combined(with: .scale(scale: 0.94, anchor: .bottom))
-                            ))
+                            .transition(AppMotion.itemTransition(reduceMotion))
                     }
                 }
                 .padding(.vertical, 2)
@@ -395,8 +393,10 @@ struct EditorView: View {
                     .foregroundStyle(.tertiary)
                     .padding(8)
                     .help("有未保存修改")
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
         }
+        .animation(AppMotion.micro(reduceMotion), value: store.dirty)
         .onDrop(of: [UTType.fileURL.identifier], isTargeted: nil) { providers in
             importFromDrop(providers)
         }
@@ -669,14 +669,22 @@ struct EditorView: View {
             if let id = store.loadedNoteID {
                 Text("LF · \(Self.languageLabel(for: id))")
                     .foregroundStyle(.tertiary)
+                    .contentTransition(.opacity)
+                    .animation(AppMotion.micro(reduceMotion), value: id)
             }
             if store.selectedNoteID != nil {
                 Text(_L("\(store.workingText.count) 字符", "\(store.workingText.count) characters"))
                     .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(AppMotion.micro(reduceMotion), value: store.workingText.count)
                 Text(_L("行 \(currentLine) · 列 \(currentColumn + 1)", "Line \(currentLine) · Col \(currentColumn + 1)"))
                     .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(AppMotion.micro(reduceMotion), value: currentLine * 10_000 + currentColumn)
                 Text(_L("共 \(store.workingText.split(separator: "\n").count + 1) 行", "\(store.workingText.split(separator: "\n").count + 1) lines total"))
                     .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(AppMotion.micro(reduceMotion), value: store.workingText.split(separator: "\n").count)
             }
             Spacer()
             saveState
@@ -692,6 +700,7 @@ struct EditorView: View {
             }
         }
         .overlay(alignment: .top) { Divider() }
+        .animation(AppMotion.micro(reduceMotion), value: store.dirty)
     }
 
     @ViewBuilder
@@ -708,6 +717,7 @@ struct EditorView: View {
         }
         if store.dirty {
             Text(_LL("● 未保存", "● Unsaved")).foregroundStyle(.orange)
+                .transition(.opacity)
         } else if let t = store.lastSavedAt {
             HStack(spacing: 4) {
                 AnimatedCheckmark(progress: drawn ? 1.0 : 0.0)
@@ -721,6 +731,7 @@ struct EditorView: View {
             }
         } else {
             Text(_LL("已保存", "Saved"))
+                .transition(.opacity)
         }
         Button(_LL("版本", "Versions")) { showVersions = true }
             .buttonStyle(.link)
