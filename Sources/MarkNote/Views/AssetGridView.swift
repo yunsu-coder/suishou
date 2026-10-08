@@ -267,7 +267,7 @@ struct AssetGridView: View {
     /// 右上角那个"单张大预览 + 大片黑边"的块按用户要求去掉了。
     private var tileGrid: some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], spacing: 8) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 116), spacing: 8)], spacing: 8) {
                 ForEach(filtered) { item in
                     gridTile(item)
                 }
@@ -292,12 +292,12 @@ struct AssetGridView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
             }
-            .frame(height: 84)
+            .frame(height: 104)
             .overlay(RoundedRectangle(cornerRadius: 6)
                 .stroke(isSel ? appAppearance.accent : Color(nsColor: appAppearance.editorForeground.withAlphaComponent(0.12)),
                         lineWidth: isSel ? 2 : 1))
             Text(item.name)
-                .font(.system(size: 9))
+                .font(.system(size: 10))
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .foregroundStyle(isSel ? Color.primary : Color.secondary)
