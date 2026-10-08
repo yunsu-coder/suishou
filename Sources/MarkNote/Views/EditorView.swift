@@ -92,12 +92,12 @@ struct EditorView: View {
                 if assetPanelOpen, hasAssetView, !readerFocus {
                     assetTopPanel
                         .transition(AppMotion.panelTransition(reduceMotion, edge: .top))
-                    Divider()
+                    SeamGlow(edge: .top)
                 }
                 EmptyStateView()
                     .frame(minWidth: 520)
                 if terminalOpen, hasTerminalView, !readerFocus {
-                    Divider()
+                    SeamGlow(edge: .bottom)
                     TerminalPanel { terminalOpen = false }
                         .transition(AppMotion.panelTransition(reduceMotion, edge: .bottom))
                 }
@@ -109,7 +109,7 @@ struct EditorView: View {
                 if assetPanelOpen, hasAssetView, !readerFocus {
                     assetTopPanel
                         .transition(AppMotion.panelTransition(reduceMotion, edge: .top))
-                    Divider()
+                    SeamGlow(edge: .top)
                 }
                 if !readerFocus { header }
                 // 冲突横幅：选过「稍后处理」之后也一直挂着，避免"忘了处理 = 一直在丢改动"
@@ -148,6 +148,8 @@ struct EditorView: View {
                 }
                 .layoutPriority(1)
                 .animation(AppMotion.content(reduceMotion), value: effectiveMode)
+                // 光标聚光：只覆盖编辑/预览区，纯装饰不挡鼠标
+                .overlay { SpotlightOverlay() }
                 // 素材拖放兜底：文本视图只吃"落在正文上"的拖拽，落到预览区/代码预览区就没了。
                 // 这里在整块编辑区兜一层：只要是"素材引用"形态的文本，就插到当前光标处。
                 // （落在编辑器正文上的拖拽仍由 MarkdownTextView 处理，那一层更靠内、优先级更高，
@@ -157,7 +159,7 @@ struct EditorView: View {
                 }
                 // 内置终端面板（视图插件 view-terminal 启用时才存在；⌘J 开关）
                 if terminalOpen, hasTerminalView, !readerFocus {
-                    Divider()
+                    SeamGlow(edge: .bottom)
                     TerminalPanel { terminalOpen = false }
                         .transition(AppMotion.panelTransition(reduceMotion, edge: .bottom))
                 }
@@ -722,6 +724,7 @@ struct EditorView: View {
             HStack(spacing: 4) {
                 AnimatedCheckmark(progress: drawn ? 1.0 : 0.0)
                     .frame(width: 13, height: 13)
+                    .glowPulse(trigger: store.lastSavedAt, color: appAppearance.accent)
                 Text(_L("已保存 \(t.formatted(date: .omitted, time: .shortened))", "Saved \(t.formatted(date: .omitted, time: .shortened))"))
             }
             .onChange(of: store.lastSavedAt) { _, _ in

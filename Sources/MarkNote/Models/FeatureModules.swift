@@ -9,6 +9,8 @@ enum FeatureModules {
     static let editorCurrentLine = "editorCurrentLine"
     static let editorBracketMatch = "editorBracketMatch"
     static let editorCodeSmart = "editorCodeSmart"
+    /// 界面光效：光标聚光 / 面板接缝高光 / 保存脉冲
+    static let visualGlow = "visualGlow"
     /// 代码文件的语法着色：独立开关 —— 关掉"智能编辑"（自动配对/缩进）不该连带把颜色也关掉
     static let editorSyntaxColor = "editorSyntaxColor"
     static let aiQuickActions = "aiQuickActions"
@@ -28,6 +30,7 @@ enum FeatureModules {
         ("editorLineNumbers", _L("行号标尺", "Line Numbers"), _L("显示/隐藏编辑器行号栏（宽度仍可拖拽）", "Show/hide the editor line-number gutter (width still draggable)")),
         ("editorCurrentLine", _L("当前行高亮", "Highlight Current Line"), _L("光标所在行底色高亮", "Highlight the current line with a background color")),
         ("editorBracketMatch", _L("括号匹配高亮", "Bracket Match Highlight"), _L("光标贴括号时高亮配对（含 ⌘⇧反斜杠 跳转）", "Highlight the matching bracket when the cursor is adjacent (incl. ⌘⇧ backslash to jump)")),
+        ("visualGlow", _L("界面光效", "Interface Glow"), _L("光标聚光、面板接缝高光、保存脉冲（极淡、可关；系统降低透明度时自动让路）", "Cursor spotlight, panel seam glow, save pulse (very subtle; yields to Reduce Transparency)")),
         ("editorSyntaxColor", _L("语法着色（代码文件）", "Syntax Colors (code files)"), _L("按语言给关键字/字符串/类型/注释上色（One Dark Pro / One Light 固定配色）", "Per-language colors for keywords, strings, types and comments (fixed One Dark Pro / One Light palettes)")),
         ("editorCodeSmart", _L("代码智能编辑", "Code Smart Editing"), _L("括号/引号自动成对、空对删除、选中包围、智能换行与缩进、⌘/ 注释", "Auto-paired brackets/quotes, empty-pair delete, wrap selection, smart newline and indent, ⌘/ comment")),
         ("exportPDF", _L("导出 PDF", "Export PDF"), _L("离屏渲染导出；关闭后菜单/命令面板隐藏该项", "Offscreen render export; hides the item from menus/command palette when off")),
