@@ -64,7 +64,6 @@ struct TerminalPanel: View {
     var onClose: () -> Void
 
     @State private var term = TerminalStore.shared
-    @State private var dragBase: Double? = nil
     @AppStorage("terminalPanelHeight") private var height: Double = 260
     @State private var showRunConfig = false
 
@@ -118,24 +117,10 @@ struct TerminalPanel: View {
     // MARK: - 顶部：高度拖拽 + 标签栏
 
     private var resizeHandle: some View {
-        ZStack {
-            Rectangle().fill(.clear)
-            Capsule().fill(Color.secondary.opacity(0.35)).frame(width: 42, height: 3)
-        }
-        .frame(height: 8)
-        .contentShape(Rectangle())
-        .onHover { inside in
-            if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
-        }
-        .gesture(
-            DragGesture()
-                .onChanged { v in
-                    if dragBase == nil { dragBase = height }
-                    let base = dragBase ?? height
-                    height = min(760, max(120, base - v.translation.height))
-                }
-                .onEnded { _ in dragBase = nil }
-        )
+        PanelResizeHandle(height: $height, minHeight: 120, maxHeight: 760, defaultHeight: 260,
+                          inverted: true,   // 终端在窗口下方：向下拖 = 变矮
+                          help: _L("拖动调整终端高度，双击复位到 260",
+                                   "Drag to resize the terminal, double-click to reset (260)"))
     }
 
     private var tabBar: some View {

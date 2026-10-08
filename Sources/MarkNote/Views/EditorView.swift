@@ -63,7 +63,6 @@ struct EditorView: View {
     @AppStorage("assetTopPanelOpen") private var assetPanelOpen = false
     /// 素材面板高度（可拖拽，默认 480；图太小主要就是被高度卡住）
     @AppStorage("assetTopPanelHeight") private var assetPanelHeight: Double = 480
-    @State private var assetDragBase: Double?
 
     /// 终端视图插件是否就位（未启用时 ⌘J 与面板都不出现）
     private var hasTerminalView: Bool {
@@ -87,27 +86,12 @@ struct EditorView: View {
         .background(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground))
     }
 
-    /// 面板下沿拖拽调高：240 … 900（默认 480，够看大图，也不至于吃掉整个编辑区）
+    /// 面板下沿拖拽调高（公用分隔条：整条线可拖 / hover 高亮 / 双击复位到 480）
     private var assetPanelResizeHandle: some View {
-        ZStack {
-            Rectangle().fill(.clear)
-            Capsule().fill(Color.secondary.opacity(0.35)).frame(width: 42, height: 3)
-        }
-        .frame(height: 8)
-        .contentShape(Rectangle())
-        .onHover { inside in
-            if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
-        }
-        .gesture(
-            DragGesture()
-                .onChanged { v in
-                    if assetDragBase == nil { assetDragBase = assetPanelHeight }
-                    let base = assetDragBase ?? assetPanelHeight
-                    assetPanelHeight = min(900, max(240, base + v.translation.height))
-                }
-                .onEnded { _ in assetDragBase = nil }
-        )
-        .help(_L("拖动调整素材面板高度（默认 480）", "Drag to resize the asset panel (default 480)"))
+        PanelResizeHandle(height: $assetPanelHeight, minHeight: 240, maxHeight: 900,
+                          defaultHeight: 480,
+                          help: _L("拖动调整素材面板高度，双击复位到 480",
+                                   "Drag to resize the asset panel, double-click to reset (480)"))
     }
 
     var body: some View {
