@@ -34,7 +34,12 @@ struct AssetGridView: View {
     @State private var items: [NotesStore.AttachmentItem] = []
     @State private var refCounts: [String: Int] = [:]
     @State private var query = ""
-    @State private var onlyUnreferenced = false
+    /// 搜索框默认收起（⌘F 唤出，Esc 收起）——顶部只留一行筛选，看图的沉浸感优先
+    @State private var showSearch = false
+    @FocusState private var searchFocused: Bool
+    /// 指针是否在素材面板上：⌘F 只有在这里才抢（否则留给编辑器查找）
+    @State private var hoveringPanel = false
+    @State private var searchKeyMonitor: Any?
     @State private var selected: NotesStore.AttachmentItem?
     /// 上方面板的大图（QuickLook 异步生成，避免在 body 里同步解码）
     @State private var previewImage: NSImage?
@@ -58,7 +63,6 @@ struct AssetGridView: View {
 
     private var filtered: [NotesStore.AttachmentItem] {
         var list = items
-        if onlyUnreferenced { list = list.filter { (refCounts[$0.name] ?? 0) == 0 } }
         let q = query.trimmingCharacters(in: .whitespaces)
         if !q.isEmpty { list = list.filter { $0.name.localizedCaseInsensitiveContains(q) } }
         return list
@@ -104,7 +108,27 @@ struct AssetGridView: View {
             }
         }
         .background(Color(nsColor: appAppearance.editorBackground))
-        .onAppear(perform: reload)
+        .onHover { hoveringPanel = $0 }
+        .onAppear {
+            reload()
+            // ⌘F：指针在素材面板上时唤出搜索（否则放行，交给编辑器的查找替换）
+            if searchKeyMonitor == nil {
+                searchKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                    guard event.modifierFlags.contains(.command),
+                          event.modifierFlags.intersection([.shift, .option, .control]).isEmpty,
+                          event.charactersIgnoringModifiers?.lowercased() == "f" else { return event }
+                    guard hoveringPanel else { return event }
+                    showSearch = true
+                    searchFocused = true
+                    return nil
+                }
+            }
+        }
+        .onDisappear {
+            if let m = searchKeyMonitor { NSEvent.removeMonitor(m) }
+            searchKeyMonitor = nil
+        }
+        .onChange(of: query) { _, _ in autoSelectIfNeeded() }
         .onReceive(NotificationCenter.default.publisher(for: PluginManager.changedNotification)) { _ in
             reload()
         }
@@ -138,114 +162,116 @@ struct AssetGridView: View {
         }
     }
 
-    // MARK: - 顶部：标题 + 搜索 + 未引用筛选
+    // MARK: - 顶部：**单行**工具条（标题/搜索/筛选/选中操作压成一行，把高度让给图）
 
     private var header: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 6) {
-                Text(_L("素材", "Assets") + " · " + store.notesDir.lastPathComponent)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                Spacer()
-                // 采集插件启用时出现：AI 找素材 → 候选勾选 → 入当前工作台素材库
-                if PluginManager.shared.allViews().contains(where: { $0.type == .collector }) {
+        VStack(spacing: 4) {
+            HStack(spacing: 8) {
+                // 搜索：默认收起，⌘F 唤出（Escape 收起）；右边留一个小放大镜按钮手动开
+                if showSearch {
+                    HStack(spacing: 5) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                        TextField(_L("搜索素材", "Search"), text: $query)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 12))
+                            .focused($searchFocused)
+                            .onSubmit { searchFocused = false }
+                            .onKeyPress(.escape) {
+                                showSearch = false
+                                searchFocused = false
+                                return .handled
+                            }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .frame(minWidth: 140, maxWidth: 260)
+                    .background(RoundedRectangle(cornerRadius: 6)
+                        .fill(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground)))
+                    .transition(.opacity)
+                } else {
                     Button {
-                        showCollector = true
+                        showSearch = true
+                        searchFocused = true
                     } label: {
-                        Text(_L("采集…", "Collect…"))
-                            .font(.system(size: 10))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(RoundedRectangle(cornerRadius: 7)
-                                .fill(appAppearance.accent.opacity(0.18)))
-                            .foregroundStyle(appAppearance.accent)
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 11))
                     }
                     .buttonStyle(.plain)
-                    .help(_L("描述你想要的素材，AI 帮你找（图片/视频）",
-                             "Describe what you need and let AI find it (images/videos)"))
-                }
-                // 跨工作台只有一个通道：显式勾选导入（原库只读）
-                if spec.options.allowImport == true, !store.otherWorkspaces.isEmpty {
-                    Button {
-                        showImport = true
-                    } label: {
-                        Text(_L("从其他工作台导入…", "Import…"))
-                            .font(.system(size: 10))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(RoundedRectangle(cornerRadius: 7)
-                                .fill(appAppearance.accent.opacity(0.18)))
-                            .foregroundStyle(appAppearance.accent)
-                    }
-                    .buttonStyle(.plain)
-                    .help(_L("复制其他工作台的素材进来（不改动原库）",
-                             "Copy assets from another workspace (source stays read-only)"))
-                }
-                Text("\(items.count)")
-                    .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
-            }
-            if let toast {
-                Text(toast)
-                    .font(.system(size: 10))
-                    .foregroundStyle(appAppearance.accent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.tertiary)
-                TextField(_L("搜索素材", "Search assets"), text: $query)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 12))
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 7)
-                .fill(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground)))
-            HStack(spacing: 6) {
-                chip(_L("全部", "All"), on: !onlyUnreferenced) { onlyUnreferenced = false }
-                chip(_L("未被引用", "Unreferenced"), on: onlyUnreferenced) { onlyUnreferenced = true }
-                Spacer()
-                // 批量清理：选中 N 个一起删 / 一键清理当前列表里所有「未被引用」
-                Button {
-                    pendingTrash = unreferencedInList()
-                    trashPending()
-                } label: {
-                    Text(_L("清理未引用", "Clean unused"))
-                        .font(.system(size: 10))
+                    .help(_L("搜索素材（⌘F）", "Search assets (⌘F)"))
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(unreferencedInList().isEmpty ? Color.secondary : appAppearance.accent)
-                .disabled(unreferencedInList().isEmpty)
-                .help(_L("把当前列表里所有未被引用的素材移到废纸篓",
-                         "Move every unreferenced asset in the list to Trash"))
-            }
-            if !selectedIDs.isEmpty {
-                HStack(spacing: 8) {
-                    Text(_L("已选 \(selectedIDs.count) 个", "\(selectedIDs.count) selected"))
+
+                Text("\(filtered.count)")
+                    .font(.system(size: 10).monospacedDigit())
+                    .foregroundStyle(.tertiary)
+
+                if selectedIDs.count > 1 {
+                    Text(_L("已选 \(selectedIDs.count)", "\(selectedIDs.count) selected"))
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(appAppearance.accent)
-                    Spacer()
-                    Button(_L("全选", "Select all")) {
+                    Button(_L("全选", "All")) {
                         selectedIDs = Set(filtered.map(\.id))
                         selectionAnchor = filtered.first?.id
                     }
                     .buttonStyle(.plain)
-                    Button(_L("删除选中", "Delete selected"), role: .destructive) {
+                    Button(_L("删除选中", "Delete"), role: .destructive) {
                         pendingTrash = filtered.filter { selectedIDs.contains($0.id) }
                         trashPending()
                     }
                     .buttonStyle(.plain)
                     Button(_L("取消选择", "Clear")) { clearSelection() }
                         .buttonStyle(.plain)
+                } else {
+                    Button {
+                        pendingTrash = unreferencedInList()
+                        trashPending()
+                    } label: {
+                        Text(_L("清理未引用", "Clean unused"))
+                            .font(.system(size: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(unreferencedInList().isEmpty ? Color.secondary : appAppearance.accent)
+                    .disabled(unreferencedInList().isEmpty)
+                    .help(_L("把当前列表里所有未被引用的素材移到废纸篓",
+                             "Move every unreferenced asset in the list to Trash"))
                 }
-                .font(.system(size: 10))
+
+                // 采集 / 跨工作台导入（有才显示）
+                if PluginManager.shared.allViews().contains(where: { $0.type == .collector }) {
+                    Button { showCollector = true } label: {
+                        Text(_L("采集…", "Collect…"))
+                            .font(.system(size: 10))
+                            .padding(.horizontal, 7).padding(.vertical, 3)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(appAppearance.accent.opacity(0.18)))
+                            .foregroundStyle(appAppearance.accent)
+                    }
+                    .buttonStyle(.plain)
+                }
+                if spec.options.allowImport == true, !store.otherWorkspaces.isEmpty {
+                    Button { showImport = true } label: {
+                        Text(_L("导入…", "Import…"))
+                            .font(.system(size: 10))
+                            .padding(.horizontal, 7).padding(.vertical, 3)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(appAppearance.accent.opacity(0.18)))
+                            .foregroundStyle(appAppearance.accent)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .font(.system(size: 10))
+
+            if let toast {
+                Text(toast)
+                    .font(.system(size: 10))
+                    .foregroundStyle(appAppearance.accent)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(.horizontal, 10)
-        .padding(.top, 30)   // 避让交通灯
-        .padding(.bottom, 8)
+        .padding(.top, 26)    // 避让交通灯（仍是一行，纯高度按行内边距给）
+        .padding(.bottom, 6)
     }
 
     private func chip(_ title: String, on: Bool, action: @escaping () -> Void) -> some View {
@@ -608,7 +634,20 @@ struct AssetGridView: View {
         items = store.listAttachments(for: "")
         refCounts = store.assetReferenceCounts()
         if let sel = selected, !items.contains(where: { $0.url == sel.url }) { selected = nil }
+        autoSelectIfNeeded()
         reloadToken += 1
+    }
+
+    /// 默认就把"第一张图"选中（列表里没有图就选第一项）——
+    /// 打开面板即分屏看到图，不用先点一下。
+    private func autoSelectIfNeeded() {
+        guard selected == nil else { return }
+        let pool = filtered.isEmpty ? items : filtered
+        let firstImage = pool.first { AssetSyntax.kind(forExt: $0.url.pathExtension) == .image }
+        guard let pick = firstImage ?? pool.first else { return }
+        selected = pick
+        selectedIDs = [pick.id]
+        selectionAnchor = pick.id
     }
 
     /// 图相对当前工作台的路径（`source/image/x.png` → `img/x.png`，与短引用约定一致）。
