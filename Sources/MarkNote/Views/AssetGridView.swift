@@ -38,6 +38,9 @@ struct AssetGridView: View {
     @State private var selected: NotesStore.AttachmentItem?
     /// 上方面板的大图（QuickLook 异步生成，避免在 body 里同步解码）
     @State private var previewImage: NSImage?
+    /// 右侧「原图」：更大尺寸的 QuickLook 结果（4096 已覆盖任何屏幕的 1:1 查看）
+    @State private var originalImage: NSImage?
+    @State private var originalFit = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotionGrid
     /// 多选（批量删除用）：存 url.path
     @State private var selectedIDs: Set<String> = []
@@ -68,13 +71,29 @@ struct AssetGridView: View {
             if filtered.isEmpty {
                 emptyState
             } else {
-                // 剪映式上下结构：上面大预览，下面横向素材条
-                previewPane
-                Divider()
-                strip
-                if let sel = selected {
-                    Divider()
-                    footer(sel)
+                // 参考用户的设计稿：左侧浏览器（工具条 / 平铺大预览 / 胶片条 / 信息操作条），
+                // 右侧一整列专门看原图。面板太窄（例如挂在侧栏里）自动退回单列。
+                GeometryReader { geo in
+                    let twoPane = geo.size.width >= 620
+                    HStack(spacing: 0) {
+                        VStack(spacing: 0) {
+                            previewPane
+                            Divider()
+                            strip
+                            if let sel = selected {
+                                Divider()
+                                footer(sel)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        if twoPane, selected != nil {
+                            Divider()
+                            originalPane
+                                .frame(minWidth: 300, idealWidth: 380)
+                                .transition(AppMotion.panelTransition(reduceMotionGrid, edge: .trailing))
+                        }
+                    }
+                    .animation(AppMotion.panel(reduceMotionGrid), value: selected?.id)
                 }
             }
         }
@@ -276,7 +295,7 @@ struct AssetGridView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .frame(minHeight: 200)
+        .frame(minHeight: 180)
         // 换素材时上面的预览交叉淡入，而不是"啪"地换一张
         .id(selected?.id ?? "none")
         .transition(.opacity)
@@ -285,9 +304,12 @@ struct AssetGridView: View {
         .task(id: selected?.id) {
             guard let item = selected, AssetSyntax.kind(forExt: item.url.pathExtension) == .image else {
                 previewImage = nil
+                originalImage = nil
                 return
             }
             previewImage = await AssetThumbnail.image(for: item.url, maxPixel: 2048)
+            originalImage = await AssetThumbnail.image(for: item.url, maxPixel: 4096)
+            originalFit = true
         }
         .onTapGesture(count: 2) { if let item = selected { openPreview(item) } }
         .overlay(alignment: .topTrailing) {
@@ -307,6 +329,70 @@ struct AssetGridView: View {
                 }
             }
         }
+    }
+
+    /// 右侧：原图查看（支持滚动；适应 / 100% 切换；双击此处开完整预览窗口）
+    private var originalPane: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Text(_L("原图", "Original"))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                if let img = originalImage {
+                    let px = img.cgImage(forProposedRect: nil, context: nil, hints: nil)
+                        .map { "\($0.width)×\($0.height)" } ?? ""
+                    Text(px)
+                        .font(.system(size: 10).monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+                Button(originalFit ? _L("100%", "100%") : _L("适应", "Fit")) {
+                    originalFit.toggle()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 10))
+                .foregroundStyle(appAppearance.accent)
+                if let item = selected {
+                    Button {
+                        openPreview(item)
+                    } label: {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .help(_L("打开完整预览（可 1:1 缩放）", "Open full preview (zoomable)"))
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            Divider()
+            ZStack {
+                Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground)
+                if let img = originalImage, let item = selected {
+                    ScrollView([.horizontal, .vertical]) {
+                        Image(nsImage: img)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxWidth: originalFit ? .infinity : nil, maxHeight: originalFit ? .infinity : nil)
+                            .frame(width: originalFit ? nil : img.size.width,
+                                   height: originalFit ? nil : img.size.height)
+                            .padding(originalFit ? 8 : 0)
+                    }
+                    .id("\(item.id)-\(originalFit)")
+                } else {
+                    VStack(spacing: 6) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 22))
+                            .foregroundStyle(.tertiary)
+                        Text(_L("选一张图看原图", "Pick an image to inspect"))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .background(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground))
     }
 
     private func previewPlaceholder(_ item: NotesStore.AttachmentItem, symbol: String) -> some View {
@@ -339,7 +425,7 @@ struct AssetGridView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
         }
-        .frame(height: 108)
+        .frame(height: 104)
     }
 
     private func stripTile(_ item: NotesStore.AttachmentItem) -> some View {
