@@ -994,6 +994,24 @@ private struct FlowchartInspector: View {
         }
     }
 
+
+    /// 自动布局：dagre 算完坐标 → 一次性写入文档（可撤销），并做一段位移动画
+    private func autoLayout(_ direction: FlowchartAutoLayout.Direction) {
+        guard !editor.doc.nodes.isEmpty else { return }
+        Task { @MainActor in
+            let positions = await FlowchartAutoLayout.layout(editor.doc, direction: direction)
+            guard let positions, !positions.isEmpty else { return }
+            editor.commit { doc in
+                for i in doc.nodes.indices {
+                    guard let p = positions[doc.nodes[i].id] else { continue }
+                    doc.nodes[i].x = Double(p.x)
+                    doc.nodes[i].y = Double(p.y)
+                }
+            }
+            editor.selection = Set(positions.keys)
+        }
+    }
+
     private var arrangeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             sectionTitle(_L("对齐", "Arrange"))
@@ -1013,6 +1031,17 @@ private struct FlowchartInspector: View {
                     .disabled(editor.selection.count < 2)
                 }
             }
+            // 自动布局（dagre：mermaid / draw.io 同款布局引擎），不用手摆
+            HStack(spacing: 6) {
+                Button(_L("自动布局 ↓", "Auto Layout ↓")) { autoLayout(.topBottom) }
+                    .help(_L("按连线方向分层排布（dagre 布局引擎）", "Layered layout along the flow (dagre)"))
+                Button(_L("自动布局 →", "Auto Layout →")) { autoLayout(.leftRight) }
+                    .help(_L("横向分层排布（适合泳道式阅读）", "Left-to-right layered layout"))
+            }
+            .font(theme.font(size: 11))
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+
             HStack(spacing: 6) {
                 Button(_L("水平均匀", "Distribute H")) {
                     let ids = editor.selection

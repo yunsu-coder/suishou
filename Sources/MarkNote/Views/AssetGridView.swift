@@ -36,6 +36,8 @@ struct AssetGridView: View {
     @State private var query = ""
     @State private var onlyUnreferenced = false
     @State private var selected: NotesStore.AttachmentItem?
+    /// 上方面板的大图（QuickLook 异步生成，避免在 body 里同步解码）
+    @State private var previewImage: NSImage?
     @Environment(\.accessibilityReduceMotion) private var reduceMotionGrid
     /// 多选（批量删除用）：存 url.path
     @State private var selectedIDs: Set<String> = []
@@ -250,7 +252,7 @@ struct AssetGridView: View {
                         previewPlaceholder(item, symbol: "play.rectangle")
                     }
                 } else if kind == .image {
-                    if let img = AssetThumbnail.image(for: item.url, maxPixel: 2048) {
+                    if let img = previewImage {
                         Image(nsImage: img)
                             .resizable()
                             .interpolation(.high)
@@ -280,6 +282,13 @@ struct AssetGridView: View {
         .transition(.opacity)
         .animation(AppMotion.content(reduceMotionGrid), value: selected?.id)
         .contentShape(Rectangle())
+        .task(id: selected?.id) {
+            guard let item = selected, AssetSyntax.kind(forExt: item.url.pathExtension) == .image else {
+                previewImage = nil
+                return
+            }
+            previewImage = await AssetThumbnail.image(for: item.url, maxPixel: 2048)
+        }
         .onTapGesture(count: 2) { if let item = selected { openPreview(item) } }
         .overlay(alignment: .topTrailing) {
             if let item = selected {
@@ -633,7 +642,7 @@ private struct AssetThumbView: View {
 
     var body: some View {
         ZStack {
-            if item.isImage, let img = thumbImage {
+            if let img = thumbImage {
                 thumb(img)
             } else if kind == .video, let poster {
                 thumb(poster.image)
@@ -658,12 +667,10 @@ private struct AssetThumbView: View {
             }
         }
         .task(id: item.url) {
-            // 图片：后台降采样出缩略图（最长边 512 已足够 2x 网格清晰，且不卡主线程）
-            if item.isImage, thumbImage == nil {
-                let url = item.url
-                thumbImage = await Task.detached(priority: .userInitiated) {
-                    AssetThumbnail.image(for: url, maxPixel: 512)
-                }.value
+            // 缩略图：交给系统 QuickLook（图片 / 视频 / PDF / Office / 文本都能出图）；
+            // 出不来再退回视频首帧或类型图标
+            if thumbImage == nil {
+                thumbImage = await AssetThumbnail.image(for: item.url, maxPixel: 512)
             }
             if kind == .video, poster == nil {
                 poster = await AssetGridView.poster(for: item.url)

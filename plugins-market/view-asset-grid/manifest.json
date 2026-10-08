@@ -2,7 +2,7 @@
   "id": "view-asset-grid",
   "name": "素材网格",
   "nameEn": "Asset Grid",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "kind": "views",
   "desc": "侧栏里的素材面板：只看当前工作台 source/ 下的资源，显示引用计数、可搜索、可插入短引用；只读，不扫描别的工作台",
   "descEn": "Sidebar asset panel for the current workspace only: reference counts, search, insert short refs. Read-only",
@@ -10,13 +10,15 @@
     "只读当前工作台 source/（不扫描、不聚合其他工作台）",
     "引用计数只算本工作台，附「未被引用」筛选，便于清理",
     "插入短引用 img/xxx.png 到光标处，或复制引用",
-    "颜色与字体全部取当前主题（四套主题自动适配）"
+    "颜色与字体全部取当前主题（四套主题自动适配）",
+    "缩略图由系统 QuickLook 生成（图片 / 视频 / PDF / Office 都能出图，自动带 EXIF 方向），上方面板「上预览 + 下素材条」，双击看大图、拖进正文即引用"
   ],
   "featuresEn": [
     "Current workspace only — never scans other workspaces",
     "Reference counts scoped to this workspace, with an unreferenced filter",
     "Insert short refs (img/xxx.png) at the cursor, or copy them",
-    "All colors/fonts come from the active theme"
+    "All colors/fonts come from the active theme",
+    "Thumbnails come from the system QuickLook (images / videos / PDF / Office), CapCut-style preview-over-strip layout, double-click to preview, drag into the note to reference"
   ],
   "author": "随手社区",
   "main": "views.json",

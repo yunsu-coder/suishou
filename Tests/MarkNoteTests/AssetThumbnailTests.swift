@@ -32,32 +32,40 @@ final class AssetThumbnailTests: XCTestCase {
         return CGSize(width: cg.width, height: cg.height)
     }
 
-    func testDownsamplesToRequestedMaxPixel() throws {
+    @MainActor
+    func testDownsamplesToRequestedMaxPixel() async throws {
         let url = try makeTempImage()
         defer { try? FileManager.default.removeItem(at: url) }
-        let thumb = try XCTUnwrap(AssetThumbnail.image(for: url, maxPixel: 256))
+        let thumb0 = await AssetThumbnail.image(for: url, maxPixel: 256)
+        let thumb = try XCTUnwrap(thumb0)
         let px = cgSize(thumb)
         XCTAssertLessThanOrEqual(max(px.width, px.height), 256.5, "最长边应压到 256 以内，实际 \(px)")
         XCTAssertEqual(px.width / px.height, 1.5, accuracy: 0.02, "宽高比保持不变")
     }
 
-    func testCacheReturnsSameInstance() throws {
+    @MainActor
+    func testCacheReturnsSameInstance() async throws {
         let url = try makeTempImage()
         defer { try? FileManager.default.removeItem(at: url) }
-        let a = try XCTUnwrap(AssetThumbnail.image(for: url, maxPixel: 128))
-        let b = try XCTUnwrap(AssetThumbnail.image(for: url, maxPixel: 128))
+        let a0 = await AssetThumbnail.image(for: url, maxPixel: 128)
+        let b0 = await AssetThumbnail.image(for: url, maxPixel: 128)
+        let a = try XCTUnwrap(a0)
+        let b = try XCTUnwrap(b0)
         XCTAssertTrue(a === b, "同样参数应命中缓存，返回同一实例")
-        let c = try XCTUnwrap(AssetThumbnail.image(for: url, maxPixel: 64))
+        let c0 = await AssetThumbnail.image(for: url, maxPixel: 64)
+        let c = try XCTUnwrap(c0)
         XCTAssertFalse(a === c, "不同尺寸是不同缓存条目")
         let cs = cgSize(c)
         XCTAssertLessThanOrEqual(max(cs.width, cs.height), 64.5)
     }
 
-    func testNonImageReturnsNil() throws {
+    /// QuickLook 连文本都能出缩略图（系统能力）；这里只保证"不认识的二进制"不会崩
+    @MainActor
+    func testUnknownBinaryDoesNotCrash() async throws {
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("not-an-image-\(UUID().uuidString).txt")
-        try "hello".write(to: url, atomically: true, encoding: .utf8)
+            .appendingPathComponent("junk-\(UUID().uuidString).bin")
+        try Data(repeating: 0xAB, count: 4096).write(to: url)
         defer { try? FileManager.default.removeItem(at: url) }
-        XCTAssertNil(AssetThumbnail.image(for: url, maxPixel: 128))
+        _ = await AssetThumbnail.image(for: url, maxPixel: 128)   // 允许 nil，允许系统给个通用图标
     }
 }

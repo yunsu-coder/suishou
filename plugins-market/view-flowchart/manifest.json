@@ -2,7 +2,7 @@
   "id": "view-flowchart",
   "name": "流程图",
   "nameEn": "Flowchart",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "kind": "views",
   "desc": "在主线里画流程图：基础图形 + 拖拽连线 + 文字与分组 + 自动编号 + 样式美化，导出高清 PNG",
   "descEn": "Draw flowcharts in the main area: shapes, drag-to-connect, text and groups, auto numbering, styling, and PNG export",
@@ -12,7 +12,8 @@
     "拖图形边缘圆点直接拉连线：直线 / 折线 / 曲线，单向 / 双向 / 无箭头，连线上可写「是 / 否」标签",
     "双击写文字；一键自动编号按连线拓扑序（步骤 1 → 2 → 3）",
     "样式：填充 / 边框 / 粗细 / 虚线 / 圆角 / 阴影 / 字号 / 加粗 / 对齐，另有对齐与均匀分布",
-    "撤销重做、复制、方向键微调；图存在当前工作台 source/flowchart/*.json，导出 1x/2x/3x PNG（可选透明背景）"
+    "撤销重做、复制、方向键微调；图存在当前工作台 source/flowchart/*.json，导出 1x/2x/3x PNG（可选透明背景）",
+    "自动布局用 dagre（mermaid / draw.io 同款布局引擎，随包分发不联网）：分层排布 ↓ / →，可撤销；连线支持右键断点续连，⌘滚轮无极缩放"
   ],
   "featuresEn": [
     "Large main-area canvas with grid, zoom, pan, snapping and guides",
@@ -20,7 +21,8 @@
     "Drag from a node's edge dot to connect: straight/elbow/curve, single/double/no arrow, labels on edges",
     "Double-click to edit text; one-click auto numbering in topological order",
     "Styling: fill, stroke, width, dashed, corner, shadow, font size, bold, align, plus align/distribute",
-    "Undo/redo, duplicate, arrow-key nudge; charts live in source/flowchart/*.json, export 1x/2x/3x PNG (transparent optional)"
+    "Undo/redo, duplicate, arrow-key nudge; charts live in source/flowchart/*.json, export 1x/2x/3x PNG (transparent optional)",
+    "Auto layout by dagre (same engine as mermaid / draw.io, bundled offline): layered ↓/→ layout, undoable; right-click to break and continue a connector, ⌘-scroll continuous zoom"
   ],
   "author": "随手社区",
   "main": "views.json",
