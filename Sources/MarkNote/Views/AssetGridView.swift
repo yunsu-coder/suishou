@@ -165,7 +165,7 @@ struct AssetGridView: View {
     // MARK: - 顶部：**单行**工具条（标题/搜索/筛选/选中操作压成一行，把高度让给图）
 
     private var header: some View {
-        VStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 // 搜索：默认收起，⌘F 唤出（Escape 收起）；右边留一个小放大镜按钮手动开
                 if showSearch {
@@ -270,7 +270,7 @@ struct AssetGridView: View {
             }
         }
         .padding(.horizontal, 10)
-        .padding(.top, 26)    // 避让交通灯（仍是一行，纯高度按行内边距给）
+        .padding(.top, 8)     // 素材面板在编辑区，红绿灯在侧栏那一列 → 不需要 26pt 避让
         .padding(.bottom, 6)
     }
 
