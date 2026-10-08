@@ -526,7 +526,8 @@ struct MarkNoteApp: App {
                 } label: {
                     Text((UserDefaults.standard.bool(forKey: "aiPanelVisible") ? "✓ " : "") + _L("AI 问答面板", "AI Chat Panel"))
                 }
-                .keyboardShortcut("a", modifiers: [.command, .shift])
+                // ⌥⌘A：⇧⌘A 会被截图工具（PixPin / 钉钉等全局热键）抢走，实测按下去是别人的截图
+                .keyboardShortcut("a", modifiers: [.command, .option])
                 Divider()
                 Button(_LL("翻译选区内容", "Translate Selection")) { NotificationCenter.default.post(name: .aiQuickActionRequested, object: AIQuickAction.translate) }
                     .disabled(!FeatureModules.isEnabled(FeatureModules.aiQuickActions))

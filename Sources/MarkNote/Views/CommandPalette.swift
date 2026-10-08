@@ -288,7 +288,7 @@ private extension NSAlert {
 新建文件                          ⌘N
 保存                              ⌘S
 删除选中文件（回收站）              ⌘⌫
-AI 问答面板                        ⇧⌘A / ⌥⌘A
+AI 问答面板                        ⌥⌘A
 命令面板                          ⌃⇧P / ⇧⌘P
 视图模式：编辑 / 分屏 / 预览        ⌘1 / ⌘2 / ⌘3
 导入文件                          ⌘⇧I
@@ -301,7 +301,7 @@ AI 问答面板                        ⇧⌘A / ⌥⌘A
 New File                          ⌘N
 Save                              ⌘S
 Delete Selected File (Trash)      ⌘⌫
-AI Chat Panel                     ⇧⌘A / ⌥⌘A
+AI Chat Panel                     ⌥⌘A
 Command Palette                   ⌃⇧P / ⇧⌘P
 View Mode: Editor / Split / Preview  ⌘1 / ⌘2 / ⌘3
 Import File                       ⌘⇧I

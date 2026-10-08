@@ -45,12 +45,13 @@ struct ContentView: View {
     @State private var easterEggMessage: String?
     @State private var easterEggDismiss: DispatchWorkItem?
 
-    /// AI 面板开关（⌥⌘A / ⇧⌘A 双组合，keyCode 0）；独立监视器，菜单快捷键失效时兜底
+    /// AI 面板开关（只认 ⌥⌘A，keyCode 0）；独立监视器，菜单快捷键失效时兜底。
+    /// 不再接 ⇧⌘A —— 那是截图工具的全局热键（PixPin / 钉钉），按下去是别人截图。
     private func installAIShortcutMonitor() {
         aiShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event -> NSEvent? in
             guard event.keyCode == 0 else { return event }   // kVK_ANSI_A
             let mods = event.modifierFlags.intersection([.command, .option, .shift])
-            guard mods == [.command, .option] || mods == [.command, .shift] else { return event }
+            guard mods == [.command, .option] else { return event }
             NotificationCenter.default.post(name: .aiPanelToggle, object: nil)
             return nil
         }
