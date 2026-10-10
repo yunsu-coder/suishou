@@ -130,6 +130,12 @@ struct ContentView: View {
             .sheet(isPresented: $store.pendingSourceSetup) {
                 SourceSetupSheet().environment(store)
             }
+            .onChange(of: store.loadedNoteID) { _, newID in
+                // 代码文件（c/cpp/py…）不需要素材面板：打开时自动收起，把编辑区让出来
+                if EditorView.isCodeNote(newID) {
+                    UserDefaults.standard.set(false, forKey: "assetTopPanelOpen")
+                }
+            }
     }
 
     private var readerOverlay: some View {

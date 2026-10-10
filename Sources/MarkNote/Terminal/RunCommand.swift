@@ -52,6 +52,19 @@ enum RunCommand {
     }
 
     /// 单文件模式（没有项目文件时）：按语言挑解释器/编译器，并把第三方库带上
+    /// 内置运行方式覆盖的类型（编辑器右上角据此决定是否显示 ▶；run.json 自定义命令不受此限制）
+    static let builtinExts: Set<String> = [
+        "py", "pyw", "pyi", "js", "mjs", "cjs", "jsx", "ts", "tsx", "mts", "cts",
+        "go", "rs", "c", "h", "cpp", "cc", "cxx", "c++", "hpp", "hh", "cs",
+        "java", "kt", "kts", "swift", "rb", "php", "lua", "pl", "pm",
+        "sh", "bash", "zsh", "fish", "html", "htm", "xhtml", "sql", "r"
+    ]
+
+    /// 这个扩展名有没有内置运行方式
+    static func canRun(ext: String) -> Bool {
+        builtinExts.contains(ext.lowercased())
+    }
+
     private static func singleFileCommand(forExt ext: String, file: String, fileURL: URL, dir: String,
                                           path: String, config: RunConfig, buildDir: URL) -> String? {
         let path = shellQuote(file)

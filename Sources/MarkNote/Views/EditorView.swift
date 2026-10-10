@@ -334,6 +334,21 @@ struct EditorView: View {
                 .animation(AppMotion.item(reduceMotion), value: store.openTabs)
             }
             .scrollClipDisabled()
+            if canRunLoadedFile {
+                Spacer(minLength: 8)
+                Button {
+                    runCurrentFileFromToolbar()
+                } label: {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(appAppearance.accent)
+                        .frame(width: 24, height: 24)
+                        .background(appAppearance.accent.opacity(0.13), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .help(_L("运行当前文件（在终端里执行，跑的是最新落盘内容）", "Run current file (in terminal; runs the latest saved content)"))
+                .transition(AppMotion.itemTransition(reduceMotion))
+            }
         }
         .padding(.horizontal, 10)
         .padding(.top, 26)
@@ -801,6 +816,20 @@ struct EditorView: View {
             .frame(maxHeight: 280)
         }
         .frame(width: 360)
+    }
+
+    /// 右上角 ▶ 是否出现（可运行类型的代码文件）
+    private var canRunLoadedFile: Bool {
+        guard let id = store.loadedNoteID ?? store.selectedNoteID else { return false }
+        return RunCommand.canRun(ext: (id as NSString).pathExtension)
+    }
+
+    /// 右上角 ▶：打开终端面板并运行当前文件（与终端工具条同一套行为）
+    private func runCurrentFileFromToolbar() {
+        terminalOpen = true
+        RunCoordinator.runCurrentFile(store: store,
+                                      term: TerminalStore.shared,
+                                      theme: TerminalTheme.current(fontFamily: appAppearance.codeFontFamily))
     }
 
     private var statusBar: some View {
