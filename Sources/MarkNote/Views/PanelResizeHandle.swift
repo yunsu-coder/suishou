@@ -50,7 +50,9 @@ struct PanelResizeHandle: View {
             if inside { (vertical ? NSCursor.resizeUpDown : NSCursor.resizeLeftRight).push() } else { NSCursor.pop() }
         }
         .gesture(
-            DragGesture(minimumDistance: 0)
+            // 用**全局坐标系**：手柄在拖动中会随面板移动，若按 view 自身坐标系取平移量，
+            // 每帧的值会互相抵消/回弹（表现为"拖不动的抖动/橡皮筋"）。全局坐标 = 纯鼠标位移。
+            DragGesture(minimumDistance: 0, coordinateSpace: .global)
                 .onChanged { v in
                     if base == nil { base = value }
                     let raw = vertical ? v.translation.height : v.translation.width

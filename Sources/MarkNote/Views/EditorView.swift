@@ -66,10 +66,6 @@ struct EditorView: View {
     @AppStorage("terminalPanelOpen") private var terminalOpen = false
     /// 素材上方面板：从工作区上方直接挑素材插入，侧栏继续留在文件树
     @AppStorage("assetTopPanelOpen") private var assetPanelOpen = false
-    /// 素材面板高度（可拖拽，默认 480；拖动期走内存草稿，松手才落盘防抖）
-    @AppStorage("assetTopPanelHeight") private var assetPanelHeightStored: Double = 480
-    @State private var assetPanelHeightDraft: Double?
-    private var assetPanelHeight: Double { assetPanelHeightDraft ?? assetPanelHeightStored }
     /// 编辑｜预览分栏比例（拖拽手柄调整；拖动期同样走内存草稿）
     @AppStorage("editorSplitRatio") private var splitRatioStored = 0.5
     @State private var splitRatioDraft: Double?
@@ -84,29 +80,13 @@ struct EditorView: View {
         PluginManager.shared.allViews().contains { $0.type == .assetGrid }
     }
 
+    /// 素材面板（高度可拖）；拖动草稿收在 AssetTopPanel 内，逐帧不重渲编辑器 / 预览
+    @ViewBuilder
     private var assetTopPanel: some View {
-        VStack(spacing: 0) {
-            if let spec = PluginManager.shared.allViews().first(where: { $0.type == .assetGrid }) {
-                AssetGridView(spec: spec)
-                    .environment(store)
-                    .frame(height: assetPanelHeight)
-            }
-            assetPanelResizeHandle
+        if let spec = PluginManager.shared.allViews().first(where: { $0.type == .assetGrid }) {
+            AssetTopPanel(spec: spec)
+                .environment(store)
         }
-        .background(Color(nsColor: appAppearance.surface ?? appAppearance.editorBackground))
-    }
-
-    /// 面板下沿拖拽调高（公用分隔条：整条线可拖 / hover 高亮 / 双击复位到 480）
-    private var assetPanelResizeHandle: some View {
-        PanelResizeHandle(value: Binding(
-                get: { assetPanelHeight },
-                set: { assetPanelHeightDraft = $0 }),
-            minValue: 240, maxValue: 900, defaultValue: 480,
-            onCommit: {
-                if let d = assetPanelHeightDraft { assetPanelHeightStored = d; assetPanelHeightDraft = nil }
-            },
-            help: _L("拖动调整素材面板高度，双击复位到 480",
-                     "Drag to resize the asset panel, double-click to reset (480)"))
     }
 
     var body: some View {
