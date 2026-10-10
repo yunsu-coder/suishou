@@ -61,6 +61,7 @@ final class TerminalStore {
 struct TerminalPanel: View {
 
     @Environment(NotesStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var onClose: () -> Void
 
     @State private var term = TerminalStore.shared
@@ -122,7 +123,9 @@ struct TerminalPanel: View {
     private var resizeHandle: some View {
         PanelResizeHandle(value: Binding(
                 get: { height },
-                set: { heightDraft = $0 }),
+                set: { v in
+                    withAnimation(AppMotion.liveResize(reduceMotion)) { heightDraft = v }
+                }),
             minValue: 120, maxValue: 760, defaultValue: 260,
             inverted: true,   // 终端在窗口下方：向下拖 = 变矮
             onCommit: {

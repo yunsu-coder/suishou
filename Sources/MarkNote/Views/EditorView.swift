@@ -408,7 +408,9 @@ struct EditorView: View {
                         get: { editorW },
                         set: { w in
                             guard clampable, available > 0 else { return }
-                            splitRatioDraft = min(max(w, minPane), available - minPane) / available
+                            withAnimation(AppMotion.liveResize(reduceMotion)) {
+                                splitRatioDraft = min(max(w, minPane), available - minPane) / available
+                            }
                         }),
                     minValue: minPane,
                     maxValue: max(minPane, available - minPane),

@@ -16,6 +16,11 @@ import SwiftUI
 enum AppMotion {
 
     // MARK: - 结构变化（面板、侧栏、分栏）：M3 Standard + Medium2(300ms)
+    /// 拉条拖动 / 双击复位时内容的跟手动画：临界阻尼 + 快响应（顺滑，且几乎不延迟）
+    static func liveResize(_ reduceMotion: Bool) -> Animation? {
+        reduceMotion ? nil : .interactiveSpring(response: 0.12, dampingFraction: 1.0, blendDuration: 0.06)
+    }
+
     static func panel(_ reduceMotion: Bool) -> Animation {
         reduceMotion ? .easeOut(duration: 0.16)
                      : .timingCurve(0.2, 0, 0, 1, duration: 0.30)

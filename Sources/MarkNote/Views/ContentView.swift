@@ -159,7 +159,9 @@ struct ContentView: View {
                 // 分隔线即拖拽手柄（与素材/终端面板同款：整条线可拖 / hover 高亮 / 双击复位）
                 PanelResizeHandle(value: Binding(
                         get: { explorerWidth },
-                        set: { explorerWidthDraft = $0 }),
+                    set: { v in
+                        withAnimation(AppMotion.liveResize(reduceMotionSide)) { explorerWidthDraft = v }
+                    }),
                     minValue: 110, maxValue: 420, defaultValue: 170,
                     axis: .horizontal,
                     onCommit: {

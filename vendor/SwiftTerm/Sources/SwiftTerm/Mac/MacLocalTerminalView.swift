@@ -94,14 +94,28 @@ open class LocalProcessTerminalView: TerminalView, TerminalViewDelegate, LocalPr
     /**
      * This method is invoked to notify the client of the new columsn and rows that have been set by the UI
      */
+    /// 拖动拉条时本方法每帧触发：若每帧都 TIOCSWINSZ，内核会对前台进程组连发 SIGWINCH，
+    /// zsh / p10k 之类提示符连环重绘 → 回滚区刷屏（实测：拖一次终端高度，刷出一屏提示符）。
+    /// 这里做"停顿合并"（trailing debounce）：拖动过程只重排本地缓冲，
+    /// 松手 120ms 后一次性把最终尺寸告知 shell（VS Code 的终端也是这种节流思路）。
+    private var pendingWinSize: winsize?
+    private var pendingSize: (cols: Int, rows: Int)?
+    private var resizeWork: DispatchWorkItem?
+
     public func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
         guard process.running else {
             return
         }
-        var size = getWindowSize()
-        let _ = PseudoTerminalHelpers.setWinSize(masterPtyDescriptor: process.childfd, windowSize: &size)
-        
-        processDelegate?.sizeChanged (source: self, newCols: newCols, newRows: newRows)
+        pendingWinSize = getWindowSize()
+        pendingSize = (newCols, newRows)
+        resizeWork?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            guard let self, var size = self.pendingWinSize, let sz = self.pendingSize else { return }
+            let _ = PseudoTerminalHelpers.setWinSize(masterPtyDescriptor: self.process.childfd, windowSize: &size)
+            self.processDelegate?.sizeChanged(source: self, newCols: sz.cols, newRows: sz.rows)
+        }
+        resizeWork = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: item)
     }
     
     public func clipboardCopy(source: TerminalView, content: Data) {

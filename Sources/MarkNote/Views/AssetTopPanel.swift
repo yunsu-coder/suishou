@@ -5,6 +5,7 @@ import SwiftUI
 struct AssetTopPanel: View {
     let spec: PluginView
     @Environment(NotesStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("assetTopPanelHeight") private var heightStored: Double = 480
     @State private var heightDraft: Double?
     private var height: Double { heightDraft ?? heightStored }
@@ -16,7 +17,9 @@ struct AssetTopPanel: View {
                 .frame(height: height)
             PanelResizeHandle(value: Binding(
                     get: { height },
-                    set: { heightDraft = $0 }),
+                    set: { v in
+                        withAnimation(AppMotion.liveResize(reduceMotion)) { heightDraft = v }
+                    }),
                 minValue: 240, maxValue: 900, defaultValue: 480,
                 onCommit: {
                     if let d = heightDraft { heightStored = d; heightDraft = nil }
