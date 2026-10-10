@@ -54,6 +54,7 @@ struct PanelResizeHandle: View {
             // 每帧的值会互相抵消/回弹（表现为"拖不动的抖动/橡皮筋"）。全局坐标 = 纯鼠标位移。
             DragGesture(minimumDistance: 0, coordinateSpace: .global)
                 .onChanged { v in
+                    GlowEffects.handleDragActive = true
                     if base == nil { base = value }
                     let raw = vertical ? v.translation.height : v.translation.width
                     let delta = inverted ? -raw : raw
@@ -61,6 +62,7 @@ struct PanelResizeHandle: View {
                 }
                 .onEnded { _ in
                     base = nil
+                    GlowEffects.handleDragActive = false
                     onCommit?()
                 }
         )

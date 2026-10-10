@@ -434,7 +434,9 @@ body {
 .markdown-body nav.toc li.toc-level-3 { padding-left: 2.2em; }
 .markdown-body nav.toc a { color: var(--text-secondary); border: none; font-size: 0.92em; }
 .markdown-body nav.toc a:hover { color: var(--accent); }
-html { scroll-behavior: smooth; }
+/* 注意：这里刻意不启用全局 scroll-behavior: smooth ——
+   拖动面板拉条时预览每帧重排，滚动修正若带平滑就会表现为"文字漂移"（很难看）。
+   需要平滑的跳转（大纲定位等）由 JS 显式传 { behavior: 'smooth' }。 */
 
 /* ═══ 图片卡片（独立成段图片 / figure.img-card 图注卡） ═══
    圆角 12px + 细边框 + 主题柔影；图注居中次文色 */

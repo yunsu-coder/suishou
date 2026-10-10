@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// 界面光效 —— 参考成熟桌面软件的"取景高光"做法（Linear / Raycast 的光标聚光、
 /// macOS 焦点环的柔光），原则只有三条：
@@ -10,6 +11,9 @@ enum GlowEffects {
     static let spotlightRadius: CGFloat = 260
     static let spotlightAlpha: Double = 0.07      // 深色主题
     static let spotlightAlphaLight: Double = 0.05 // 浅色主题（亮底上更克制）
+
+    /// 拉条拖动中：暂停跟随光斑 —— 否则拖动时光斑在文字上带 0.18s 缓动滑动，观感很糟
+    static var handleDragActive = false
 
     /// 现在该不该画光效
     static func isEnabled(reduceMotion: Bool, reduceTransparency: Bool) -> Bool {
@@ -28,7 +32,9 @@ struct SpotlightOverlay: View {
 
     var body: some View {
         GeometryReader { geo in
-            if GlowEffects.isEnabled(reduceMotion: reduceMotion, reduceTransparency: reduceTransparency) {
+            if GlowEffects.isEnabled(reduceMotion: reduceMotion, reduceTransparency: reduceTransparency),
+               !GlowEffects.handleDragActive,
+               NSEvent.pressedMouseButtons == 0 {   // 任何按住拖动（拉条 / 划选文字）期间光斑让路
                 let r = GlowEffects.spotlightRadius
                 let alpha = appAppearance.dark ? GlowEffects.spotlightAlpha : GlowEffects.spotlightAlphaLight
                 RadialGradient(
