@@ -117,6 +117,11 @@ final class TerminalTab: Identifiable {
         v.window?.makeFirstResponder(v)
     }
 
+    /// 拖动面板期间挂起尺寸应用（本地缓冲与 shell 都不重排），结束后一次性到位
+    func setPanelResizing(_ resizing: Bool) {
+        view.resizeSignalSuppressed = resizing
+    }
+
     /// ⌘K 清屏（VS Code 同款快捷键：先清缓冲再让 shell 自己清）
     func clear() {
         terminalView?.send(txt: "\u{0C}")

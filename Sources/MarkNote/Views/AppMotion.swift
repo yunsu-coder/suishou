@@ -18,7 +18,7 @@ enum AppMotion {
     // MARK: - 结构变化（面板、侧栏、分栏）：M3 Standard + Medium2(300ms)
     /// 拉条拖动 / 双击复位时内容的跟手动画：临界阻尼 + 快响应（顺滑，且几乎不延迟）
     static func liveResize(_ reduceMotion: Bool) -> Animation? {
-        reduceMotion ? nil : .interactiveSpring(response: 0.12, dampingFraction: 1.0, blendDuration: 0.06)
+        reduceMotion ? nil : .interactiveSpring(response: 0.2, dampingFraction: 1.0, blendDuration: 0.08)
     }
 
     static func panel(_ reduceMotion: Bool) -> Animation {

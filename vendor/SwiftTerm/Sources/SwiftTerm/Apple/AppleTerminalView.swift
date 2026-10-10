@@ -137,6 +137,9 @@ extension TerminalView {
     /// Returns true if this changed the number of columns/rows, false otherwise
     @discardableResult
     func processSizeChange (newSize: CGSize) -> Bool {
+        // 宿主拖动面板期间完全挂起：本地网格重排与 delegate（SIGWINCH）通知都不发生，
+        // 结束后由 resizeSignalSuppressed 的 didSet 补一次 —— 提示符最多重绘一次，不再刷屏。
+        if resizeSignalSuppressed { return false }
         let newRows = Int (newSize.height / cellDimension.height)
         let newCols = Int (getEffectiveWidth (size: newSize) / cellDimension.width)
         

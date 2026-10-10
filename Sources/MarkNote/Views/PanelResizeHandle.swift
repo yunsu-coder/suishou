@@ -23,24 +23,29 @@ struct PanelResizeHandle: View {
     var inverted = false
     /// 拖动结束回调（把内存草稿一次落盘）
     var onCommit: (() -> Void)?
+    /// 拖动开始 / 结束回调（终端用它挂起尺寸通知等）
+    var onDragChange: ((Bool) -> Void)?
     var help: String?
 
     @State private var base: Double?
     @State private var hovering = false
+    @State private var dragging = false
 
     private var vertical: Bool { axis == .vertical }
+    /// 悬停或拖动中都算"活" —— 拖动过程手柄保持高亮，给出正在操作的反馈
+    private var active: Bool { hovering || dragging }
 
     var body: some View {
         ZStack {
             Rectangle().fill(Color.clear)
             Rectangle()
-                .fill(hovering ? appAppearance.accent.opacity(0.55) : Color(nsColor: .separatorColor))
-                .frame(width: vertical ? nil : (hovering ? 2 : 1),
-                       height: vertical ? (hovering ? 2 : 1) : nil)
+                .fill(active ? appAppearance.accent.opacity(dragging ? 0.8 : 0.55) : Color(nsColor: .separatorColor))
+                .frame(width: vertical ? nil : (active ? 2 : 1),
+                       height: vertical ? (active ? 2 : 1) : nil)
             Capsule()
-                .fill(hovering ? appAppearance.accent.opacity(0.75) : Color.secondary.opacity(0.35))
+                .fill(active ? appAppearance.accent.opacity(0.75) : Color.secondary.opacity(0.35))
                 .frame(width: vertical ? 56 : 4, height: vertical ? 4 : 56)
-                .opacity(hovering ? 1 : 0.7)
+                .opacity(active ? 1 : 0.7)
         }
         .frame(width: vertical ? nil : 12, height: vertical ? 12 : nil)
         .frame(maxWidth: vertical ? .infinity : nil, maxHeight: vertical ? nil : .infinity)
@@ -55,13 +60,19 @@ struct PanelResizeHandle: View {
             DragGesture(minimumDistance: 0, coordinateSpace: .global)
                 .onChanged { v in
                     GlowEffects.handleDragActive = true
-                    if base == nil { base = value }
+                    if base == nil {
+                        base = value
+                        dragging = true
+                        onDragChange?(true)
+                    }
                     let raw = vertical ? v.translation.height : v.translation.width
                     let delta = inverted ? -raw : raw
                     value = min(maxValue, max(minValue, (base ?? value) + delta))
                 }
                 .onEnded { _ in
                     base = nil
+                    dragging = false
+                    onDragChange?(false)
                     GlowEffects.handleDragActive = false
                     onCommit?()
                 }

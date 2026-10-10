@@ -423,6 +423,20 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         window?.makeFirstResponder (self)
     }
     
+    /// 宿主拖动面板期间挂起尺寸应用：本地网格重排与 shell 尺寸通知都暂停
+    /// （拖动中只有面板边界在动）；置回 false 后按当前尺寸补一次，一次性到位。
+    public var resizeSignalSuppressed = false {
+        didSet {
+            guard oldValue, !resizeSignalSuppressed else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.cellDimension != nil else { return }
+                _ = self.processSizeChange(newSize: self.frame.size)
+                self.needsDisplay = true
+                self.updateCursorPosition()
+            }
+        }
+    }
+
     open override var frame: NSRect {
         get {
             return super.frame

@@ -131,6 +131,12 @@ struct TerminalPanel: View {
             onCommit: {
                 if let d = heightDraft { heightStored = d; heightDraft = nil }
             },
+            onDragChange: { resizing in
+                // 拖动期间完全挂起终端尺寸应用：本地网格与 shell 都不重排（结束后一次性到位）
+                for tab in term.tabs + [term.split].compactMap({ $0 }) {
+                    tab.setPanelResizing(resizing)
+                }
+            },
             help: _L("拖动调整终端高度，双击复位到 260",
                      "Drag to resize the terminal, double-click to reset (260)"))
     }
