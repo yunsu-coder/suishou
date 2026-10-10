@@ -1,11 +1,13 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 /// 设置面板（⌘,）
 struct SettingsView: View {
     @Environment(NotesStore.self) private var store
     @AppStorage("editorFontSize") private var editorFontSize = 13.0
     @AppStorage("previewFontScale") private var previewFontScale = 1.0
     @AppStorage("previewImageCaptions") private var previewImageCaptions = true
+    @AppStorage("editorSpellCheck") private var editorSpellCheck = true
     @State private var appearanceToken = "-"
 
     var body: some View {
@@ -14,10 +16,12 @@ struct SettingsView: View {
                 .environment(store)
                 .tabItem { Label(_LL("通用", "General"), systemImage: "gear") }
             EditorSettingsTab(editorFontSize: $editorFontSize, previewFontScale: $previewFontScale,
-                              previewImageCaptions: $previewImageCaptions)
+                              previewImageCaptions: $previewImageCaptions, spellCheck: $editorSpellCheck)
                 .tabItem { Label(_LL("编辑", "Editor"), systemImage: "textformat.size") }
             PluginsSettingsTab()
                 .tabItem { Label(_LL("插件", "Plugins"), systemImage: "puzzlepiece.extension") }
+            DiagnosticsSettingsTab()
+                .tabItem { Label(_LL("诊断", "Diagnostics"), systemImage: "stethoscope") }
         }
         .frame(width: 480, height: 380)
         .tint(appAppearance.accent)
@@ -223,9 +227,23 @@ private struct EditorSettingsTab: View {
     @Binding var editorFontSize: Double
     @Binding var previewFontScale: Double
     @Binding var previewImageCaptions: Bool
+    @Binding var spellCheck: Bool
+    @AppStorage("cxxIntelEnabled") private var cxxIntel = true
 
     var body: some View {
         Form {
+            Section(_L("代码智能", "Code Intelligence")) {
+                Toggle(_L("C/C++ 智能提示（clangd）", "C/C++ intellisense (clangd)"), isOn: $cxxIntel)
+                Text(_L("clangd 随 Xcode 自带、零安装：错误 / 警告下划线与语义补全（Tab 接受）。关掉后只留本地词表补全。",
+                        "clangd ships with Xcode: diagnostics + semantic completion (Tab to accept). Off = local word list only."))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                Toggle(_L("拼写检查（英文，仅散文）", "Spell checking (English, prose only)"), isOn: $spellCheck)
+                Text(_L("对 md / txt 的英文单词画点线提示；代码文件不开（避免把标识符全标上）。",
+                        "Dot-underline misspelled English in prose only; code files excluded."))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
             Section(_L("编辑器", "Editor")) {
                 VStack {
                     HStack {
@@ -334,6 +352,117 @@ private struct PluginsSettingsTab: View {
 
     private func reload() {
         packages = PluginManager.shared.allPackages()
+    }
+}
+
+/// "诊断"页：记录最近操作耗时 / 次数，可导出诊断包（纯本地生成，不上传）。
+/// 用途：你说"这里卡了一下"时，能对照看出是哪类操作慢（打开 / 索引刷新 / 预览渲染 / 语法高亮）。
+private struct DiagnosticsSettingsTab: View {
+    @State private var snap = PerfLog.snapshot()
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Text(_L("最近操作用时（毫秒）", "Recent operations (ms)"))
+                    .font(.headline)
+                Spacer()
+                Button(_L("刷新", "Refresh")) { snap = PerfLog.snapshot() }
+                    .controlSize(.small)
+                Button(_L("导出诊断包…", "Export…")) { export() }
+                    .controlSize(.small)
+                Button(_L("清空", "Clear")) {
+                    PerfLog.reset()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { snap = PerfLog.snapshot() }
+                }
+                .controlSize(.small)
+            }
+            .padding([.horizontal, .top], 12)
+            .padding(.bottom, 6)
+
+            List {
+                Section(_L("慢操作排行", "Slowest first")) {
+                    if snap.aggregates.isEmpty {
+                        Text(_L("还没有数据 —— 用一会儿再回来看。", "No data yet — use the app and come back."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(snap.aggregates.prefix(10), id: \.label) { a in
+                        HStack(spacing: 10) {
+                            Text(a.label)
+                                .font(.system(size: 12))
+                            Spacer()
+                            Text(_L("\(a.count) 次", "\(a.count)×"))
+                                .font(.system(size: 11).monospacedDigit())
+                                .foregroundStyle(.tertiary)
+                            Text("均 \(ms(a.avgMs))")
+                                .font(.system(size: 11).monospacedDigit())
+                            Text("最大 \(ms(a.maxMs))")
+                                .font(.system(size: 11).monospacedDigit())
+                                .foregroundStyle(a.maxMs > 100 ? .orange : .secondary)
+                            Text("最近 \(ms(a.lastMs))")
+                                .font(.system(size: 11).monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                Section(_L("计数", "Counters")) {
+                    if snap.counters.isEmpty {
+                        Text("—").font(.caption).foregroundStyle(.secondary)
+                    }
+                    ForEach(Array(snap.counters.enumerated()), id: \.offset) { _, c in
+                        HStack {
+                            Text(c.name).font(.system(size: 12))
+                            Spacer()
+                            Text("\(c.count)")
+                                .font(.system(size: 12).monospacedDigit())
+                        }
+                    }
+                }
+                Section(_L("最近记录", "Recent")) {
+                    ForEach(Array(snap.recent.prefix(15).enumerated()), id: \.offset) { _, e in
+                        HStack(spacing: 8) {
+                            Text(clock(e.date))
+                                .font(.system(size: 10).monospacedDigit())
+                                .foregroundStyle(.tertiary)
+                            Text(e.label).font(.system(size: 11))
+                            Spacer()
+                            Text(ms(e.ms)).font(.system(size: 11).monospacedDigit())
+                        }
+                    }
+                }
+            }
+            .listStyle(.inset)
+        }
+        .onAppear { snap = PerfLog.snapshot() }
+    }
+
+    private func ms(_ v: Double) -> String { String(format: "%.1f", v) }
+
+    private func clock(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        return f.string(from: d)
+    }
+
+    private func export() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "marknote-diagnostics.json"
+        panel.allowedContentTypes = [.json]
+        panel.message = _L("导出诊断数据（本地生成，不上传）", "Export diagnostics (generated locally)")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let iso = ISO8601DateFormatter()
+        var root: [String: Any] = [:]
+        root["generatedAt"] = iso.string(from: snap.generatedAt)
+        root["app"] = "随手 MarkNote"
+        root["version"] = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "-"
+        root["operations"] = snap.aggregates.map {
+            ["label": $0.label, "count": $0.count, "avgMs": $0.avgMs, "maxMs": $0.maxMs, "lastMs": $0.lastMs]
+        }
+        root["counters"] = Dictionary(uniqueKeysWithValues: snap.counters.map { ($0.name, $0.count) })
+        root["recent"] = snap.recent.map { ["label": $0.label, "ms": $0.ms, "at": iso.string(from: $0.date)] }
+        if let data = try? JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys]) {
+            try? data.write(to: url)
+        }
     }
 }
 

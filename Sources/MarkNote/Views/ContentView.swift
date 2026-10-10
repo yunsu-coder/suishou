@@ -23,8 +23,10 @@ struct ContentView: View {
     /// 低频变化，可安全放在父级 —— 高频的条悬停状态留在 ReaderFocusOverlay 内部）
     @State private var readerTopZone = false
     @State private var readerMouseMonitor: Any?
-    /// 资源管理器宽度（拖拽手柄调整；持久化）
-    @AppStorage("explorerWidth") private var explorerWidth = 170.0
+    /// 资源管理器宽度（拖拽手柄调整；拖动期走内存草稿，松手才落盘防抖）
+    @AppStorage("explorerWidth") private var explorerWidthStored = 170.0
+    @State private var explorerWidthDraft: Double?
+    private var explorerWidth: Double { explorerWidthDraft ?? explorerWidthStored }
     /// ⌃+滚动 分层缩放监视器（与设置页同键；本窗口级别的作用目标也在此裁决）
     @State private var ctrlScrollMonitor: Any?
     /// ⇧⌘/ 反缩进监视器：该键被系统「帮助搜索」以菜单级 keyEquivalent 占用（非菜单项，剥不掉）
@@ -121,9 +123,13 @@ struct ContentView: View {
     }
 
     var body: some View {
+        @Bindable var store = store
         // 阅读专注态 overlay 单独挂一层（body 保持极简：整链过长会让 Swift 类型检查超时）
         mainContentInner
             .overlay(alignment: .top) { readerOverlay }
+            .sheet(isPresented: $store.pendingSourceSetup) {
+                SourceSetupSheet().environment(store)
+            }
     }
 
     private var readerOverlay: some View {
@@ -144,9 +150,17 @@ struct ContentView: View {
                 SidebarView(showVersions: $showVersions)
                     .frame(width: explorerWidth)
                     .transition(.move(edge: .leading).combined(with: .opacity))
-                // 分隔线即拖拽手柄（3pt；拖动调整侧栏宽度，最小 110 / 最大 420）
-                ResizeHandle(width: $explorerWidth, minW: 110, maxW: 420)
-                    .frame(width: 3)
+                // 分隔线即拖拽手柄（与素材/终端面板同款：整条线可拖 / hover 高亮 / 双击复位）
+                PanelResizeHandle(value: Binding(
+                        get: { explorerWidth },
+                        set: { explorerWidthDraft = $0 }),
+                    minValue: 110, maxValue: 420, defaultValue: 170,
+                    axis: .horizontal,
+                    onCommit: {
+                        if let d = explorerWidthDraft { explorerWidthStored = d; explorerWidthDraft = nil }
+                    },
+                    help: _L("拖动调整资源管理器宽度，双击复位到 170",
+                             "Drag to resize the explorer, double-click to reset (170)"))
                     .transition(.opacity)
             }
             // 侧栏显隐按钮已并入编辑器标题栏最左侧（.toggleSidebarRequested 通知）
@@ -371,6 +385,8 @@ struct ContentView: View {
         aiModel.agent = WorkspaceAgent(store: store)
         // @ 文件引用数据源
         aiModel.indexProvider = { store.index }
+        // AI 知识库检索（回答带 [n] 出处，可点开对应笔记）
+        aiModel.knowledgeProvider = { query in store.aiKnowledgeHits(for: query) }
         // 对话历史持久化位置（工作台 .ai-history/，点目录不进入索引）
         aiModel.historyBaseDir = { store.notesDir }
     }
@@ -495,38 +511,6 @@ struct EmptyStateView: View {
 }
 
 
-/// 宽度拖拽手柄：位于分隔线右侧，光标 resizeLeftRight；拖动即改绑定宽度（持久化由调用方负责）
-struct ResizeHandle: View {
-    @Binding var width: Double
-    var minW: Double = 100
-    var maxW: Double = 480
-    @State private var baseW: Double?
-    @State private var hovering = false
-
-    var body: some View {
-        Rectangle()
-            .fill(hovering ? appAppearance.accent.opacity(0.55) : Color(nsColor: .separatorColor))
-            .frame(width: 3)
-            .padding(.horizontal, 4)   // 视觉 3pt、命中区 ~11pt（好抓）
-            .contentShape(Rectangle())
-            .onHover { h in
-                hovering = h
-                h ? NSCursor.resizeLeftRight.push() : NSCursor.pop()
-            }
-            .gesture(
-                DragGesture(minimumDistance: 1)
-                    .onChanged { v in
-                        if baseW == nil { baseW = width }
-                        // 手柄在侧栏右侧：拖左（负增量）→ 变窄；拖右 → 变宽
-                        let proposed = (baseW ?? width) + Double(v.translation.width)
-                        width = min(max(minW, proposed), maxW)
-                    }
-                    .onEnded { _ in baseW = nil }
-            )
-            .help(_LL("拖动调整资源管理器宽度", "Drag to resize the explorer width"))
-    }
-}
-
 /// 阅读专注态的顶部退出条（独立小视图：内联在 ContentView 会让类型检查超时）。
 /// 顶部 8pt 热区滑出；鼠标离开热区与条本身 → 自动收起。
 private struct ReaderFocusOverlay: View {
@@ -585,5 +569,43 @@ private struct ReaderFocusBar: View {
         .overlay(RoundedRectangle(cornerRadius: 12)
             .stroke(accent.opacity(0.22), lineWidth: 1))
         .onHover(perform: onHoverChange)
+    }
+}
+
+/// 工作台 source 子库初始化弹窗（切换 / 新建工作台且尚无 source/ 时出现）
+private struct SourceSetupSheet: View {
+    @Environment(NotesStore.self) private var store
+    @State private var selected: Set<String> = ["image", "mp4", "mp3", "pdf"]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(_L("为「\(store.notesDir.lastPathComponent)」创建资源子库",
+                    "Create asset libraries in \"\(store.notesDir.lastPathComponent)\""))
+                .font(.headline)
+            Text(_L("素材会按类型自动放进 source/ 对应子目录；只勾选你会用到的即可，之后也能手动建。",
+                    "Assets land in source/<type>/ automatically; pick only what you need."))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ForEach(NotesStore.sourceSubLibs, id: \.id) { item in
+                Toggle(item.title, isOn: Binding(
+                    get: { selected.contains(item.id) },
+                    set: { on in
+                        if on { selected.insert(item.id) } else { selected.remove(item.id) }
+                    }))
+                .toggleStyle(.checkbox)
+            }
+            HStack {
+                Spacer()
+                Button(_L("暂不创建", "Skip")) { store.dismissSourceSetup() }
+                    .controlSize(.small)
+                Button(_L("创建所选", "Create Selected")) {
+                    store.confirmSourceSetup(Array(selected))
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+        }
+        .padding(18)
+        .frame(width: 400)
     }
 }

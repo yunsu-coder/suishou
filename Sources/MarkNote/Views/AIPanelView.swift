@@ -5,6 +5,14 @@ import Observation
 @MainActor
 @Observable
 final class AIChatModel {
+    /// 回答引用的知识库来源（点标题跳转对应笔记）
+    struct SourceRef: Identifiable, Equatable {
+        var id: String { "\(index)|\(noteID)" }
+        let index: Int
+        let noteID: String
+        let title: String
+    }
+
     struct ChatMsg: Identifiable {
         let id = UUID()
         let role: String                    // "user" / "assistant" / "tool"
@@ -15,6 +23,7 @@ final class AIChatModel {
         var toolEvent: FileTools.Event?
         var pendingConfirm: FileTools.PendingConfirm?
         var referenced: [String] = []
+        var sources: [SourceRef] = []
 
         init(role: String, content: String = "", isStreaming: Bool = false,
              toolCalls: [FileTools.ParsedCall]? = nil, toolCallID: String? = nil,
@@ -43,6 +52,7 @@ final class AIChatModel {
         var updatedAt: Date
         var count: Int
         var expertID: String
+        var summary: String?
     }
     private(set) var conversations: [ConversationMeta] = []
     var currentConversationID: String?
@@ -52,10 +62,16 @@ final class AIChatModel {
     var agent: WorkspaceAgent?
     var indexProvider: (() -> [NoteIndexItem])?
     var historyBaseDir: (() -> URL)?
+    /// AI 知识库检索：查询 → 当前工作台最相关的笔记（标题 + 片段）
+    var knowledgeProvider: ((String) -> [(id: String, title: String, snippet: String)])?
 
     // MARK: 内部
     private var streamTask: Task<Void, Never>?
     private var toolRound = 0
+    /// 本轮追加到 system 的记忆 / 资料块（新会话记忆 + 知识库检索）
+    private var systemExtra = ""
+    /// 本轮注入的资料编号 → 笔记（解析回答里的 [n] 出处）
+    private var lastKnowledgeHits: [(index: Int, id: String, title: String)] = []
     private let maxRounds = 6
     private static let maxHistory = 20
     private static let maxPersistChars = 400 * 1024
@@ -68,7 +84,14 @@ final class AIChatModel {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !busy else { return }
         input = ""
+        let freshConversation = messages.isEmpty
         beginConversationIfNeeded(title: text)
+        // 长期记忆（仅新会话首条注入）+ 本地知识库检索（每条都查，回答带出处）
+        systemExtra = ""
+        if freshConversation { systemExtra += memoryBrief() }
+        let hits = knowledgeProvider?(text) ?? []
+        lastKnowledgeHits = hits.enumerated().map { (index: $0.offset + 1, id: $0.element.id, title: $0.element.title) }
+        if !hits.isEmpty { systemExtra += knowledgeBlock(hits) }
         var context = text
         if let ctx = fileContext?(), !ctx.isEmpty {
             context = "当前工作文件内容（节选）：\n\n\(String(ctx.prefix(8000)))\n\n---\n\n用户：\(text)"
@@ -99,7 +122,7 @@ final class AIChatModel {
             do {
                 // 文件代理开关：关闭 = 纯问答（不注入 tools，AI 无法操作工作台）
                 let agentTools = FeatureModules.isEnabled(FeatureModules.aiFileAgent) ? FileTools.specs : nil
-                let stream = LLM.chatStreamTools(system: expert.system, messages: history, tools: agentTools)
+                let stream = LLM.chatStreamTools(system: expert.system + systemExtra, messages: history, tools: agentTools)
                 var text = ""
                 var calls: [FileTools.ParsedCall] = []
                 let stub = ChatMsg(role: "assistant", content: "", isStreaming: true)
@@ -122,6 +145,7 @@ final class AIChatModel {
                     var m = messages[idx]
                     m.content = text
                     messages[idx] = m
+                    attachSources(messageIndex: idx, text: text)
                 }
                 if text.isEmpty && calls.isEmpty {
                     if idx < messages.count {
@@ -252,6 +276,7 @@ final class AIChatModel {
         var title: String
         var updatedAt: Date
         var expertID: String
+        var summary: String?
         var messages: [StoredMessage]
     }
 
@@ -265,7 +290,8 @@ final class AIChatModel {
             guard let data = try? Data(contentsOf: f),
                   let conv = try? JSONDecoder().decode(StoredConversation.self, from: data) else { continue }
             metas.append(ConversationMeta(id: conv.id, title: conv.title, updatedAt: conv.updatedAt,
-                                          count: conv.messages.count, expertID: conv.expertID))
+                                          count: conv.messages.count, expertID: conv.expertID,
+                                          summary: conv.summary))
         }
         conversations = metas.sorted { $0.updatedAt > $1.updatedAt }
         while conversations.count > Self.maxHistory {
@@ -285,6 +311,7 @@ final class AIChatModel {
             title: (conversations.first { $0.id == id })?.title ?? String((messages.first?.content ?? _L("对话", "Conversation")).prefix(18)),
             updatedAt: Date(),
             expertID: expertID,
+            summary: Self.conversationDigest(messages),
             messages: messages.prefix(200).map { m in
                 StoredMessage(role: m.role, content: String(m.content.prefix(Self.maxPersistChars)),
                               referenced: m.referenced, toolTitle: m.toolEvent?.title.split(separator: "→").first.map(String.init))
@@ -292,10 +319,10 @@ final class AIChatModel {
         if let data = try? JSONEncoder().encode(stored) {
             try? data.write(to: dir.appendingPathComponent(id + ".json"), options: .atomic)
         }
-        updateMeta(id: id, count: messages.count)
+        updateMeta(id: id, count: messages.count, summary: stored.summary)
     }
 
-    private func updateMeta(id: String, count: Int) {
+    private func updateMeta(id: String, count: Int, summary: String? = nil) {
         let now = Date()
         var metaInfo: ConversationMeta? = nil
         var matched = false
@@ -303,12 +330,13 @@ final class AIChatModel {
             if conversations[i].id == id {
                 conversations[i].updatedAt = now
                 conversations[i].count = count
+                if let summary { conversations[i].summary = summary }
                 matched = true
                 break
             }
         }
         if !matched {
-            metaInfo = ConversationMeta(id: id, title: messages.first.map { String($0.content.prefix(18)) } ?? _L("对话", "Conversation"), updatedAt: now, count: count, expertID: expertID)
+            metaInfo = ConversationMeta(id: id, title: messages.first.map { String($0.content.prefix(18)) } ?? _L("对话", "Conversation"), updatedAt: now, count: count, expertID: expertID, summary: summary)
         }
         if let info = metaInfo { conversations.insert(info, at: 0) }
         conversations.sort { $0.updatedAt > $1.updatedAt }
@@ -330,7 +358,7 @@ final class AIChatModel {
         toolRound = maxRounds
         busy = false
         pendingChain = nil
-        updateMeta(id: conv.id, count: messages.count)
+        updateMeta(id: conv.id, count: messages.count, summary: conv.summary)
     }
 
     func deleteConversation(_ id: String) {
@@ -359,6 +387,84 @@ final class AIChatModel {
     }
 
     // MARK: - AI 总结对话 → 写入笔记
+
+    /// 会话摘要（长期记忆用）：首问 → 末答 的截断摘录
+    private static func conversationDigest(_ msgs: [ChatMsg]) -> String {
+        let ask = msgs.first(where: { $0.role == "user" })?.content ?? ""
+        let answer = msgs.last(where: { $0.role == "assistant" && !$0.content.isEmpty })?.content ?? ""
+        let a = ask.replacingOccurrences(of: "\n", with: " ").prefix(80)
+        let b = answer.replacingOccurrences(of: "\n", with: " ").prefix(120)
+        if a.isEmpty && b.isEmpty { return "" }
+        return "问：\(a) → 答：\(b)"
+    }
+
+    /// 跨会话记忆：最近几段其它会话的摘录，注入新会话首轮
+    func memoryBrief() -> String {
+        let recent = conversations.filter { $0.id != currentConversationID }.prefix(3)
+        let lines = recent.compactMap { c -> String? in
+            guard let s = c.summary, !s.isEmpty else { return nil }
+            return "· [\(c.title)] \(s)"
+        }
+        guard !lines.isEmpty else { return "" }
+        return "\n\n【该工作台的历史会话记忆】\n" + lines.joined(separator: "\n") +
+            "\n（与本次问题无关可忽略；相关时请利用它保持连贯。）"
+    }
+
+    /// 知识库资料块：喂给模型并要求标注 [编号] 出处
+    private func knowledgeBlock(_ hits: [(id: String, title: String, snippet: String)]) -> String {
+        var out = "\n\n【本地知识库检索结果（来自当前工作台笔记）】\n"
+        for (i, h) in hits.enumerated() {
+            out += "[\(i + 1)] \(h.title)（\(h.id)）\n\(h.snippet)\n"
+        }
+        out += "回答时凡用到以上资料，请在句末用 [编号] 标注出处；不要编造资料之外的内容。"
+        return out
+    }
+
+    /// 从回答里解析 [n]/【n】 出处标记 → 挂到消息上（气泡下方显示可点击来源）
+    private func attachSources(messageIndex: Int, text: String) {
+        guard !lastKnowledgeHits.isEmpty, messages.indices.contains(messageIndex) else { return }
+        let ns = text as NSString
+        let pattern = try? NSRegularExpression(pattern: "[\\[【](\\d{1,2})[\\]】]")
+        let matches = pattern?.matches(in: text, range: NSRange(location: 0, length: ns.length)) ?? []
+        var seen = Set<Int>()
+        var refs: [SourceRef] = []
+        for m in matches {
+            guard m.numberOfRanges > 1, let n = Int(ns.substring(with: m.range(at: 1))) else { continue }
+            guard n >= 1, n <= lastKnowledgeHits.count, !seen.contains(n) else { continue }
+            seen.insert(n)
+            let hit = lastKnowledgeHits[n - 1]
+            refs.append(SourceRef(index: n, noteID: hit.id, title: hit.title))
+        }
+        if !refs.isEmpty { messages[messageIndex].sources = refs }
+    }
+
+    // MARK: - 技能包（预设提问）
+
+    struct Skill: Identifiable {
+        let id: String
+        let name: String
+        let icon: String
+        let prompt: String
+    }
+
+    static let skills: [Skill] = [
+        Skill(id: "explain", name: "代码解释", icon: "curlybraces",
+              prompt: "请逐段解释这段代码：作用、关键写法、时间 / 空间复杂度。代码：\n"),
+        Skill(id: "debug", name: "报错诊断", icon: "ladybug",
+              prompt: "帮我诊断这个报错：原因 + 修复方案 + 示例代码。报错信息与相关代码：\n"),
+        Skill(id: "meeting", name: "会议纪要", icon: "list.clipboard",
+              prompt: "把以下内容整理成结构化会议纪要（结论 / 待办 / 负责人 / 时间点）：\n"),
+        Skill(id: "weekly", name: "周报整理", icon: "calendar",
+              prompt: "阅读当前工作台最近的笔记，帮我整理一份本周周报（已完成 / 进行中 / 问题 / 下步计划），并写成一篇新笔记。"),
+        Skill(id: "translate", name: "翻译润色", icon: "character.book.closed",
+              prompt: "把以下内容翻译并润色（保持原意、自然地道）：\n"),
+        Skill(id: "bullets", name: "提炼要点", icon: "list.bullet",
+              prompt: "提炼以下内容的关键要点（不超过 5 条，每条一行）：\n")
+    ]
+
+    func applySkill(_ skill: Skill) {
+        input = skill.prompt
+    }
 
     nonisolated static func buildTranscript(from msgs: [ChatMsg], limit: Int = 16_000) -> String {
         var out: [String] = []
@@ -639,7 +745,12 @@ struct AIPanelView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(model.messages) { m in
-                        bubble(m)
+                        VStack(alignment: .leading, spacing: 4) {
+                            bubble(m)
+                            if m.role != "user", !m.sources.isEmpty {
+                                sourcesRow(m.sources)
+                            }
+                        }
                     }
                 }
                 .padding(12)
@@ -785,6 +896,24 @@ struct AIPanelView: View {
                 mentionPanel(query: q)
             }
             HStack(spacing: 8) {
+                Menu {
+                    ForEach(AIChatModel.skills) { s in
+                        Button {
+                            model.applySkill(s)
+                        } label: {
+                            Label(s.name, systemImage: s.icon)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 13))
+                        .foregroundStyle(appAppearance.accent)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help(_LL("技能包：代码解释 / 报错诊断 / 会议纪要 / 周报 / 翻译润色",
+                          "Skills: explain / debug / minutes / weekly / translate"))
                 TextField(_LL("输入问题……（⇧Enter 发送 · Enter 换行 · @ 引用文件）", "Ask a question… (⇧Enter to send · Enter for newline · @ to reference a file)"), text: $model.input, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.callout)
@@ -853,6 +982,36 @@ struct AIPanelView: View {
     }
 
     /// 把 AI 回答插入到编辑器光标处（经通知转发给 EditorView）
+    /// 回答下方的知识库来源行（[n] 来源，点击打开对应笔记）
+    private func sourcesRow(_ sources: [AIChatModel.SourceRef]) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: "books.vertical")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            ForEach(sources) { src in
+                Button {
+                    openSource(src)
+                } label: {
+                    Text(src.title.isEmpty ? src.noteID : src.title)
+                        .font(.caption2)
+                        .lineLimit(1)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(appAppearance.accent.opacity(0.14), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .help(_L("打开：\(src.noteID)", "Open: \(src.noteID)"))
+            }
+        }
+        .padding(.leading, 22)   // 与助手气泡文字对齐（头像 12 + 间距 8）
+    }
+
+    /// 打开知识库出处（回答下方的 [n] 来源）
+    private func openSource(_ src: AIChatModel.SourceRef) {
+        store.selectedNoteID = src.noteID
+        store.openNote(src.noteID)
+    }
+
     private func insertIntoEditor(_ text: String) {
         NotificationCenter.default.post(name: .aiInsertResult, object: text)
     }

@@ -98,6 +98,7 @@ struct TreeTableView: NSViewRepresentable {
     let onSelect: (Set<String>) -> Void
     let onOpen: (String) -> Void
     let onMoveToFolder: (Set<String>, String) -> Void // 拖到文件夹
+    let onReorderNotes: (([String], String) -> Void)?   // 拖到文件行：插到该文件之前（手动排序）
     let onToggleFolder: (String) -> Void
     let onMenu: (NSMenu, String?) -> Void      // 右键（行 id 可空）
     let onImportFiles: ([URL], String?) -> Void // 外部文件拖入（folderID 可空=根）
@@ -457,6 +458,12 @@ struct TreeTableView: NSViewRepresentable {
                 setDropTarget(row, tableView: tableView)
                 return .move
             }
+            // 悬停在文件行 → 同样 .on：排序到该文件之前
+            if row >= 0, row < rows.count, case .note = rows[row] {
+                tableView.setDropRow(row, dropOperation: .on)
+                setDropTarget(row, tableView: tableView)
+                return .move
+            }
             setDropTarget(nil, tableView: tableView)
             return .move
         }
@@ -490,6 +497,11 @@ struct TreeTableView: NSViewRepresentable {
             // 落点为文件夹行 → 移动（.on 与 .above 均视为移动意图）
             if row >= 0, row < rows.count, case .folder(let cat, _, _, _) = rows[row] {
                 parent.onMoveToFolder(ids, cat.id)
+                return true
+            }
+            // 落点为文件行 → 手动排序：插到该文件之前
+            if row >= 0, row < rows.count, case .note(let item, _) = rows[row] {
+                parent.onReorderNotes?(Array(ids), item.id)
                 return true
             }
             return false

@@ -182,6 +182,8 @@ final class NotesStore {
     func importDroppedFile(from url: URL, into cat: String?) -> String? {
         let ext = url.pathExtension.lowercased()
         if ext.isEmpty || !Self.importableTextExts.contains(ext) {
+            // docx / pdf / xlsx 等办公格式：走 Markdown 转换导入，而不是当原始素材塞进 source/
+            if DocImport.handles(ext) { return importNote(from: url, category: cat) }
             return importRawFile(url, into: cat ?? "")
         }
         return importNote(from: url, category: cat)
@@ -227,6 +229,9 @@ final class NotesStore {
         let loadedID = loadedNoteID
         ioQueue.async { [weak self] in
             guard let self else { return }
+            PerfLog.bump("索引刷新次数")
+            let perfT0 = CFAbsoluteTimeGetCurrent()
+            defer { PerfLog.record("索引刷新", (CFAbsoluteTimeGetCurrent() - perfT0) * 1000) }
             var items: [NoteIndexItem] = []
             guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else {
                 DispatchQueue.main.async {
@@ -235,39 +240,55 @@ final class NotesStore {
                 }
                 return
             }
-            // 工作台：遍历全部文件；内存优化——媒体/二进制绝不整读（仅文本类进全文缓存，≤512KB）
+            // 工作台：遍历全部文件；媒体/二进制绝不整读（仅文本类进全文缓存，≤512KB）——
+            // 文件指纹（mtime + size）没变就只 stat、不重读预览/全文，避免"每次保存 → 全库重读"
             var loadedDiskFingerprint: String? = nil
             let textExts = Workspace.textExtensions
+            var nextMeta: [String: (m: TimeInterval, s: UInt64, preview: String)] = [:]
             for f in Workspace.walk(dir) {
                 let attrs = try? FileManager.default.attributesOfItem(atPath: f.path)
                 let created = (attrs?[.creationDate] as? Date).map(Self.iso) ?? Self.isoNow()
                 let updated = (attrs?[.modificationDate] as? Date).map(Self.iso) ?? Self.isoNow()
                 let ext = f.pathExtension.lowercased()
-                var previewData = Data()
-                if ext.isEmpty || textExts.contains(ext) {   // 无扩展名 = 文本笔记（不再强制 .md）
-                    if let handle = try? FileHandle(forReadingFrom: f) {
-                        previewData = (try? handle.read(upToCount: 2000)) ?? Data()
-                        try? handle.close()
+                let isText = ext.isEmpty || textExts.contains(ext)   // 无扩展名 = 文本笔记（不再强制 .md）
+                let mtime = (attrs?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+                let size = (attrs?[.size] as? NSNumber)?.uint64Value ?? 0
+                let id = Workspace.relativeID(f, root: dir)
+                let prev = self.scanMeta[f.path]
+                let unchanged = prev.map { $0.m == mtime && $0.s == size } ?? false
+                var preview = ""
+                if isText {
+                    if let prev, unchanged {
+                        preview = prev.preview   // 文件没变 → 不重读
+                    } else {
+                        var previewData = Data()
+                        if let handle = try? FileHandle(forReadingFrom: f) {
+                            previewData = (try? handle.read(upToCount: 2000)) ?? Data()
+                            try? handle.close()
+                        }
+                        // lossy 解码：2KB 字节截断可能切断多字节字符，绝不产生空摘要
+                        preview = String(String(decoding: previewData, as: UTF8.self).prefix(80))
                     }
                 }
-                items.append(NoteIndexItem(id: Workspace.relativeID(f, root: dir),
+                nextMeta[f.path] = (mtime, size, preview)
+                items.append(NoteIndexItem(id: id,
                                            title: Workspace.title(for: f),
-                                           // lossy 解码：2KB 字节截断可能切断多字节字符，绝不产生空摘要
-                                           preview: String(String(decoding: previewData, as: UTF8.self).prefix(80)),
+                                           preview: preview,
                                            created: created,
                                            updated: updated, category: Workspace.folderLabel(for: f, root: dir)))
-                // 全文缓存：仅文本类且 ≤512KB（工作台媒体库绝不进内存）
-                if (ext.isEmpty || textExts.contains(ext)),
-                   (attrs?[.size] as? NSNumber)?.uint64Value ?? 0 <= 512 * 1024 {
-                    if let data = try? Data(contentsOf: f), self.fullTextCache[items.last!.id] != data {
-                        self.fullTextCache[items.last!.id] = data
+                // 全文缓存：仅文本类且 ≤512KB（工作台媒体库绝不进内存）；指纹没变且已有缓存 → 不重读
+                if isText, size <= 512 * 1024,
+                   !(unchanged && self.fullTextCache[id] != nil) {
+                    if let data = try? Data(contentsOf: f), self.fullTextCache[id] != data {
+                        self.fullTextCache[id] = data
                     }
                 }
                 // C-04：已加载文件的磁盘指纹（外部改动比对）—— 仅算当前文件
-                if let lID = loadedID, Workspace.relativeID(f, root: dir) == lID {
+                if let lID = loadedID, id == lID {
                     loadedDiskFingerprint = Self.md5hex((try? Data(contentsOf: f)) ?? Data())
                 }
             }
+            self.scanMeta = nextMeta
             // 排序：更新时间 / 创建时间 / 手动（notes/.order.json 持久化）
             items.sort(by: { (self.parseTime($0.updated) ?? .distantPast) > (self.parseTime($1.updated) ?? .distantPast) })
             DispatchQueue.main.async {
@@ -292,6 +313,11 @@ final class NotesStore {
     @ObservationIgnored
     private var fullTextCache: [String: Data] = [:]
 
+    /// 索引扫描的"文件指纹"缓存：path → (mtime, size, 预览文本)。
+    /// 文件没变就不重读预览/全文 —— 每次刷新只 stat，不再把全库重读一遍（仅在 ioQueue 上读写）。
+    @ObservationIgnored
+    private var scanMeta: [String: (m: TimeInterval, s: UInt64, preview: String)] = [:]
+
     /// 统一排序（按更新时间降序；排序模块已移除，固定时间序）
     private func sortedByMode(_ items: [NoteIndexItem]) -> [NoteIndexItem] {
         items.sorted(by: { (parseTime($0.updated) ?? .distantPast) > (parseTime($1.updated) ?? .distantPast) })
@@ -308,6 +334,8 @@ final class NotesStore {
     }
 
     func loadCategories() {
+        maybeOfferSourceSetup()
+        loadManualOrderIfNeeded()
         // 工作台语义：文件夹 = 分类（通用递归目录树；source/ 与普通目录同等）
         var out: [NoteCategory] = []
         func walkDir(_ dir: URL) {
@@ -342,6 +370,16 @@ final class NotesStore {
         guard let content = TextDecoding.string(contentsOf: url) else { return nil }
         return Note(id: id, title: Workspace.title(for: url),
                     content: content, category: Workspace.folderLabel(for: url, root: notesDir))
+    }
+
+    /// 读取 + 指纹一次完成（同一份数据算 MD5 —— openNote 不再"先读内容、再读一遍算指纹"）
+    private func readNoteWithFingerprint(_ id: String) -> (note: Note, fingerprint: String?)? {
+        let url = noteURL(id)
+        guard let data = try? Data(contentsOf: url),
+              let content = TextDecoding.string(from: data) else { return nil }
+        let note = Note(id: id, title: Workspace.title(for: url),
+                        content: content, category: Workspace.folderLabel(for: url, root: notesDir))
+        return (note, Self.md5hex(data))
     }
 
     private func writeNote(_ note: Note) {
@@ -396,6 +434,57 @@ final class NotesStore {
     // MARK: - 树行投影（UI 供 NSTableView 使用）
 
     /// 文件夹树行序列：文件夹行（可折叠）+ 其内文件 + 根文件；搜索时平铺
+    // MARK: - 手动排序（拖拽排序，持久化 `.order.json`）
+
+    /// 手动顺序（扁平 id 列表；只影响目录内的相对顺序）
+    @ObservationIgnored private var manualOrder: [String] = []
+    @ObservationIgnored private var manualOrderRoot: String?
+
+    private func loadManualOrderIfNeeded() {
+        guard manualOrderRoot != notesDir.path else { return }
+        manualOrderRoot = notesDir.path
+        let url = notesDir.appendingPathComponent(".order.json")
+        if let data = try? Data(contentsOf: url),
+           let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let list = obj["order"] as? [String] {
+            manualOrder = list
+        } else {
+            manualOrder = []
+        }
+    }
+
+    private func persistManualOrder() {
+        let url = notesDir.appendingPathComponent(".order.json")
+        let payload: [String: Any] = ["order": manualOrder]
+        if let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted]) {
+            try? data.write(to: url, options: .atomic)
+        }
+    }
+
+    /// 拖拽排序：把 ids 插到 targetID 之前（跨文件夹先移动过去）；持久化到 `.order.json`
+    func reorderNotes(_ ids: [String], before targetID: String) {
+        loadManualOrderIfNeeded()
+        guard !ids.isEmpty, !ids.contains(targetID) else { return }
+        let targetFolder = (targetID as NSString).deletingLastPathComponent
+        for id in ids {
+            let folder = (id as NSString).deletingLastPathComponent
+            if folder != targetFolder { assignCategory(id, targetFolder) }
+        }
+        // 当前生效顺序 = 未记录项（时间序）+ 已记录项（手动序）
+        let timeSorted = index.map(\.id)
+        let known = manualOrder.filter { timeSorted.contains($0) }
+        let knownSet = Set(known)
+        var list = timeSorted.filter { !knownSet.contains($0) }
+        list += known
+        let moving = ids.filter { list.contains($0) }
+        guard !moving.isEmpty else { return }
+        list.removeAll { moving.contains($0) }
+        guard let at = list.firstIndex(of: targetID) else { return }
+        list.insert(contentsOf: moving, at: at)
+        manualOrder = list
+        persistManualOrder()
+    }
+
     func treeRows(openFolders folded: Set<String>) -> [TreeRow] {
         // 搜索态：平铺命中（标题优先已由 filteredIndex 保证）
         if !searchQuery.isEmpty {
@@ -408,12 +497,24 @@ final class NotesStore {
 
         func directChildren(_ folder: String) -> [NoteIndexItem] {
             let items = itemsByFolder[folder] ?? []
-            return items.filter {
+            let filtered = items.filter {
                 let rest = folder.isEmpty
                     ? $0.id
                     : ($0.id.hasPrefix(folder + "/") ? String($0.id.dropFirst(folder.count + 1)) : $0.id)
                 return !rest.contains("/")
             }
+            // 手动排序（拖拽）：已记录的按记录顺序；未记录的新文件排最前（保持时间序）
+            let rank = Dictionary(uniqueKeysWithValues: manualOrder.enumerated().map { ($0.element, $0.offset) })
+            return filtered.enumerated().sorted { a, b in
+                let ra = rank[a.element.id]
+                let rb = rank[b.element.id]
+                switch (ra, rb) {
+                case let (ra?, rb?): return ra < rb
+                case (nil, _?): return true
+                case (_?, nil): return false
+                default: return a.offset < b.offset
+                }
+            }.map { $0.element }
         }
         func addFolder(_ id: String, level: Int) {
             guard let cat = categories.first(where: { $0.id == id }) else { return }
@@ -562,7 +663,8 @@ final class NotesStore {
         // 无扩展名（用户按「不自动补全 .md」创建）→ 按文本编辑
         guard loadedNoteID != id else { return } // 已装载同一篇 → 幂等返回
         flush()
-        guard let note = ioQueue.sync(execute: { readNote(id) }) else {
+        let perfT0 = CFAbsoluteTimeGetCurrent()
+        guard let (note, diskFingerprint) = ioQueue.sync(execute: { readNoteWithFingerprint(id) }) else {
             // 轻提示（不阻塞）；自愈：清选中 + 手动序幽灵 + 刷新列表
             showHint(_L("读取失败：文件不存在（可能已被删除）", "Failed to read: the file does not exist (it may have been deleted)"))
             selectedNoteIDs.remove(id)
@@ -577,11 +679,12 @@ final class NotesStore {
         currentTitle = note.title
         dirty = false
         documentRevision += 1
-        // C-04：记录磁盘指纹供外部改动检测；换文档即清冲突
-        loadedExternalFingerprint = currentFileFingerprint(id)
+        // C-04：记录磁盘指纹供外部改动检测（读取时顺手算好，不重复读文件）；换文档即清冲突
+        loadedExternalFingerprint = diskFingerprint
         externalConflict = false
         conflictHandled = false
         // 注意：不再重排列表 —— 打开文件不改变用户排序
+        PerfLog.record("打开文件", (CFAbsoluteTimeGetCurrent() - perfT0) * 1000)
     }
 
     /// 编辑器内容变化入口（NSTextView onTextChange 回调用）
@@ -742,6 +845,19 @@ final class NotesStore {
     /// 带目标分类的导入（category = 分类 id 或 nil=根目录）
     @discardableResult
     func importNote(from url: URL, category cat: String?) -> String? {
+        let sourceExt = url.pathExtension.lowercased()
+        // 办公 / 富文本 / 表格（doc/docx/rtf/odt/pdf/csv/tsv/xlsx）→ 先转 Markdown，
+        // 再走与 .md 完全相同的导入管线（标题提升 / 换行治理 / 重名序号全复用）
+        if DocImport.handles(sourceExt) {
+            guard let md = DocImport.markdown(from: url) else { return nil }
+            let dir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("marknote-import-\(UUID().uuidString)", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: dir) }
+            let tmp = dir.appendingPathComponent(url.deletingPathExtension().lastPathComponent + ".md")
+            guard (try? md.write(to: tmp, atomically: true, encoding: .utf8)) != nil else { return nil }
+            return importNote(from: tmp, category: cat)
+        }
         // 修复：MP4/PDF/图片等二进制绝不按文本导入（.md 化 + 解码崩溃）
         let ext = url.pathExtension.lowercased()
         guard (ext.isEmpty || Self.importableTextExts.contains(ext)), isTextFile(url) else { return nil }
@@ -831,7 +947,7 @@ final class NotesStore {
                     walk(e, relFolder: sub)
                 } else {
                     let ext = e.pathExtension.lowercased()
-                    if ["md", "markdown", "txt"].contains(ext) {
+                    if ["md", "markdown", "txt"].contains(ext) || DocImport.handles(ext) {
                         if importNote(from: e, category: relFolder.isEmpty ? nil : relFolder) != nil { count += 1 }
                     } else {
                         count += importResourceFile(e) ? 1 : 0
@@ -1597,6 +1713,82 @@ final class NotesStore {
             }
         }
         return titleHits + contentHits
+    }
+
+    // MARK: - AI 本地知识库检索
+
+    /// 为 AI 回答检索当前工作台的资料：标题权重更高，返回最多 `limit` 条（含片段）。
+    /// 工作台语义：只看当前工作台（index / fullTextCache 均按工作台构建）。
+    func aiKnowledgeHits(for query: String, limit: Int = 4) -> [(id: String, title: String, snippet: String)] {
+        let terms = Self.searchTerms(query)
+        guard !terms.isEmpty else { return [] }
+        var scored: [(item: NoteIndexItem, score: Int, snippet: String)] = []
+        for item in index {
+            let text = fullTextCache[item.id].flatMap { String(data: $0, encoding: .utf8) } ?? item.preview
+            let lower = text.lowercased()
+            let titleLower = item.title.lowercased()
+            var score = 0
+            for t in terms {
+                if titleLower.contains(t) { score += 4 }
+                score += min(lower.components(separatedBy: t).count - 1, 6)
+            }
+            guard score > 0 else { continue }
+            scored.append((item, score, Self.snippet(in: text, terms: terms)))
+        }
+        return scored
+            .sorted { $0.score != $1.score ? $0.score > $1.score : $0.item.updated > $1.item.updated }
+            .prefix(limit)
+            .map { (id: $0.item.id, title: $0.item.title, snippet: $0.snippet) }
+    }
+
+    /// 查询切片：ASCII 词（≥2）+ 中文 2-gram（去重保序）
+    private static func searchTerms(_ query: String) -> [String] {
+        var terms: [String] = []
+        var ascii = ""
+        var cjk = ""
+        func flushASCII() {
+            defer { ascii = "" }
+            if ascii.count >= 2 { terms.append(ascii.lowercased()) }
+        }
+        func flushCJK() {
+            defer { cjk = "" }
+            let chars = Array(cjk)
+            guard chars.count >= 2 else { return }
+            if chars.count <= 4 { terms.append(cjk) }
+            for i in 0..<(chars.count - 1) { terms.append(String(chars[i...(i + 1)])) }
+        }
+        for ch in query {
+            if ch.isASCII, ch.isLetter || ch.isNumber {
+                ascii.append(ch)
+                flushCJK()
+            } else if ch.unicodeScalars.allSatisfy({ (0x4E00...0x9FFF).contains($0.value) }) {
+                cjk.append(ch)
+                flushASCII()
+            } else {
+                flushASCII()
+                flushCJK()
+            }
+        }
+        flushASCII()
+        flushCJK()
+        var seen = Set<String>()
+        return terms.filter { seen.insert($0).inserted }
+    }
+
+    /// 命中片段：第一个命中位置前后各取一段，压平换行
+    private static func snippet(in text: String, terms: [String], padding: Int = 90) -> String {
+        var best: String.Index?
+        for t in terms {
+            if let r = text.range(of: t, options: .caseInsensitive) {
+                if best == nil || r.lowerBound < best! { best = r.lowerBound }
+            }
+        }
+        guard let idx = best else {
+            return String(text.prefix(220)).replacingOccurrences(of: "\n", with: " ")
+        }
+        let start = text.index(idx, offsetBy: -padding, limitedBy: text.startIndex) ?? text.startIndex
+        let end = text.index(idx, offsetBy: padding * 2, limitedBy: text.endIndex) ?? text.endIndex
+        return String(text[start..<end]).replacingOccurrences(of: "\n", with: " ")
     }
 
     func moveSelection(_ delta: Int) {
@@ -2403,6 +2595,38 @@ final class NotesStore {
     // MARK: - 目录选择
 
     /// 弹出面板切换文件目录（工作台语义：历史目录记忆 + 可多工作台）
+    // MARK: - 工作台 source 子库初始化（切换 / 新建时按需创建）
+
+    /// 切换/新建工作台后，若还没有 source/ 目录 → 弹出子库勾选（UI 层呈现；每个目录只问一次）
+    var pendingSourceSetup = false
+    @ObservationIgnored private var sourcePromptedRoot: String?
+
+    /// 可勾选的 source 子库（按素材类型归类；与 Workspace.ensureSourceDir 的命名一致）
+    static let sourceSubLibs: [(id: String, title: String)] = [
+        ("image", "图片 img"), ("mp4", "视频 mp4"), ("mp3", "音频 mp3"),
+        ("pdf", "PDF"), ("chm", "CHM"), ("excel", "Excel"), ("csv", "CSV")
+    ]
+
+    func maybeOfferSourceSetup() {
+        guard sourcePromptedRoot != notesDir.path else { return }
+        let src = notesDir.appendingPathComponent("source", isDirectory: true)
+        guard !FileManager.default.fileExists(atPath: src.path) else { return }
+        sourcePromptedRoot = notesDir.path
+        pendingSourceSetup = true
+    }
+
+    func confirmSourceSetup(_ selected: [String]) {
+        for name in selected {
+            try? FileManager.default.createDirectory(
+                at: notesDir.appendingPathComponent("source/\(name)", isDirectory: true),
+                withIntermediateDirectories: true)
+        }
+        pendingSourceSetup = false
+        loadCategories()
+    }
+
+    func dismissSourceSetup() { pendingSourceSetup = false }
+
     func chooseNotesDirectory() {
         flush()
         let panel = NSOpenPanel()

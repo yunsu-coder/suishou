@@ -184,6 +184,17 @@ extension TerminalView {
         return CellDimension(width: max (1, cellWidth), height: max (min (cellHeight, 8192), 1))
     }
     
+    /// SGR 2（dim / faint）：前景向底色混合 —— 终端"淡色"层次的渲染
+    /// （上游 SwiftTerm 解析了 dim 标记但渲染时未使用，这里补实现，让 ANSI 层次更接近 VS Code）
+    func dimmedColor (_ fg: TTColor, against bg: TTColor) -> TTColor
+    {
+        #if os(macOS)
+        return fg.blended (withFraction: 0.45, of: bg) ?? fg
+        #else
+        return fg.withAlphaComponent (0.62)
+        #endif
+    }
+
     func mapColor (color: Attribute.Color, isFg: Bool, isBold: Bool, useBrightColors: Bool = true) -> TTColor
     {
         switch color {
@@ -312,6 +323,9 @@ extension TerminalView {
         if flags.contains (.inverse) {
             swap (&bg, &fg)
         }
+        if flags.contains (.dim) {
+            fg = dimmedColor (fg, against: bg)
+        }
         
         var tf: TTFont
         let isBold = flags.contains(.bold)
@@ -390,11 +404,13 @@ extension TerminalView {
             tf = fontSet.normal
         }
         
-        let fgColor = mapColor (color: fg, isFg: true, isBold: isBold, useBrightColors: useBrightColors)
+        let fgColor0 = mapColor (color: fg, isFg: true, isBold: isBold, useBrightColors: useBrightColors)
+        let bgColor = mapColor(color: bg, isFg: false, isBold: false)
+        let fgColor = flags.contains (.dim) ? dimmedColor (fgColor0, against: bgColor) : fgColor0
         var nsattr: [NSAttributedString.Key:Any] = [
             .font: tf,
             .foregroundColor: fgColor,
-            .backgroundColor: mapColor(color: bg, isFg: false, isBold: false)
+            .backgroundColor: bgColor
         ]
         if flags.contains (.underline) {
             let underlineColor = attribute.underlineColor.map {

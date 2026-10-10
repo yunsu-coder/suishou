@@ -552,6 +552,9 @@ struct SidebarView: View {
             onMoveToFolder: { ids, catID in
                 for id in ids { store.moveNoteFlat(id, to: catID) }
             },
+            onReorderNotes: { ids, targetID in
+                store.reorderNotes(ids, before: targetID)
+            },
             onToggleFolder: { id in
                 if collapsedGroups.contains(id) { collapsedGroups.remove(id) }
                 else { collapsedGroups.insert(id) }

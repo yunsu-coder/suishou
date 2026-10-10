@@ -86,6 +86,7 @@ struct PreviewView: NSViewRepresentable {
         config.userContentController.add(handler, name: "readerFocus")
 
         let web = WKWebView(frame: .zero, configuration: config)
+        PerfLog.bump("预览 WebView 重建")
         // 现代 Safari UA：远程图片/链接会按浏览器版本做防盗链或降级处理
         web.customUserAgent = NotesStore.collectorUA
         web.navigationDelegate = context.coordinator
@@ -224,6 +225,8 @@ struct PreviewView: NSViewRepresentable {
 
         private func performRender(_ web: WKWebView, md: String?) {
             guard webReady else { return }
+            let perfT0 = CFAbsoluteTimeGetCurrent()
+            defer { PerfLog.record("预览渲染", (CFAbsoluteTimeGetCurrent() - perfT0) * 1000) }
             let md = md ?? parent.liveText
             let base = parent.basePath
             let scale = parent.fontScale

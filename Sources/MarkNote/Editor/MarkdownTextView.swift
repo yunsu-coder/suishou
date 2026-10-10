@@ -16,6 +16,23 @@ final class MarkdownTextView: NSTextView {
     /// 当前文件扩展名（⌘/ 注释符号选择；EditorView 注入）
     var fileExtension = ""
 
+    /// 当前文件真实路径（clangd 需要；EditorView 注入）
+    var fileURL: URL?
+
+    // MARK: - Tab 补全会话（本地词表 + clangd）
+
+    private struct CompletionSession {
+        var range: NSRange        // 当前候选文本的范围（首次 = 前缀范围）
+        var inserted: String      // 当前已插入文本
+        var candidates: [String]
+        var index: Int
+    }
+    private var completionSession: CompletionSession?
+    private var applyingCompletion = false
+    private var clangdToken = 0
+    private var wordCacheText = ""
+    private var wordCache: [(word: String, count: Int)] = []
+
     private static let imageExts: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "heic", "bmp", "tiff"]
 
     /// 右键菜单：有选区时追加「AI 翻译 / 改写 / 润色」
@@ -72,6 +89,7 @@ final class MarkdownTextView: NSTextView {
     /// 文本变了 → 同步字段范围（打字会让后面的字段整体平移）
     override func didChangeText() {
         super.didChangeText()
+        if !applyingCompletion { completionSession = nil }   // 任何真实输入都结束 Tab 补全会话
         guard var plan = fillPlan else { return }
         let edited = textStorage?.editedRange ?? NSRange(location: 0, length: 0)
         let delta = textStorage?.changeInLength ?? 0
@@ -96,6 +114,11 @@ final class MarkdownTextView: NSTextView {
                 return
             }
             if event.keyCode == 53 { exitFill(); return }    // Esc
+        }
+        // Tab 补全会话：Esc 静默取消（不弹窗）
+        if event.keyCode == 53, completionSession != nil {
+            completionSession = nil
+            return
         }
         if event.modifierFlags.contains(.command),
            event.keyCode == 51 || event.keyCode == 117 {   // 51=Delete(⌫) 117=DeleteForward(⌦)
@@ -542,6 +565,7 @@ final class MarkdownTextView: NSTextView {
     /// Tab：多行选中 = 整块缩进；否则在行首空白里对齐到下一个制表位、
     /// 或在光标处插入一个缩进单位（缩进就是缩进，不做"跳出"）
     override func insertTab(_ sender: Any?) {
+        if handleCompletionTab(forward: true) { return }
         let text = string as NSString
         let sel = selectedRange()
         if sel.length > 0,
@@ -556,9 +580,141 @@ final class MarkdownTextView: NSTextView {
         insertText(Self.tabInsertion(beforeCaret: prefix, unit: indentUnit), replacementRange: sel)
     }
 
-    /// ⇧⇥：反缩进（多选或当前行）
+    /// ⇧⇥：补全会话中回退候选；否则反缩进（多选或当前行）
     override func insertBacktab(_ sender: Any?) {
+        if handleCompletionTab(forward: false) { return }
         blockIndent(indent: false)
+    }
+
+    // MARK: - Tab 补全（本地词表即时补 + clangd 语义替换）
+
+    /// Tab / ⇧Tab：接受或循环候选。返回 true = 本次按键已被消费。
+    private func handleCompletionTab(forward: Bool) -> Bool {
+        guard !hasMarkedText() else { return false }   // 输入法组合中不插候选
+        guard !MarkdownEditorView.isMarkdownExt(fileExtension), Workspace.isEditorText(fileExtension) else { return false }
+        // ① 会话进行中且光标仍在候选末尾 → 循环
+        if var s = completionSession, caretAtEnd(of: s) {
+            guard !s.candidates.isEmpty else { return false }
+            let n = s.candidates.count
+            let i = (((s.index + (forward ? 1 : -1)) % n) + n) % n
+            s.index = i
+            applyCompletion(s.candidates[i], to: &s)
+            completionSession = s
+            return true
+        }
+        // ② 新会话：光标左侧必须有标识符前缀
+        guard selectedRange().length == 0 else { return false }
+        let ns = string as NSString
+        let caret = min(selectedRange().location, ns.length)
+        let range = CodeCompletion.prefixRange(in: ns, at: caret)
+        guard range.length >= 1 else { return false }
+        let prefix = ns.substring(with: range)
+        guard let first = prefix.unicodeScalars.first, first.isASCII,
+              CharacterSet.letters.union(CharacterSet(charactersIn: "_")).contains(first) else { return false }
+        var candidates = CodeCompletion.candidates(prefix: prefix, ext: fileExtension,
+                                                   documentWords: cachedDocumentWords())
+        let lsp = clangdAvailable
+        if candidates.isEmpty && !lsp { return false }   // 没得补 → 交回普通 Tab（缩进）
+        var s = CompletionSession(range: range, inserted: prefix, candidates: candidates, index: 0)
+        if let best = candidates.first {
+            applyCompletion(best, to: &s)
+        }
+        completionSession = s
+        if lsp { requestClangdCompletion(prefix: prefix, range: range, caret: caret) }
+        return true
+    }
+
+    private var clangdAvailable: Bool {
+        guard fileURL != nil, ClangdClient.handles(fileExtension) else { return false }
+        return ClangdClient.shared.available
+    }
+
+    private func cachedDocumentWords() -> [(word: String, count: Int)] {
+        let text = string
+        if text != wordCacheText {
+            wordCache = CodeCompletion.documentWords(in: text)
+            wordCacheText = text
+        }
+        return wordCache
+    }
+
+    private func caretAtEnd(of s: CompletionSession) -> Bool {
+        let sel = selectedRange()
+        let ns = string as NSString
+        guard sel.length == 0, s.range.location + s.range.length <= ns.length,
+              sel.location == s.range.location + s.range.length else { return false }
+        return ns.substring(with: s.range) == s.inserted
+    }
+
+    private func applyCompletion(_ candidate: String, to s: inout CompletionSession) {
+        guard let ts = textStorage else { return }
+        applyingCompletion = true
+        defer { applyingCompletion = false }
+        guard shouldChangeText(in: s.range, replacementString: candidate) else { return }
+        ts.replaceCharacters(in: s.range, with: candidate)
+        didChangeText()
+        s.range = NSRange(location: s.range.location, length: (candidate as NSString).length)
+        s.inserted = candidate
+        setSelectedRange(NSRange(location: s.range.location + s.range.length, length: 0))
+    }
+
+    /// clangd 语义补全：结果到达后替换本地候选（光标 / 前缀必须仍然有效）
+    private func requestClangdCompletion(prefix: String, range: NSRange, caret: Int) {
+        guard let url = fileURL else { return }
+        let ns = string as NSString
+        let (line, character) = CodeCompletion.lspPosition(in: ns, at: caret)
+        clangdToken &+= 1
+        let token = clangdToken
+        ClangdClient.shared.completion(path: url.path, line: line, character: character) { [weak self] labels in
+            guard let self, self.clangdToken == token else { return }
+            let matches = labels.filter { $0.count > prefix.count && $0.hasPrefix(prefix) }
+            guard !matches.isEmpty else { return }
+            if var s = self.completionSession, self.caretAtEnd(of: s) {
+                s.candidates = matches
+                s.index = 0
+                self.applyCompletion(matches[0], to: &s)
+                self.completionSession = s
+            } else if self.completionSession == nil {
+                let now = self.string as NSString
+                guard self.selectedRange().location == caret,
+                      range.location + range.length <= now.length,
+                      now.substring(with: range) == prefix else { return }
+                var s = CompletionSession(range: range, inserted: prefix, candidates: matches, index: 0)
+                self.applyCompletion(matches[0], to: &s)
+                self.completionSession = s
+            }
+            self.clangdToken &+= 1   // 已应用，丢弃更迟的结果
+        }
+    }
+
+    // MARK: - clangd 诊断（错误 / 警告下划线）
+
+    private var diagnosticMarks: [(range: NSRange, severity: Int)] = []
+
+    /// 当前是否存在诊断标记（打字路径用它做零成本短路）
+    var hasDiagnostics: Bool { !diagnosticMarks.isEmpty }
+
+    /// 注入当前文件诊断（[] = 清除）
+    func setDiagnostics(_ marks: [(range: NSRange, severity: Int)]) {
+        if marks.isEmpty && diagnosticMarks.isEmpty { return }   // 常态零开销（大文档下尤其重要）
+        diagnosticMarks = marks
+        applyDiagnosticUnderlines()
+    }
+
+    private func applyDiagnosticUnderlines() {
+        guard let ts = textStorage else { return }
+        let full = NSRange(location: 0, length: ts.length)
+        ts.removeAttribute(.underlineStyle, range: full)
+        ts.removeAttribute(.underlineColor, range: full)
+        for m in diagnosticMarks {
+            guard m.range.length > 0, m.range.location >= 0,
+                  m.range.location + m.range.length <= ts.length else { continue }
+            ts.addAttribute(.underlineStyle,
+                            value: NSUnderlineStyle.single.rawValue | NSUnderlineStyle.patternDot.rawValue,
+                            range: m.range)
+            ts.addAttribute(.underlineColor, value: m.severity == 1 ? NSColor.systemRed : NSColor.systemOrange,
+                            range: m.range)
+        }
     }
 
     /// 整块缩进/反缩进（REQ-ED-04）：选区覆盖的行（无选区 = 当前行）；注册标准 shouldChangeText 保持撤销链

@@ -64,7 +64,10 @@ struct TerminalPanel: View {
     var onClose: () -> Void
 
     @State private var term = TerminalStore.shared
-    @AppStorage("terminalPanelHeight") private var height: Double = 260
+    @AppStorage("terminalPanelHeight") private var heightStored: Double = 260
+    /// 拖动期间的内存草稿：逐帧只改这里，松手才落盘（避免 @AppStorage 逐帧写 UserDefaults 导致抖动）
+    @State private var heightDraft: Double?
+    private var height: Double { heightDraft ?? heightStored }
     @State private var showRunConfig = false
 
     private var theme: TerminalTheme {
@@ -117,10 +120,16 @@ struct TerminalPanel: View {
     // MARK: - 顶部：高度拖拽 + 标签栏
 
     private var resizeHandle: some View {
-        PanelResizeHandle(height: $height, minHeight: 120, maxHeight: 760, defaultHeight: 260,
-                          inverted: true,   // 终端在窗口下方：向下拖 = 变矮
-                          help: _L("拖动调整终端高度，双击复位到 260",
-                                   "Drag to resize the terminal, double-click to reset (260)"))
+        PanelResizeHandle(value: Binding(
+                get: { height },
+                set: { heightDraft = $0 }),
+            minValue: 120, maxValue: 760, defaultValue: 260,
+            inverted: true,   // 终端在窗口下方：向下拖 = 变矮
+            onCommit: {
+                if let d = heightDraft { heightStored = d; heightDraft = nil }
+            },
+            help: _L("拖动调整终端高度，双击复位到 260",
+                     "Drag to resize the terminal, double-click to reset (260)"))
     }
 
     private var tabBar: some View {

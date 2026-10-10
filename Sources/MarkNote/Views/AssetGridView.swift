@@ -1,6 +1,8 @@
 import SwiftUI
 import AppKit
 import AVFoundation
+import ImageIO
+import UniformTypeIdentifiers
 
 /// 素材多选规则（纯函数，便于单测）：
 /// 普通点击 = 单选；⌘ 点击 = 切换该项；⇧ 点击 = 选中与锚点之间的区间（连续 ⇧ 可继续扩）。
@@ -60,6 +62,11 @@ struct AssetGridView: View {
     @State private var pendingTrash: [NotesStore.AttachmentItem] = []
     /// 大图 / 播放预览
     @State private var previewItem: NotesStore.AttachmentItem?
+    /// 手动排序（拖拽排序）：id 顺序，持久化到工作台 `.asset-order.json`
+    @State private var assetOrder: [String] = []
+    @State private var draggingAssetID: String?
+    @State private var dropTargetID: String?
+    static let reorderUTType = UTType(exportedAs: "com.gzhysu.marknote.asset-order")
 
     private var filtered: [NotesStore.AttachmentItem] {
         var list = items
@@ -289,22 +296,81 @@ struct AssetGridView: View {
 
     // MARK: - 上：预览区（剪映式：选中什么就在这里看什么）
 
-    /// 左栏主区：**平铺缩放图** —— 缩略图按可用宽度平铺（自适应列数），竖向滚动；
-    /// 右上角那个"单张大预览 + 大片黑边"的块按用户要求去掉了。
+    /// 左栏主区：**瀑布流平铺** —— 每张图按原始宽高比定高、依次放进"当前最矮的列"，
+    /// 竖图完整不变形、大小图都能铺满；右上角那个"单张大预览 + 大片黑边"的块按用户要求去掉了。
     private var tileGrid: some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 116), spacing: 8)], spacing: 8) {
-                ForEach(filtered) { item in
-                    gridTile(item)
+        GeometryReader { geo in
+            ScrollView {
+                let spacing: CGFloat = 8
+                let pad: CGFloat = 10
+                let gridW = max(160, geo.size.width - pad * 2)
+                let columns = max(2, Int((gridW + spacing) / (116 + spacing)))
+                let colW = (gridW - spacing * CGFloat(columns - 1)) / CGFloat(columns)
+                let buckets = waterfallColumns(ordered(filtered), columns: columns, columnWidth: colW, spacing: spacing)
+                HStack(alignment: .top, spacing: spacing) {
+                    ForEach(0..<columns, id: \.self) { i in
+                        LazyVStack(spacing: spacing) {
+                            ForEach(buckets[i]) { item in
+                                gridTile(item, width: colW)
+                            }
+                        }
+                    }
                 }
+                .padding(pad)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(10)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func gridTile(_ item: NotesStore.AttachmentItem) -> some View {
+    /// 瀑布流列分配：保持列表顺序，每次放进当前最矮的列
+    private func waterfallColumns(_ list: [NotesStore.AttachmentItem], columns: Int,
+                                  columnWidth: CGFloat, spacing: CGFloat) -> [[NotesStore.AttachmentItem]] {
+        let n = max(1, columns)
+        var buckets = [[NotesStore.AttachmentItem]](repeating: [], count: n)
+        var heights = [CGFloat](repeating: 0, count: n)
+        for item in list {
+            let i = heights.indices.min { heights[$0] < heights[$1] } ?? 0
+            buckets[i].append(item)
+            heights[i] += tileHeight(item, width: columnWidth) + 20 + spacing
+        }
+        return buckets
+    }
+
+    /// 瓦片高度：图片按原始宽高比（竖图完整展示；极端长图封顶 3.2 倍列宽）
+    private func tileHeight(_ item: NotesStore.AttachmentItem, width: CGFloat) -> CGFloat {
+        max(56, min(width / tileAspect(item), width * 3.2))
+    }
+
+    private func tileAspect(_ item: NotesStore.AttachmentItem) -> CGFloat {
+        switch AssetSyntax.kind(forExt: item.url.pathExtension) {
+        case .image:
+            return Self.imageAspect(item.url) ?? 4.0 / 3.0
+        case .video:
+            return 16.0 / 9.0
+        default:
+            return 4.0 / 3.0
+        }
+    }
+
+    /// 只读图片文件头拿像素宽高（不整图解码；和 Finder 列视图一样快），结果缓存
+    private static let aspectCache = NSCache<NSString, NSNumber>()
+    private static func imageAspect(_ url: URL) -> CGFloat? {
+        let key = url.path as NSString
+        if let hit = aspectCache.object(forKey: key) { return CGFloat(truncating: hit) }
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as NSDictionary?,
+              let w = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
+              let h = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue,
+              w > 0, h > 0 else { return nil }
+        let aspect = CGFloat(w / h)
+        aspectCache.setObject(NSNumber(value: Double(aspect)), forKey: key)
+        return aspect
+    }
+
+    private func gridTile(_ item: NotesStore.AttachmentItem, width: CGFloat) -> some View {
         let isSel = selectedIDs.contains(item.id)
+        let tileH = tileHeight(item, width: width)
         return VStack(spacing: 4) {
             ZStack {
                 RoundedRectangle(cornerRadius: 6)
@@ -318,10 +384,12 @@ struct AssetGridView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
             }
-            .frame(height: 104)
+            .frame(width: width, height: tileH)
             .overlay(RoundedRectangle(cornerRadius: 6)
-                .stroke(isSel ? appAppearance.accent : Color(nsColor: appAppearance.editorForeground.withAlphaComponent(0.12)),
-                        lineWidth: isSel ? 2 : 1))
+                .stroke(isSel || dropTargetID == item.id
+                        ? appAppearance.accent
+                        : Color(nsColor: appAppearance.editorForeground.withAlphaComponent(0.12)),
+                        lineWidth: isSel || dropTargetID == item.id ? 2 : 1))
             Text(item.name)
                 .font(.system(size: 10))
                 .lineLimit(1)
@@ -333,7 +401,23 @@ struct AssetGridView: View {
         .onTapGesture(count: 2) { selectedIDs = [item.id]; selectionAnchor = item.id; selected = item; openPreview(item) }
         .onTapGesture { select(item) }
         .onDrag {
-            NSItemProvider(object: AssetSyntax.reference(name: item.name, path: relativePath(item)) as NSString)
+            draggingAssetID = item.id
+            let provider = NSItemProvider(object: AssetSyntax.reference(name: item.name, path: relativePath(item)) as NSString)
+            // 额外载荷：拖到另一张素材上 = 排序（拖到编辑器仍按文本引用处理）
+            provider.registerDataRepresentation(forTypeIdentifier: Self.reorderUTType.identifier,
+                                                visibility: .ownProcess) { completion in
+                completion(Data(item.id.utf8), nil)
+                return nil
+            }
+            return provider
+        }
+        .onDrop(of: [Self.reorderUTType], isTargeted: Binding(
+            get: { dropTargetID == item.id },
+            set: { targeting in
+                if targeting { dropTargetID = item.id }
+                else if dropTargetID == item.id { dropTargetID = nil }
+            })) { providers in
+            handleReorderDrop(onto: item, providers: providers)
         }
         .contextMenu { tileMenu(item) }
         .help("\(item.name) · \(Self.sizeLabel(item.size))")
@@ -585,9 +669,13 @@ struct AssetGridView: View {
                     }
                     .controlSize(.small)
                 }
-                Button(_L("插入到光标处", "Insert")) { insert(item) }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                Button(selectedIDs.count > 1
+                       ? _L("插入选中 \(selectedIDs.count) 张", "Insert \(selectedIDs.count) Selected")
+                       : _L("插入到光标处", "Insert")) {
+                    if selectedIDs.count > 1 { insertSelection() } else { insert(item) }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
                 Button(_L("复制引用", "Copy")) { copyRef(item) }
                     .controlSize(.small)
                 Button {
@@ -631,6 +719,7 @@ struct AssetGridView: View {
     // MARK: - 行为
 
     private func reload() {
+        loadAssetOrder()
         items = store.listAttachments(for: "")
         refCounts = store.assetReferenceCounts()
         if let sel = selected, !items.contains(where: { $0.url == sel.url }) { selected = nil }
@@ -663,6 +752,78 @@ struct AssetGridView: View {
     private func insert(_ item: NotesStore.AttachmentItem) {
         NotificationCenter.default.post(name: .insertTextAtCursor,
                                         object: AssetSyntax.reference(name: item.name, path: relativePath(item)))
+    }
+
+    /// 批量插入：按列表顺序把选中的素材一次插到光标处（每行一个引用；块级引用补尾换行）
+    private func insertSelection() {
+        let picks = filtered.filter { selectedIDs.contains($0.id) }
+        guard !picks.isEmpty else { return }
+        let refs = picks.map { AssetSyntax.reference(name: $0.name, path: relativePath($0)) }
+        var text = refs.joined(separator: "\n")
+        if let last = refs.last,
+           last.hasPrefix("<video") || last.hasPrefix("<audio") || last.hasPrefix("@[") {
+            text += "\n"
+        }
+        NotificationCenter.default.post(name: .insertTextAtCursor, object: text)
+    }
+
+    // MARK: - 拖动排序
+
+    /// 按手动顺序排列：已记录的按记录顺序；未记录的新素材排在最前（保持列表原序）
+    private func ordered(_ list: [NotesStore.AttachmentItem]) -> [NotesStore.AttachmentItem] {
+        guard !assetOrder.isEmpty else { return list }
+        let rank = Dictionary(uniqueKeysWithValues: assetOrder.enumerated().map { ($0.element, $0.offset) })
+        return list.enumerated().sorted { a, b in
+            let ra = rank[a.element.id]
+            let rb = rank[b.element.id]
+            switch (ra, rb) {
+            case let (ra?, rb?): return ra < rb
+            case (nil, _?): return true
+            case (_?, nil): return false
+            default: return a.offset < b.offset
+            }
+        }.map { $0.element }
+    }
+
+    private func handleReorderDrop(onto target: NotesStore.AttachmentItem, providers: [NSItemProvider]) -> Bool {
+        guard let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(Self.reorderUTType.identifier) }) else {
+            return false
+        }
+        provider.loadDataRepresentation(forTypeIdentifier: Self.reorderUTType.identifier) { data, _ in
+            guard let data, let id = String(data: data, encoding: .utf8) else { return }
+            DispatchQueue.main.async { moveAsset(id, before: target.id) }
+        }
+        return true
+    }
+
+    /// 把素材拖到目标素材之前（列表顺序 + `.asset-order.json` 持久化）
+    private func moveAsset(_ id: String, before targetID: String) {
+        guard id != targetID else { return }
+        var list = ordered(filtered).map(\.id)
+        guard let from = list.firstIndex(of: id) else { return }
+        list.remove(at: from)
+        guard let to = list.firstIndex(of: targetID) else { return }
+        list.insert(id, at: to)
+        assetOrder = list
+        persistAssetOrder()
+    }
+
+    private func persistAssetOrder() {
+        let url = store.notesDir.appendingPathComponent(".asset-order.json")
+        let payload: [String: Any] = ["order": assetOrder]
+        if let data = try? JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted]) {
+            try? data.write(to: url, options: .atomic)
+        }
+    }
+
+    private func loadAssetOrder() {
+        let url = store.notesDir.appendingPathComponent(".asset-order.json")
+        guard let data = try? Data(contentsOf: url),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let list = obj["order"] as? [String] else {
+            return
+        }
+        assetOrder = list
     }
 
     private func copyRef(_ item: NotesStore.AttachmentItem) {

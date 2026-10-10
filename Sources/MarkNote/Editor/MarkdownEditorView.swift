@@ -28,6 +28,12 @@ struct MarkdownEditorView: NSViewRepresentable {
     var fileExtension: String = ""
     /// 文档版本号（store.documentRevision）：区分"主动换文档"与"用户输入领先"
     var revision: Int
+    /// 当前文件真实路径（clangd 需要）
+    var fileURL: URL? = nil
+    /// 工作台根（clangd rootUri）
+    var workspaceRoot: URL? = nil
+    /// 系统拼写检查（仅散文；代码文件始终关闭）
+    var spellCheck: Bool = false
     @Binding var textViewRef: NSTextView?
 
     func makeCoordinator() -> Coordinator {
@@ -42,7 +48,7 @@ struct MarkdownEditorView: NSViewRepresentable {
         scrollView.borderType = .noBorder
 
         let tv = MarkdownTextView()
-        let ext = (text as NSString).pathExtension.lowercased()
+        let ext = fileExtension.isEmpty ? (text as NSString).pathExtension.lowercased() : fileExtension
         Self.configure(tv, fontSize: fontSize, family: fontFamily, glass: glass, tabSpaces: Self.indentUnit(for: ext))
         tv.delegate = context.coordinator
         let coordinator = context.coordinator
@@ -58,7 +64,14 @@ struct MarkdownEditorView: NSViewRepresentable {
         tv.aiMenuHandler = { [weak coordinator] action, text in
             coordinator?.parent.onAIMenu?(action, text)
         }
-        tv.fileExtension = (text as NSString).pathExtension.lowercased()
+        tv.fileExtension = ext
+        tv.fileURL = fileURL
+        Self.applySpellCheck(tv, enabled: spellCheck)
+        context.coordinator.lastSpellCheck = spellCheck
+        context.coordinator.diagObserver = NotificationCenter.default.addObserver(
+            forName: ClangdClient.diagnosticsChanged, object: nil, queue: .main) { [weak coordinator] _ in
+            coordinator?.refreshDiagnostics()
+        }
 
         let ruler = LineNumberRulerView(textView: tv)
         scrollView.documentView = tv
@@ -104,6 +117,7 @@ struct MarkdownEditorView: NSViewRepresentable {
         // revision 变化 = 程序性换文档（打开/恢复/导入）→ store 写入视图（唯一允许反写的时机）
         // revision 相同 + 内容不一致 = 用户输入领先（输入法末段字未回填 store）→ 以视图为准回填，
         //   绝不覆盖视图 —— 不丢字、不跳光标。
+        let docSwitched = context.coordinator.lastRevision != revision
         if context.coordinator.lastRevision != revision {
             context.coordinator.lastRevision = revision
             context.coordinator.clearFind(tv)
@@ -117,6 +131,7 @@ struct MarkdownEditorView: NSViewRepresentable {
             context.coordinator.scheduleHighlight(tv)
             // 朴素默认：打开/换文档后光标位于文档顶部
             tv.setSelectedRange(NSRange(location: 0, length: 0))
+            context.coordinator.refreshDiagnostics()
         } else if tv.string != text {
             // 视图领先 → 回填 store（防丢字、防跳顶）
             if !context.coordinator.suppress {
@@ -127,6 +142,24 @@ struct MarkdownEditorView: NSViewRepresentable {
         context.coordinator.applyFontIfNeeded(tv, fontSize: fontSize, family: fontFamily)
         context.coordinator.applyGlassIfNeeded(tv, glass: glass)
         context.coordinator.applyForegroundIfNeeded(tv, color: Self.editorForeground())
+        // 文件扩展名跟随当前文档（同一编辑器实例切换 md ↔ cpp 时也保持正确：着色 / 补全 / 拼写都依赖它）
+        if let mtv = tv as? MarkdownTextView, !fileExtension.isEmpty, mtv.fileExtension != fileExtension {
+            mtv.fileExtension = fileExtension
+        }
+        if context.coordinator.lastSpellCheck != spellCheck {
+            context.coordinator.lastSpellCheck = spellCheck
+            if let mtv = tv as? MarkdownTextView { Self.applySpellCheck(mtv, enabled: spellCheck) }
+        }
+        context.coordinator.syncClangd(path: fileURL?.path, root: workspaceRoot,
+                                       text: tv.string, docSwitched: docSwitched)
+    }
+
+    /// 系统拼写检查：只对散文（md/txt/log/rst）生效；代码文件交给 clangd 诊断，不开拼写。
+    static func applySpellCheck(_ tv: MarkdownTextView, enabled: Bool) {
+        let ext = tv.fileExtension
+        let prose = ext.isEmpty || isMarkdownExt(ext) || ["txt", "log", "rst"].contains(ext)
+        tv.isContinuousSpellCheckingEnabled = enabled && prose
+        tv.isGrammarCheckingEnabled = false
     }
 
     static func configure(_ tv: NSTextView, fontSize: CGFloat, family: String, glass: Double, tabSpaces: Int = 2) {
@@ -236,6 +269,48 @@ struct MarkdownEditorView: NSViewRepresentable {
         /// 已应用字号/家族（字体仅在变化时赋值，避免每帧布局失效）
         var lastFontSize: CGFloat = -1
         var lastFontFamily = ""
+        /// 拼写检查当前应用值（变化时才切换）
+        var lastSpellCheck: Bool?
+        /// clangd：上次同步的文件路径 / 编辑防抖任务 / 诊断变更观察者
+        var lastClangdPath: String?
+        private var clangdDebounce: DispatchWorkItem?
+        var diagObserver: NSObjectProtocol?
+
+        deinit {
+            if let diagObserver { NotificationCenter.default.removeObserver(diagObserver) }
+        }
+
+        /// clangd 文档同步：换文件立即 didOpen；同一文件编辑防抖 0.35s 再全量同步
+        func syncClangd(path: String?, root: URL?, text: String, docSwitched: Bool) {
+            guard let path, ClangdClient.handles((path as NSString).pathExtension) else {
+                if let old = lastClangdPath {
+                    ClangdClient.shared.close(path: old)
+                    lastClangdPath = nil
+                }
+                return
+            }
+            if docSwitched || path != lastClangdPath {
+                if let old = lastClangdPath, old != path { ClangdClient.shared.close(path: old) }
+                lastClangdPath = path
+                ClangdClient.shared.activate(root: root)
+                ClangdClient.shared.sync(path: path, text: text, openIfNeeded: true)
+                return
+            }
+            clangdDebounce?.cancel()
+            let item = DispatchWorkItem { ClangdClient.shared.sync(path: path, text: text, openIfNeeded: false) }
+            clangdDebounce = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: item)
+        }
+
+        /// 当前文件的 clangd 诊断 → 编辑器下划线（切换文件 / 收到 publish 时调用）
+        func refreshDiagnostics() {
+            guard let tv = textView as? MarkdownTextView else { return }
+            guard let url = parent.fileURL, ClangdClient.handles((url.path as NSString).pathExtension) else {
+                tv.setDiagnostics([])
+                return
+            }
+            tv.setDiagnostics(ClangdClient.shared.diagnostics(forPath: url.path).map { ($0.range, $0.severity) })
+        }
 
         func applyFontIfNeeded(_ tv: NSTextView, fontSize: CGFloat, family: String) {
             guard abs(lastFontSize - fontSize) > 0.001 || lastFontFamily != family else { return }
@@ -456,6 +531,8 @@ struct MarkdownEditorView: NSViewRepresentable {
         // MARK: - 代码着色（C/C++ 等：VSCode 原生体验）
 
         private func applyCodeHighlight(_ pairs: [(NSRange, NSColor)], tv: NSTextView) {
+            let perfT0 = CFAbsoluteTimeGetCurrent()
+            defer { PerfLog.record("语法高亮（代码）", (CFAbsoluteTimeGetCurrent() - perfT0) * 1000) }
             guard let ts = tv.textStorage else { return }
             let len = ts.length
             guard len > 0 else { return }
@@ -708,6 +785,11 @@ struct MarkdownEditorView: NSViewRepresentable {
             }
             // 输入法组合中不做属性写入（当前行底色 / 括号配对都会打断组合 → 重复上屏）
             guard !tv.hasMarkedText() else { return }
+            // 代码文件在输入：旧诊断下划线坐标已失效，先撤掉（clangd 稍后重发新坐标）
+            if let mtv = tv as? MarkdownTextView, !MarkdownEditorView.isMarkdownExt(mtv.fileExtension),
+               mtv.hasDiagnostics {
+                mtv.setDiagnostics([])
+            }
             reportLine(tv)
             scheduleHighlight(tv)
         }

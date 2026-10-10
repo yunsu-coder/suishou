@@ -50,6 +50,11 @@ struct EditorView: View {
     @AppStorage("editorFontSize") private var editorFontSize = 13.0
     @AppStorage("previewFontScale") private var previewFontScale = 1.0
     @AppStorage("previewImageCaptions") private var previewImageCaptions = true
+    @AppStorage("editorSpellCheck") private var editorSpellCheck = true
+    @AppStorage("cxxIntelEnabled") private var cxxIntel = true
+    /// clangd 诊断（当前文件；状态栏徽标 + 跳转用）
+    @State private var clangdDiags: [ClangdClient.Diagnostic] = []
+    @State private var showDiagList = false
 
     struct ZoomTarget: Identifiable {
         let url: URL
@@ -61,8 +66,13 @@ struct EditorView: View {
     @AppStorage("terminalPanelOpen") private var terminalOpen = false
     /// 素材上方面板：从工作区上方直接挑素材插入，侧栏继续留在文件树
     @AppStorage("assetTopPanelOpen") private var assetPanelOpen = false
-    /// 素材面板高度（可拖拽，默认 480；图太小主要就是被高度卡住）
-    @AppStorage("assetTopPanelHeight") private var assetPanelHeight: Double = 480
+    /// 素材面板高度（可拖拽，默认 480；拖动期走内存草稿，松手才落盘防抖）
+    @AppStorage("assetTopPanelHeight") private var assetPanelHeightStored: Double = 480
+    @State private var assetPanelHeightDraft: Double?
+    private var assetPanelHeight: Double { assetPanelHeightDraft ?? assetPanelHeightStored }
+    /// 编辑｜预览分栏比例（拖拽手柄调整；拖动期同样走内存草稿）
+    @AppStorage("editorSplitRatio") private var splitRatioStored = 0.5
+    @State private var splitRatioDraft: Double?
 
     /// 终端视图插件是否就位（未启用时 ⌘J 与面板都不出现）
     private var hasTerminalView: Bool {
@@ -88,10 +98,15 @@ struct EditorView: View {
 
     /// 面板下沿拖拽调高（公用分隔条：整条线可拖 / hover 高亮 / 双击复位到 480）
     private var assetPanelResizeHandle: some View {
-        PanelResizeHandle(height: $assetPanelHeight, minHeight: 240, maxHeight: 900,
-                          defaultHeight: 480,
-                          help: _L("拖动调整素材面板高度，双击复位到 480",
-                                   "Drag to resize the asset panel, double-click to reset (480)"))
+        PanelResizeHandle(value: Binding(
+                get: { assetPanelHeight },
+                set: { assetPanelHeightDraft = $0 }),
+            minValue: 240, maxValue: 900, defaultValue: 480,
+            onCommit: {
+                if let d = assetPanelHeightDraft { assetPanelHeightStored = d; assetPanelHeightDraft = nil }
+            },
+            help: _L("拖动调整素材面板高度，双击复位到 480",
+                     "Drag to resize the asset panel, double-click to reset (480)"))
     }
 
     var body: some View {
@@ -146,10 +161,7 @@ struct EditorView: View {
                                 removal: .opacity
                             ))
                     case .split:
-                        HSplitView {
-                            editorPane.frame(minWidth: 320, idealWidth: 560)
-                            previewPane.frame(minWidth: 320, idealWidth: 720)
-                        }
+                        splitPanes
                         .compositingGroup()
                         .transition(.asymmetric(
                             insertion: .opacity.combined(with: .offset(y: 8)),
@@ -202,6 +214,22 @@ struct EditorView: View {
             // 命令面板转发：附件面板 / 版本历史
             .onReceive(NotificationCenter.default.publisher(for: .requestVersions)) { _ in
                 showVersions = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: ClangdClient.diagnosticsChanged)) { _ in
+                refreshClangdDiagnostics()
+            }
+            .onChange(of: store.loadedNoteID) { _, _ in
+                refreshClangdDiagnostics()
+            }
+            .onChange(of: cxxIntel) { _, on in
+                if !on {
+                    ClangdClient.shared.shutdown()
+                    clangdDiags = []
+                } else if let id = store.loadedNoteID, ClangdClient.handles((id as NSString).pathExtension) {
+                    ClangdClient.shared.activate(root: store.notesDir)
+                    ClangdClient.shared.sync(path: store.noteURL(id).path,
+                                             text: store.workingText, openIfNeeded: true)
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .insertTextAtCursor)) { note in
                 guard let text = note.object as? String, let tv = textViewRef else { return }
@@ -367,6 +395,41 @@ struct EditorView: View {
 
     // MARK: - 左：源码编辑器 / 右：预览
 
+    /// 编辑｜预览 自绘分栏：系统 `HSplitView` 的细线太细难抓，换成公用拖拽手柄（比例可记忆）。
+    private var splitPanes: some View {
+        GeometryReader { geo in
+            let handleW: CGFloat = 12
+            let minPane: CGFloat = 320
+            let available = max(1, geo.size.width - handleW)
+            let ratio = min(0.92, max(0.08, splitRatioDraft ?? splitRatioStored))
+            let clampable = available > minPane * 2
+            let editorW = clampable
+                ? min(max(minPane, available * ratio), available - minPane)
+                : available * ratio
+            HStack(spacing: 0) {
+                editorPane
+                    .frame(width: editorW)
+                PanelResizeHandle(value: Binding(
+                        get: { editorW },
+                        set: { w in
+                            guard clampable, available > 0 else { return }
+                            splitRatioDraft = min(max(w, minPane), available - minPane) / available
+                        }),
+                    minValue: minPane,
+                    maxValue: max(minPane, available - minPane),
+                    defaultValue: available / 2,
+                    axis: .horizontal,
+                    onCommit: {
+                        if let d = splitRatioDraft { splitRatioStored = d; splitRatioDraft = nil }
+                    },
+                    help: _L("拖动调整编辑/预览比例，双击回到对半",
+                             "Drag to resize editor/preview, double-click to reset"))
+                previewPane
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
     private var editorPane: some View {
         MarkdownEditorView(
             text: store.workingText,
@@ -398,6 +461,9 @@ struct EditorView: View {
             },
             fileExtension: Self.editorExtension(for: store.selectedNoteID),
             revision: store.documentRevision,
+            fileURL: store.loadedNoteID.map { store.noteURL($0) },
+            workspaceRoot: store.notesDir,
+            spellCheck: editorSpellCheck,
             textViewRef: $textViewRef
         )
         .overlay(alignment: .topTrailing) {
@@ -677,6 +743,66 @@ struct EditorView: View {
 
     // MARK: - 状态栏
 
+    // MARK: - clangd 诊断呈现
+
+    private func refreshClangdDiagnostics() {
+        guard let id = store.loadedNoteID,
+              ClangdClient.handles((id as NSString).pathExtension) else {
+            clangdDiags = []
+            return
+        }
+        clangdDiags = ClangdClient.shared.diagnostics(forPath: store.noteURL(id).path)
+    }
+
+    private func jumpToDiagnostic(_ d: ClangdClient.Diagnostic) {
+        guard let tv = textViewRef else { return }
+        tv.setSelectedRange(d.range)
+        tv.scrollRangeToVisible(d.range)
+        tv.window?.makeFirstResponder(tv)
+    }
+
+    private var diagPopover: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(_L("问题（\(clangdDiags.count)）", "Problems (\(clangdDiags.count))"))
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(clangdDiags.enumerated()), id: \.offset) { _, d in
+                        Button {
+                            jumpToDiagnostic(d)
+                            showDiagList = false
+                        } label: {
+                            HStack(alignment: .top, spacing: 6) {
+                                Image(systemName: d.severity == 1 ? "xmark.circle.fill" : "exclamationmark.triangle.fill")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(d.severity == 1 ? .red : .orange)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(d.message)
+                                        .font(.system(size: 11))
+                                        .multilineTextAlignment(.leading)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    Text(_L("第 \(d.line) 行", "Line \(d.line)"))
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.tertiary)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .frame(maxHeight: 280)
+        }
+        .frame(width: 360)
+    }
+
     private var statusBar: some View {
         HStack(spacing: 14) {
             if let id = store.loadedNoteID {
@@ -698,6 +824,20 @@ struct EditorView: View {
                     .monospacedDigit()
                     .contentTransition(.numericText())
                     .animation(AppMotion.micro(reduceMotion), value: store.workingText.split(separator: "\n").count)
+            }
+            if !clangdDiags.isEmpty {
+                Button {
+                    showDiagList = true
+                } label: {
+                    Text(_L("问题 \(clangdDiags.count)", "\(clangdDiags.count) problems"))
+                        .monospacedDigit()
+                        .foregroundStyle(clangdDiags.contains(where: { $0.severity == 1 }) ? .red : .orange)
+                        .contentTransition(.numericText())
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showDiagList, arrowEdge: .bottom) { diagPopover }
+                .help(_L("clangd 检出的错误 / 警告；点击查看并跳转",
+                         "Errors/warnings from clangd; click to view & jump"))
             }
             Spacer()
             saveState
