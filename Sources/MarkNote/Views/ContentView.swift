@@ -84,29 +84,30 @@ struct ContentView: View {
                   win.frame.width > 700,
                   win.identifier?.rawValue != "com_apple_SwiftUI_Settings",
                   !win.styleMask.contains(.docModalWindow) else { return event }
-            // 鼠标一格 ≈ ±1；触控板精确增量 → 0.25 增量平滑缩放
-            let step: Double = (event.deltaY < 0 ? 1.0 : -1.0) * (event.hasPreciseScrollingDeltas ? 0.1 : 0.5)
-            // 1) 编辑焦点裁决：正在编辑时，无论指针在哪，都只作用于编辑面板
-            if win.firstResponder is NSTextView {
-                Self.bumpFont(key: "editorFontSize", step: step, minV: 9, maxV: 30)
-                return nil
-            }
-            // 2) 指针兜底：命中预览 / 编辑器面板，各管各的
+            // 缩放步长：编辑器是"字号"（点数），预览是"倍率"——两者量纲不同，
+            // 之前共用一套步长，导致预览一动就是 ±50%（用户反馈"预览缩放幅度太大"）。
+            let dir: Double = event.deltaY < 0 ? 1 : -1
+            let precise = event.hasPreciseScrollingDeltas
+            // 1) **指针在哪就缩哪**（用户要求：按鼠标悬停区域判断，而不是光标/焦点）
             if let cv = win.contentView {
                 let pt: NSPoint = cv.convert(event.locationInWindow, from: nil)
                 if let hit = cv.hitTest(pt) {
                     if Self.inAncestors(hit, is: WKWebView.self) {
-                        Self.bumpFont(key: "previewFontScale", step: step, minV: 0.6, maxV: 2.0)
+                        // 预览：倍率，触控板 2%｜滚轮 5% 一档（0.6 … 2.0）
+                        Self.bumpFont(key: "previewFontScale",
+                                      step: dir * (precise ? 0.02 : 0.05), minV: 0.6, maxV: 2.0)
                         return nil
                     }
                     if Self.inAncestors(hit, is: NSTextView.self) {
-                        Self.bumpFont(key: "editorFontSize", step: step, minV: 9, maxV: 30)
+                        // 编辑器：字号，触控板 0.25pt｜滚轮 1pt 一档（9 … 30）
+                        Self.bumpFont(key: "editorFontSize",
+                                      step: dir * (precise ? 0.25 : 1.0), minV: 9, maxV: 30)
                         return nil
                     }
                 }
             }
-            // 3) 失去编辑焦点 → 只缩放窗口
-            Self.windowZoom(win, step: step)
+            // 2) 指针不在编辑/预览上（侧栏、面板区…）→ 缩放窗口
+            Self.windowZoom(win, step: dir * (precise ? 0.1 : 0.5))
             return nil
         }
     }

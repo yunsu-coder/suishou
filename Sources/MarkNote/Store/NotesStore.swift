@@ -1518,7 +1518,11 @@ final class NotesStore {
         } else {
             selectedNoteIDs = []
         }
-        reloadIndex()
+        // 删除后的索引更新走**增量**：直接把删掉的条目摘掉即可。
+        // 之前这里调 reloadIndex()（后台全工作台扫描 + 主线程应用），每删一个都全量重扫，
+        // 树上的删除按钮因此有明显延迟（用户反馈"删除特别慢"）。
+        index.removeAll { deletedSet.contains($0.id) }        // 摘掉即可，顺序不受影响
+        for id in deletedSet { fullTextCache.removeValue(forKey: id) }
         return count
     }
 
