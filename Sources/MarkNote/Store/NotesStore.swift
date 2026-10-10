@@ -339,7 +339,7 @@ final class NotesStore {
     /// 文件级读取（工作台语义：笔记 = 纯文本文件，任意格式皆可）
     private func readNote(_ id: String) -> Note? {
         let url = noteURL(id)
-        guard let content = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+        guard let content = TextDecoding.string(contentsOf: url) else { return nil }
         return Note(id: id, title: Workspace.title(for: url),
                     content: content, category: Workspace.folderLabel(for: url, root: notesDir))
     }
@@ -745,8 +745,8 @@ final class NotesStore {
         // 修复：MP4/PDF/图片等二进制绝不按文本导入（.md 化 + 解码崩溃）
         let ext = url.pathExtension.lowercased()
         guard (ext.isEmpty || Self.importableTextExts.contains(ext)), isTextFile(url) else { return nil }
-        var content = (try? String(contentsOf: url, encoding: .utf8))
-            ?? (try? String(contentsOf: url, encoding: .isoLatin1)) ?? ""
+        // 编码：UTF-8 → 系统探测（GB18030/Big5/UTF-16…）→ 候选表；不再"失败就 Latin-1"
+        var content = TextDecoding.string(contentsOf: url) ?? ""
         // 1) BOM 剥离（用户常见的 Windows/编辑器头部乱码）
         if content.hasPrefix("\u{FEFF}") { content.removeFirst() }
         // 2) 换行规整 CRLF/CR → LF（导入前 VSCode/Windows 写法普遍）

@@ -460,6 +460,11 @@ struct MarkdownEditorView: NSViewRepresentable {
             let len = ts.length
             guard len > 0 else { return }
             ts.removeAttribute(.foregroundColor, range: NSRange(location: 0, length: len))
+            // ★ 先铺一层主题正文色再上 token 色：标识符、括号、分号这些"没有 token"的文字，
+            //   删掉颜色后会退回 AppKit 的默认近黑 —— 暗色主题下就是"有些文字看不见"。
+            //   （Markdown 那条路径一直是这么做的，代码这条之前漏了。）
+            ts.addAttribute(.foregroundColor, value: appAppearance.editorForeground,
+                            range: NSRange(location: 0, length: len))
             for (range, color) in pairs where range.location + range.length <= len {
                 ts.addAttribute(.foregroundColor, value: color, range: range)
             }
