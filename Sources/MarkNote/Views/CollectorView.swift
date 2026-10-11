@@ -1447,7 +1447,8 @@ struct CollectorView: View {
                 }
                 let outcome = await store.downloadCollectedImageBest(sources: sources,
                                                                      preferredName: name,
-                                                                     referer: c.pageURL)
+                                                                     referer: c.pageURL,
+                                                                     minLongSide: (CollectMinSize(rawValue: request.minSize) ?? .any).minPixelLongSide)
                 if let note = outcome.note { failures.append(note) }
                 switch outcome.result {
                 case .saved:

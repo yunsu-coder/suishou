@@ -1101,11 +1101,14 @@ final class NotesStore {
     /// 采集下载（画质择优版）：按 sources 顺序尝试（原图 → Bing 大缓存 → 兜底），
     /// 谁先达到「长边 ≥ 1000px」就收；都没达到就取下载成功里最大的那张。
     /// 低分辨率会返回 note 如实说明（宁可有账，也别默默收一张糊图）。
-    func downloadCollectedImageBest(sources: [URL], preferredName: String, referer: URL?)
+    func downloadCollectedImageBest(sources: [URL], preferredName: String, referer: URL?,
+                                    minLongSide: Int? = nil)
         async -> (result: CollectDownloadResult, pixel: CGSize?, note: String?) {
         var best: (data: Data, ext: String, pixel: CGSize)?
         var lastReason = "下载失败"
         var seen = Set<String>()
+        // 「够大」的判定线：至少 1000px；用户设了分辨率底线就按底线的像素走（精确执行，不打折）
+        let acceptThreshold = CGFloat(max(1000, minLongSide ?? 0))
         for src in sources where seen.insert(src.absoluteString).inserted {
             var gotSmall = false
             for attempt in Self.imageDownloadReferers(page: referer) {
@@ -1123,7 +1126,7 @@ final class NotesStore {
                     if best == nil || longSide > max(best!.pixel.width, best!.pixel.height) {
                         best = (data, ext, px)
                     }
-                    if longSide >= 1000 {
+                    if longSide >= acceptThreshold {
                         guard let rel = saveImage(data, ext: ext, noteID: "", preferredName: preferredName) else {
                             return (.failed("写入素材库失败"), nil, nil)
                         }
@@ -1135,11 +1138,15 @@ final class NotesStore {
             }
         }
         if let best {
+            let px = best.pixel
+            let longSide = Int(max(px.width, px.height))
+            if let minR = minLongSide, longSide < minR {
+                return (.failed(_L("分辨率不达标：实取 \(Int(px.width))×\(Int(px.height))，低于要求的长边 ≥\(minR)px（这条跳过）",
+                                   "Below required resolution: got \(Int(px.width))×\(Int(px.height)) < ≥\(minR)px — skipped")), px, nil)
+            }
             guard let rel = saveImage(best.data, ext: best.ext, noteID: "", preferredName: preferredName) else {
                 return (.failed("写入素材库失败"), nil, nil)
             }
-            let px = best.pixel
-            let longSide = Int(max(px.width, px.height))
             let note = longSide > 0 && longSide < 640
                 ? _L("\(preferredName)：这已经是站上最大的一档，只有 \(Int(px.width))×\(Int(px.height))（源头本身就不大）",
                      "\(preferredName): largest available is only \(Int(px.width))×\(Int(px.height))")

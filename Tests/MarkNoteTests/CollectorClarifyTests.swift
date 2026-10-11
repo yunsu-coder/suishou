@@ -98,7 +98,7 @@ final class CollectorClarifyTests: XCTestCase {
         XCTAssertEqual(first.map(\.field), ["usage", "minSize"])
         XCTAssertEqual(first[0].field, "usage")
         XCTAssertTrue(first[0].options.contains("笔记封面"))
-        XCTAssertTrue(first[1].options.contains("至少 2K"), "分辨率底线要能一键选")
+        XCTAssertTrue(first[1].options.contains("≥2560px"), "分辨率底线要能一键选（精确像素档位）")
 
         // 关键项齐了（用途/方向/分辨率都有）→ 仍要收尾再问一轮
         r.orientation = CollectOrientation.landscape.rawValue

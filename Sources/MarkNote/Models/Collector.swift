@@ -108,6 +108,17 @@ enum CollectMinSize: String, CaseIterable { case any, hd720, fhd1080, qhd1440, u
         case .any: return ""; case .hd720: return "720P"; case .fhd1080: return "1080P"
         case .qhd1440: return "2K"; case .uhd2160: return "4K" } }
     var bingFilter: String? { self == .any ? nil : "imagesize-large" }
+
+    /// 精确到像素的下限（长边）——下载时按它硬性校验；any = 不校验
+    var minPixelLongSide: Int? {
+        switch self {
+        case .any: return nil
+        case .hd720: return 1280
+        case .fhd1080: return 1920
+        case .qhd1440: return 2560
+        case .uhd2160: return 3840
+        }
+    }
 }
 
 enum CollectRecency: String, CaseIterable { case any, week, month, year

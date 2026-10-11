@@ -6,12 +6,22 @@ final class CollectClarifyMapTests: XCTestCase {
 
     func testApplyAnswersMapsMinSize() {
         var r = CollectRequest()
-        CollectorClarify.applyAnswers([(field: "minSize", question: "?", answer: "至少 2K")], to: &r)
+        CollectorClarify.applyAnswers([(field: "minSize", question: "?", answer: "≥2560px")], to: &r)
         XCTAssertEqual(r.minSize, CollectMinSize.qhd1440.rawValue)
-        CollectorClarify.applyAnswers([(field: "minSize", question: "?", answer: "越大越好（原图优先）")], to: &r)
+        CollectorClarify.applyAnswers([(field: "minSize", question: "?", answer: "≥3840px")], to: &r)
         XCTAssertEqual(r.minSize, CollectMinSize.uhd2160.rawValue)
-        CollectorClarify.applyAnswers([(field: "minSize", question: "?", answer: "不限，能用就行")], to: &r)
+        CollectorClarify.applyAnswers([(field: "minSize", question: "?", answer: "≥1920px")], to: &r)
+        XCTAssertEqual(r.minSize, CollectMinSize.fhd1080.rawValue)
+        CollectorClarify.applyAnswers([(field: "minSize", question: "?", answer: "不限")], to: &r)
         XCTAssertEqual(r.minSize, CollectMinSize.any.rawValue)
+    }
+
+    func testMinPixelFloorMapping() {
+        XCTAssertEqual(CollectMinSize.hd720.minPixelLongSide, 1280)
+        XCTAssertEqual(CollectMinSize.fhd1080.minPixelLongSide, 1920)
+        XCTAssertEqual(CollectMinSize.qhd1440.minPixelLongSide, 2560)
+        XCTAssertEqual(CollectMinSize.uhd2160.minPixelLongSide, 3840)
+        XCTAssertNil(CollectMinSize.any.minPixelLongSide)
     }
 
     func testApplyAnswersMapsOrientation() {

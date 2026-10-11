@@ -63,8 +63,8 @@ enum CollectorClarify {
                                   options: ["笔记封面", "文章配图", "视频封面", "桌面壁纸", "只做参考"]))
             }
             if (CollectMinSize(rawValue: r.minSize) ?? .any) == .any {
-                gaps.append(.init(field: "minSize", question: "图片分辨率底线？（直接决定要不要原图、而不是缩放图）",
-                                  options: ["至少 1080P", "至少 2K", "越大越好（原图优先）", "不限，能用就行"]))
+                gaps.append(.init(field: "minSize", question: "图片尺寸的硬要求？（长边像素，不达标的一律不收）",
+                                  options: ["≥1280px", "≥1920px", "≥2560px", "≥3840px", "不限"]))
             }
         case "video":
             if (CollectVideoDuration(rawValue: r.videoDuration) ?? .any) == .any, r.platforms.isEmpty {
@@ -154,13 +154,15 @@ enum CollectorClarify {
             guard !a.isEmpty else { continue }
             switch p.field {
             case "minSize":
-                if a.contains("2k") {
-                    r.minSize = CollectMinSize.qhd1440.rawValue; changed = true
-                } else if a.contains("1080") || a.contains("高清") {
-                    r.minSize = CollectMinSize.fhd1080.rawValue; changed = true
-                } else if a.contains("越大") || a.contains("最大") || a.contains("原图") {
+                if a.contains("3840") || a.contains("4k") || a.contains("越大") || a.contains("最大") || a.contains("原图") {
                     r.minSize = CollectMinSize.uhd2160.rawValue; changed = true
-                } else if a.contains("不限") {
+                } else if a.contains("2560") || a.contains("2k") {
+                    r.minSize = CollectMinSize.qhd1440.rawValue; changed = true
+                } else if a.contains("1920") || a.contains("1080") || a.contains("高清") {
+                    r.minSize = CollectMinSize.fhd1080.rawValue; changed = true
+                } else if a.contains("1280") || a.contains("720") {
+                    r.minSize = CollectMinSize.hd720.rawValue; changed = true
+                } else if a.contains("不限") || a.contains("都行") || a.contains("能用") {
                     r.minSize = CollectMinSize.any.rawValue; changed = true
                 }
             case "orientation":
@@ -210,6 +212,9 @@ enum CollectorClarify {
            必须继续追问下一件最重要的事——每轮只问「下一步最该确认的那一件」，
            不要一次把问题问完，也不要在信息还不够时草率给 ready=true；
         7. 只有当你自己觉得「拿着这张需求卡去搜，结果一定是用户想要的」时，才可以 ready=true。
+        8. 所有追问必须落到**可执行参数**：像素（长边 px）/ 数量（张、条）/ 时长（秒、分钟）/
+           平台名 / 文件格式；禁止「高质量」「好看」「差不多」这类无法执行的形容词，
+           选项一律给具体数值或具体名词。
         输出 JSON（只输出 JSON，不要解释）：
         {"ready":true/false,
          "reason":"不够明确的一句话原因（ready=true 时给空字符串）",
