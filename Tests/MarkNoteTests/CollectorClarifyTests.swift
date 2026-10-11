@@ -92,14 +92,18 @@ final class CollectorClarifyTests: XCTestCase {
         r.subject = "赛博朋克霓虹街道"
         let modelSaysReady = CollectClarifyReview(ready: true, reason: nil, questions: [])
 
-        // 图片没用途、没方向 → 模型说「懂了」也照样问
+        // 图片没用途/方向、没分辨率底线 → 模型说「懂了」也照样问（两条硬缺口）
         let first = CollectorClarify.questionsForNextRound(review: modelSaysReady, request: r, round: 1)
-        XCTAssertEqual(first.count, 1)
+        XCTAssertEqual(first.count, 2)
+        XCTAssertEqual(first.map(\.field), ["usage", "minSize"])
         XCTAssertEqual(first[0].field, "usage")
         XCTAssertTrue(first[0].options.contains("笔记封面"))
+        XCTAssertTrue(first[1].options.contains("至少 2K"), "分辨率底线要能一键选")
 
-        // 用户选了方向（等于答过一轮）→ 关键项齐了，但仍要收尾再问一轮
+        // 关键项齐了（用途/方向/分辨率都有）→ 仍要收尾再问一轮
         r.orientation = CollectOrientation.landscape.rawValue
+        r.usage = "笔记封面"
+        r.minSize = CollectMinSize.fhd1080.rawValue
         let second = CollectorClarify.questionsForNextRound(review: modelSaysReady, request: r, round: 1)
         XCTAssertEqual(second.count, 1, "最少 2 轮：选完选项还要再确认一次")
         XCTAssertEqual(second[0].id, "refine", "收尾问一轮，并留「别问了」出口")

@@ -463,6 +463,10 @@ struct CollectorView: View {
         if let r = await CollectorIntent.parse(inputText + clarifyTranscript, current: request) {
             request = r
         }
+        // 选项 → 需求字段的直落映射：比让模型把「至少 2K」再猜一遍可靠
+        CollectorClarify.applyAnswers(
+            clarifyQuestions.map { (field: $0.field, question: $0.question, answer: clarifyAnswers[$0.id] ?? "") },
+            to: &request)
         clarifyBusy = false
         // 用户在选项里明确选了「没有了，就这样」→ 尊重他（回答已回填），不再追问
         if pairs.contains(where: { CollectorClarify.answerMeansStop($0.answer) }) {
@@ -520,6 +524,10 @@ struct CollectorView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(Color(nsColor: appAppearance.editorForeground).opacity(0.72))
             }
+            Text(_L("AI 目前的理解：", "Understood so far: ") + CollectorIntent.describe(request))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             Text(_L("答完这些才能少搜一堆不相干的；不想答也行，直接看需求卡。",
                     "Answering these keeps the search on target — or just skip to the card."))
                 .font(.system(size: 11))
@@ -1052,11 +1060,18 @@ struct CollectorView: View {
                                                           safety: request.safetyEnum)
             }
         }
+        // 相关度过筛 / 排序：装饰图剔除；标题明确写着内容、却与需求一个词都不沾边的剔除
+        let relBase = (request.subject ?? "").trimmed.isEmpty
+            ? (request.composedQueries().first ?? inputText)
+            : (request.subject ?? "")
         var seen = Set<String>()
-        candidates = Array(all
+        var merged = all
             .filter { seen.insert($0.id).inserted }
             .filter { request.accepts($0) }
-            .prefix(request.count * 2))
+        if kind == "image" || kind == "video" {
+            merged = CollectRelevance.refine(merged, query: relBase)
+        }
+        candidates = Array(merged.prefix(request.count * 2))
         searching = false
         stage = .candidates
         if candidates.isEmpty {
@@ -1413,38 +1428,33 @@ struct CollectorView: View {
                 if let note = outcome.note { failures.append("\(name)：\(note)") }
             } else if c.kind == "image" {
                 downloadPhase = _L("正在下载图片", "Downloading image")
-                guard let raw = c.fullURL ?? c.thumbURL else {
+                // 多档来源按画质择优：原图 → Bing 大缓存 → 兜底
+                // （长边 ≥1000px 即收，否则取成功下载里最大的一档；低分辨率会如实记一笔）
+                var sources: [URL] = []
+                if let full = c.fullURL { sources.append(CollectImageQuality.upgrade(full)) }
+                if let thumb = c.thumbURL { sources.append(CollectImageQuality.bingFullCache(thumb)) }
+                if let thumb = c.thumbURL, !sources.contains(thumb) { sources.append(thumb) }
+                guard !sources.isEmpty else {
                     failures.append(_L("\(name)：这条没有图片地址", "\(name): no image URL"))
                     continue
                 }
-                // 有原图地址就先把 URL 归一化成原图（缩略图参数/尺寸目录换掉）；
-                // 只有缩略图时保持原样（Bing 缓存的缩略图改参数反而取不到）
-                let src = c.fullURL != nil ? CollectImageQuality.upgrade(raw) : raw
                 // 同一张图在一批里出现多次（同图不同尺寸）→ 只下一次
-                let identity = CollectImageQuality.identity(for: src)
+                let identity = CollectImageQuality.identity(for: sources[0])
                 if !seenImageSources.insert(identity).inserted {
                     failures.append(_L("\(name)：与前面某张是同一张图（已按原图去重）",
                                        "\(name): duplicate of an earlier image (deduped at original size)"))
                     continue
                 }
-                switch await store.downloadCollectedImage(from: src, preferredName: name, referer: c.pageURL) {
+                let outcome = await store.downloadCollectedImageBest(sources: sources,
+                                                                     preferredName: name,
+                                                                     referer: c.pageURL)
+                if let note = outcome.note { failures.append(note) }
+                switch outcome.result {
                 case .saved:
                     importedCount += 1
                     importedURLs.insert(key)
                 case .failed(let why):
-                    // 原图被防盗链/签名拦下 → 退到搜索缩略图（Bing 缓存一般能取到）：
-                    // 宁可小一档也别空手，但必须在账上写清楚
-                    if let thumb = c.thumbURL, c.fullURL != nil, thumb != src,
-                       case .saved = await store.downloadCollectedImage(from: thumb,
-                                                                        preferredName: name + "-缩略图",
-                                                                        referer: nil) {
-                        importedCount += 1
-                        importedURLs.insert(key)
-                        failures.append(_L("\(name)：原图取不到（\(withLoginHint(why, for: src))），已退到缩略图（分辨率低一档）",
-                                           "\(name): origin blocked (\(withLoginHint(why, for: src))) — Bing thumbnail saved instead"))
-                    } else {
-                        failures.append("\(name)：\(withLoginHint(why, for: src))")
-                    }
+                    failures.append("\(name)：\(withLoginHint(why, for: sources[0]))")
                 }
             } else if c.kind == "video", let page = c.pageURL {
                 // 先试解析可播放直链：解析到就下载成真视频（source/mp4），否则只存「收藏条目」

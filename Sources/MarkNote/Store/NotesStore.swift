@@ -3,6 +3,7 @@ import AppKit
 import Observation
 import UniformTypeIdentifiers
 import CryptoKit
+import ImageIO
 
 /// 图片引用内联的正则（相对路径 → data URL，避开 WebKit file 权限）
 private enum ImgInline {
@@ -1095,6 +1096,67 @@ final class NotesStore {
             }
         }
         return .failed(lastReason)
+    }
+
+    /// 采集下载（画质择优版）：按 sources 顺序尝试（原图 → Bing 大缓存 → 兜底），
+    /// 谁先达到「长边 ≥ 1000px」就收；都没达到就取下载成功里最大的那张。
+    /// 低分辨率会返回 note 如实说明（宁可有账，也别默默收一张糊图）。
+    func downloadCollectedImageBest(sources: [URL], preferredName: String, referer: URL?)
+        async -> (result: CollectDownloadResult, pixel: CGSize?, note: String?) {
+        var best: (data: Data, ext: String, pixel: CGSize)?
+        var lastReason = "下载失败"
+        var seen = Set<String>()
+        for src in sources where seen.insert(src.absoluteString).inserted {
+            var gotSmall = false
+            for attempt in Self.imageDownloadReferers(page: referer) {
+                var req = URLRequest(url: src)
+                req.timeoutInterval = 30
+                req.setValue(Self.collectorUA, forHTTPHeaderField: "User-Agent")
+                if let attempt { req.setValue(attempt, forHTTPHeaderField: "Referer") }
+                switch await Self.fetchImageData(req, url: src, referer: referer) {
+                case .failure(let why):
+                    lastReason = why
+                    continue
+                case .success(let data, let ext):
+                    let px = Self.imagePixelSize(data) ?? .zero
+                    let longSide = max(px.width, px.height)
+                    if best == nil || longSide > max(best!.pixel.width, best!.pixel.height) {
+                        best = (data, ext, px)
+                    }
+                    if longSide >= 1000 {
+                        guard let rel = saveImage(data, ext: ext, noteID: "", preferredName: preferredName) else {
+                            return (.failed("写入素材库失败"), nil, nil)
+                        }
+                        return (.saved(rel), px, nil)
+                    }
+                    gotSmall = true
+                }
+                if gotSmall { break }   // 这张能下但偏小：换下一档更大来源试试
+            }
+        }
+        if let best {
+            guard let rel = saveImage(best.data, ext: best.ext, noteID: "", preferredName: preferredName) else {
+                return (.failed("写入素材库失败"), nil, nil)
+            }
+            let px = best.pixel
+            let longSide = Int(max(px.width, px.height))
+            let note = longSide > 0 && longSide < 640
+                ? _L("\(preferredName)：这已经是站上最大的一档，只有 \(Int(px.width))×\(Int(px.height))（源头本身就不大）",
+                     "\(preferredName): largest available is only \(Int(px.width))×\(Int(px.height))")
+                : nil
+            return (.saved(rel), px, note)
+        }
+        return (.failed(lastReason), nil, nil)
+    }
+
+    /// 图片字节的像素尺寸（ImageIO 读文件头，不解整图）
+    nonisolated static func imagePixelSize(_ data: Data) -> CGSize? {
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as NSDictionary?,
+              let w = (props[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
+              let h = (props[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue,
+              w > 0, h > 0 else { return nil }
+        return CGSize(width: w, height: h)
     }
 
     /// 图片下载的 Referer 尝试序列：来源页 → 站点根 → 不带 Referer。

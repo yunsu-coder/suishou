@@ -47,6 +47,9 @@ enum CollectImageQuality {
             return comps.url ?? url
         }
 
+        // Bing 缓存图（th?id=…）：默认只给 474px 小图；换极大尺寸参数可拿到缓存大图（实测 ~3840px）
+        if host.contains("bing.net") { return bingFullCache(url) }
+
         // 通用：去掉缩图参数
         if let items = comps.queryItems, !items.isEmpty {
             let kept = items.filter { !cosmeticParams.contains($0.name.lowercased()) }
@@ -69,6 +72,18 @@ enum CollectImageQuality {
             out.removeSubrange(r)
         }
         return out
+    }
+
+    /// Bing 缓存大图：`th?id=OIP…&w=..&h=..` 把 w/h 换成极大值 —— Bing 会给出缓存里的最大版本，
+    /// 超过上限按它自己的上限截断并保持比例（实测 474×316 → 3840×2592）。
+    static func bingFullCache(_ url: URL) -> URL {
+        guard var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        guard (comps.host ?? "").lowercased().contains("bing.net") else { return url }
+        var items = (comps.queryItems ?? []).filter { !["w", "h"].contains($0.name.lowercased()) }
+        items.append(URLQueryItem(name: "w", value: "9999"))
+        items.append(URLQueryItem(name: "h", value: "9999"))
+        comps.queryItems = items
+        return comps.url ?? url
     }
 
     /// 同一张图可能在候选里出现多次（同图不同尺寸）：归一化后用它判重

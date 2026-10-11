@@ -54,4 +54,15 @@ final class CollectImageQualityTests: XCTestCase {
         let d = URL(string: "https://cdn.example.com/pic")!
         XCTAssertEqual(CollectImageQuality.identity(for: c), CollectImageQuality.identity(for: d))
     }
+
+    func testBingCacheGetsLargeSizeParams() {
+        let t = URL(string: "https://ts1.mm.bing.net/th?id=OIP.ABC123&pid=15.1")!
+        let up = CollectImageQuality.upgrade(t)
+        XCTAssertTrue(up.absoluteString.contains("w=9999") && up.absoluteString.contains("h=9999"),
+                      "Bing 缓存图应换成大图参数：\(up)")
+        let small = URL(string: "https://tse2.mm.bing.net/th?id=OIP.X&w=146&h=204&c=7")!
+        let up2 = CollectImageQuality.bingFullCache(small)
+        XCTAssertTrue(up2.absoluteString.contains("w=9999") && up2.absoluteString.contains("h=9999"))
+        XCTAssertFalse(up2.absoluteString.contains("w=146"))
+    }
 }

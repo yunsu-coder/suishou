@@ -62,6 +62,10 @@ enum CollectorClarify {
                 gaps.append(.init(field: "usage", question: "这些图用在哪？（决定构图与留白）",
                                   options: ["笔记封面", "文章配图", "视频封面", "桌面壁纸", "只做参考"]))
             }
+            if (CollectMinSize(rawValue: r.minSize) ?? .any) == .any {
+                gaps.append(.init(field: "minSize", question: "图片分辨率底线？（直接决定要不要原图、而不是缩放图）",
+                                  options: ["至少 1080P", "至少 2K", "越大越好（原图优先）", "不限，能用就行"]))
+            }
         case "video":
             if (CollectVideoDuration(rawValue: r.videoDuration) ?? .any) == .any, r.platforms.isEmpty {
                 gaps.append(.init(field: "videoDuration", question: "视频要什么长度、主要在哪个平台找？",
@@ -139,6 +143,49 @@ enum CollectorClarify {
     }
 
     /// 让模型审一遍需求。`complete` 可注入（测试用假模型）；失败返回 nil = 放行到需求卡。
+    /// 选项 → 需求字段的直落映射（「至少 2K」这类选项比让模型再猜一遍可靠）。
+    /// 调用方在 `CollectorIntent.parse` 之后应用，覆盖模型猜错的值。
+    @discardableResult
+    static func applyAnswers(_ pairs: [(field: String?, question: String, answer: String)],
+                             to r: inout CollectRequest) -> Bool {
+        var changed = false
+        for p in pairs {
+            let a = p.answer.trimmed.lowercased()
+            guard !a.isEmpty else { continue }
+            switch p.field {
+            case "minSize":
+                if a.contains("2k") {
+                    r.minSize = CollectMinSize.qhd1440.rawValue; changed = true
+                } else if a.contains("1080") || a.contains("高清") {
+                    r.minSize = CollectMinSize.fhd1080.rawValue; changed = true
+                } else if a.contains("越大") || a.contains("最大") || a.contains("原图") {
+                    r.minSize = CollectMinSize.uhd2160.rawValue; changed = true
+                } else if a.contains("不限") {
+                    r.minSize = CollectMinSize.any.rawValue; changed = true
+                }
+            case "orientation":
+                if a.contains("横") {
+                    r.orientation = CollectOrientation.landscape.rawValue; changed = true
+                } else if a.contains("竖") {
+                    r.orientation = CollectOrientation.portrait.rawValue; changed = true
+                } else if a.contains("方") {
+                    r.orientation = CollectOrientation.square.rawValue; changed = true
+                }
+            case "videoResolution":
+                if a.contains("1080") {
+                    r.videoResolution = CollectVideoResolution.fhd.rawValue; changed = true
+                } else if a.contains("4k") || a.contains("2160") {
+                    r.videoResolution = CollectVideoResolution.uhd.rawValue; changed = true
+                } else if a.contains("720") {
+                    r.videoResolution = CollectVideoResolution.hd.rawValue; changed = true
+                }
+            default:
+                break
+            }
+        }
+        return changed
+    }
+
     static func review(_ request: CollectRequest, userText: String, round: Int,
                        complete: ((String, String) async throws -> String)? = nil) async -> CollectClarifyReview? {
         let call: (String, String) async throws -> String
@@ -153,7 +200,7 @@ enum CollectorClarify {
         严格，但不要过度追问：
         1. 必须能看出「找什么类型」（图片 / 视频 / 文章 / 小说）和「具体对象或题材」；
         2. 若某个**会明显影响结果质量**的关键项无法从原话或常识安全推断 → 必须追问
-           （例：图片的用途与方向、视频的时长与平台、文章的范围与体裁、小说的书名与要抓多少章）；
+           （例：图片的用途与方向、图片分辨率底线、视频的时长与平台、文章的范围与体裁、小说的书名与要抓多少章）；
         3. 只问影响采集结果的问题，**最多 \(maxQuestions) 条**，每条给 2-5 个贴合上下文、可直接点的选项
            （例如「横图 / 竖图 / 方图」「1500 字内的短评 / 3000 字以上的长文」），不要问泛泛的「你想要什么风格」；
         4. 用户已经说过的、或能用默认值安全兜底（数量、语言等）的，不要问；
