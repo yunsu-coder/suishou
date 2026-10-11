@@ -77,10 +77,11 @@ final class CollectorClarifyTests: XCTestCase {
                        "原始需求")
     }
 
-    func testRoundLimitAllowsThreeRounds() {
+    func testRoundLimitIsOnlyABackstop() {
         XCTAssertTrue(CollectorClarify.canAskMore(round: 0))
-        XCTAssertTrue(CollectorClarify.canAskMore(round: 2))
-        XCTAssertFalse(CollectorClarify.canAskMore(round: 3), "问满 3 轮就放行，不锁死用户")
+        XCTAssertTrue(CollectorClarify.canAskMore(round: 4), "追问不设 3 轮上限：问到明确才放行")
+        XCTAssertTrue(CollectorClarify.canAskMore(round: 7))
+        XCTAssertFalse(CollectorClarify.canAskMore(round: 8), "8 轮只是防死循环的兜底上限")
         XCTAssertFalse(CollectorClarify.canAskMore(round: 9))
     }
 

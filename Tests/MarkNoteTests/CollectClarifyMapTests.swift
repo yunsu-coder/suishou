@@ -40,4 +40,16 @@ final class CollectClarifyMapTests: XCTestCase {
         XCTAssertTrue(gaps.contains { $0.field == "minSize" },
                       "图片分辨率底线应被追问：\(gaps.map(\.field))")
     }
+
+    func testAmbiguityQuestionForWolfDogWithPersonContext() {
+        let q = CollectorClarify.ambiguityQuestion(userText: "帮我找帅哥薄肌狼狗", asked: [])
+        XCTAssertNotNil(q, "人物上下文里有歧义词必须明确问一次")
+        XCTAssertEqual(q?.id, "ambiguity-狼狗")
+        XCTAssertEqual(q?.options.first, "人设 / 气质（狼狗系）")
+        XCTAssertNil(CollectorClarify.ambiguityQuestion(userText: "帮我找帅哥薄肌狼狗",
+                                                        asked: ["ambiguity-狼狗"]),
+                     "问过一次就不再重复")
+        XCTAssertNil(CollectorClarify.ambiguityQuestion(userText: "找一些狼狗图片", asked: []),
+                     "没有人物上下文时不打扰（大概率真要动物）")
+    }
 }

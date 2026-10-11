@@ -1517,6 +1517,14 @@ enum CollectorIntent {
            说「最近一个月内」→ recency=month；说「可商用」→ license=commercial；
            说「文章 / 长文 / 教程 / 报道 / 论文」→ kind=article；说「小说 / 全书 / 章节 / 连载」→ kind=novel
            （小说要尽量给出 chapterLimit）。
+        5. 多义词 / 网络梗词必须结合主体词判断：狼狗、奶狗、小奶狗、小狼狗、狗系 这类词，
+           主体是人物（帅哥 / 男生 / 女生 / 人像 / 写真 / 头像 / 健身…）时按「人设 · 气质」理解，
+           保持 subject = 人物主体（不要把梗词混进 subject），梗词进 styleNote，
+           queries 里要带人物限定词（例：帅哥薄肌狼狗 → subject=帅哥，styleNote=薄肌、狼狗系气质，
+           queries=["帅哥 薄肌 狼系 男生 写真","handsome lean-muscle wolf-vibe guy portrait"]）；
+           只有主体确实是动物时才按字面理解。
+        6. 主体与修饰词分开：形容词 / 风格 / 气质 / 身体特征（薄肌、狼系、高冷…）不进 subject，
+           进 styleNote / styles / tones；queries 用空格分词，不要整串粘在一起。
         """
         let user = "用户输入：\(text)\n（已有需求：\(describe(current))）"
         guard let reply = try? await call(system, user) else { return nil }

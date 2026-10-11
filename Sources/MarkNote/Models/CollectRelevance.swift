@@ -67,12 +67,26 @@ enum CollectRelevance {
         return junkMarkers.contains { hay.contains($0) && !q.contains($0) }
     }
 
+    /// 人物向 / 动物向标记 —— 用于「搜帅哥却返回狗」这类字面歧义误检的确定性过滤
+    static let peopleCues = ["帅哥", "男生", "男人", "男模", "女生", "少女", "小姐姐", "哥哥", "弟弟",
+                             "男友", "女友", "写真", "人像", "头像", "肌肉", "薄肌", "健身", "美男"]
+    static let animalCues = ["狗", "猫", "犬", "喵", "宠物", "萌宠", "狗粮"]
+
+    /// 内容看起来"只有动物"（有动物标记、且没有任何人物标记）
+    static func looksLikeAnimalOnly(_ c: CollectCandidate) -> Bool {
+        let hay = (c.title + " " + (c.fullURL?.absoluteString ?? c.thumbURL?.absoluteString ?? "")).lowercased()
+        guard animalCues.contains(where: { hay.contains($0) }) else { return false }
+        return !peopleCues.contains { hay.contains($0) }
+    }
+
     /// 排序 + 过筛：装饰图剔除；「有标题却 0 命中」判为不相关；其余按分数排前面
     static func refine(_ list: [CollectCandidate], query: String) -> [CollectCandidate] {
         let t = terms(query)
+        let peopleQuery = peopleCues.contains { query.lowercased().contains($0) }
         var scored: [(c: CollectCandidate, s: Int, title: String)] = []
         for c in list {
             if isJunk(c, query: query) { continue }   // 装饰图：无论有没有词元都先剔除
+            if peopleQuery, looksLikeAnimalOnly(c) { continue }   // "帅哥"需求里混进来的字面猫狗 → 剔除
             let s = score(c, terms: t)
             let title = c.title.lowercased().trimmed
             if !t.isEmpty, !title.isEmpty, s == 0 { continue }   // 有词元才做「不沾边」剔除

@@ -29,14 +29,15 @@ struct CollectClarifyGap: Equatable {
 /// 只在**真正影响采集结果**的地方追问，最多 3 条，每条带可点选项。
 enum CollectorClarify {
 
-    /// 最多追问几轮（答完还能再问，但不会无限循环）
-    static let maxRounds = 3
+    /// 追问问到**明确**为止 —— 这里只是防死循环的兜底上限，不是"三轮就草率放行"。
+    /// 用户随时可选「没有了，就这样」或点「不问了」提前进需求卡；常规场景 4–6 轮内问清。
+    static let maxRounds = 8
     /// 单轮最多几条问题
     static let maxQuestions = 3
     /// **最少**问几轮：选项答完也要再问一轮，别让「选了一个选项」当成已经理解
     static let minRounds = 2
 
-    /// 还能不能再追问：超过轮次就放行（宁可让用户看需求卡，也不把人锁在问答里）
+    /// 还能不能再追问：到兜底上限才放行（配合每轮都有的"跳过"出口，绝不把人锁在问答里）
     static func canAskMore(round: Int) -> Bool { round < maxRounds }
 
     // MARK: - 硬规则（模型说「懂了」也要过这一关）
@@ -140,6 +141,34 @@ enum CollectorClarify {
         let markers = ["没有了", "不用了", "别问了", "就这样", "没有别的", "没有其他",
                        "no more", "nomore", "thats it", "that is it"]
         return markers.contains { a.localizedCaseInsensitiveContains($0) }
+    }
+
+    // MARK: - 字面歧义词（狼狗 / 奶狗…）明确问一次
+
+    /// 既可能是网络人设、也可能是字面动物的词。有"人物上下文"时必须明确问一次，
+    /// 避免「找帅哥结果返回狗」这种字面误检。
+    static let ambiguousTerms: [(term: String, person: String)] = [
+        ("小奶狗", "人设 / 气质（小奶狗系）"),
+        ("小狼狗", "人设 / 气质（小狼狗系）"),
+        ("奶狗", "人设 / 气质（奶狗系）"),
+        ("狼狗", "人设 / 气质（狼狗系）"),
+        ("狗系", "人设 / 气质（狗系）"),
+    ]
+
+    /// 人物上下文标记（出现任一 → 歧义词需要明确）
+    static let personContextMarkers = ["帅哥", "男生", "男人", "男模", "女生", "少女", "小姐姐",
+                                       "哥哥", "弟弟", "男友", "女友", "写真", "人像", "头像",
+                                       "肌肉", "薄肌", "健身", "美男"]
+
+    /// 需要明确问一次的歧义词；`asked` 去重（每场采集只问一次）。没有 → nil。
+    static func ambiguityQuestion(userText: String, asked: Set<String>) -> CollectClarifyQuestion? {
+        let t = userText.lowercased()
+        guard personContextMarkers.contains(where: { t.contains($0) }) else { return nil }
+        guard let hit = ambiguousTerms.first(where: { t.contains($0.term) }) else { return nil }
+        let id = "ambiguity-\(hit.term)"
+        guard !asked.contains(id) else { return nil }
+        return CollectClarifyQuestion(id: id, question: "「\(hit.term)」这里是指？", field: "subject",
+                                      options: [hit.person, "就是字面的狗狗（动物素材）", "都行，让 AI 自动判断"])
     }
 
     /// 让模型审一遍需求。`complete` 可注入（测试用假模型）；失败返回 nil = 放行到需求卡。

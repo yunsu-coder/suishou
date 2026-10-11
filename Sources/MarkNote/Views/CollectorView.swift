@@ -55,6 +55,8 @@ struct CollectorView: View {
     @State private var clarifyBusy = false
     /// 已答过的追问（拼进后续解析的文本里，别让 AI 忘掉）
     @State private var clarifyTranscript = ""
+    /// 已确认过的歧义词（狼狗 / 奶狗…）：每场采集只明确问一次
+    @State private var askedAmbiguities: Set<String> = []
     /// 贴链接导入：用户自己看到的页面地址（每行一条）
     @State private var linkText = ""
     @State private var fetchingLinks = false
@@ -190,8 +192,8 @@ struct CollectorView: View {
                     "Describe what you need in one sentence. The AI turns it into a requirement card — fill the gaps, confirm, then collection starts."))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
-            Text(_L("AI 没听明白时会**接着追问**（最多 3 轮，可跳过）：问清了才会去搜。",
-                    "If the AI isn't sure what you mean it **keeps asking** (up to 3 rounds, skippable)."))
+            Text(_L("AI 没听明白时会**接着追问到明确为止**（可随时跳过，\(CollectorClarify.maxRounds) 轮只是兜底）：问清了才会去搜。",
+                    "The AI **keeps asking until it is sure** (skippable anytime; \(CollectorClarify.maxRounds) rounds is only a backstop)."))
                 .font(.system(size: 11))
                 .foregroundStyle(.tertiary)
             TextEditor(text: $inputText)
@@ -352,6 +354,7 @@ struct CollectorView: View {
             // 解析完先让 AI 自审一遍：没说清就追问，问清（或问满轮次）才進需求卡
             clarifyRound = 0
             clarifyTranscript = ""
+            askedAmbiguities = []
             if await askClarifyIfNeeded() { return }
         } else {
             statusText = LLM.configured
@@ -439,9 +442,16 @@ struct CollectorView: View {
         clarifyBusy = false
         // 「要不要继续问」= 硬规则（关键项体检 + 最少轮次）∪ 模型判断：
         // 即便用户已经选过选项、模型说 ready，只要关键项还缺（或还没问够轮次）就接着问。
-        let questions = CollectorClarify.questionsForNextRound(review: review,
+        var questions = CollectorClarify.questionsForNextRound(review: review,
                                                                request: request,
                                                                round: clarifyRound)
+        // 字面歧义词（狼狗 / 奶狗…）＋人物上下文 → 先明确问一次，避免"搜帅哥返回狗"
+        if let amb = CollectorClarify.ambiguityQuestion(userText: inputText + clarifyTranscript,
+                                                        asked: askedAmbiguities) {
+            questions.insert(amb, at: 0)
+            questions = Array(questions.prefix(CollectorClarify.maxQuestions))
+            askedAmbiguities.insert(amb.id)
+        }
         guard !questions.isEmpty else { return false }
         clarifyQuestions = questions
         clarifyAnswers = [:]

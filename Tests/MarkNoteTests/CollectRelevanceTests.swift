@@ -37,4 +37,13 @@ final class CollectRelevanceTests: XCTestCase {
         let list = [cand("任何东西", "https://a.com/x.jpg")]
         XCTAssertEqual(CollectRelevance.refine(list, query: "猫").count, 1)
     }
+
+    func testPeopleQueryDropsAnimalOnlyResults() {
+        let list = [cand("德牧狼狗图片大全", "https://a.com/wolfdog.jpg"),
+                    cand("狼狗系男生写真", "https://a.com/handsome.jpg"),
+                    cand("帅哥薄肌照片", "https://a.com/guy.jpg")]
+        let refined = CollectRelevance.refine(list, query: "帅哥 男生")
+        XCTAssertEqual(Set(refined.map(\.title)), Set(["狼狗系男生写真", "帅哥薄肌照片"]),
+                       "字面动物结果要被剔除：\(refined.map(\.title))")
+    }
 }
