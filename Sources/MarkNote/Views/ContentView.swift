@@ -305,6 +305,10 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .commandPaletteRequested)) { _ in
             showPalette = true
         }
+            // 手动更新（菜单：检查更新）：本地仓库有更新 → 退出重建并自动重启
+            .onReceive(NotificationCenter.default.publisher(for: .checkUpdateRequested)) { _ in
+                handleManualUpdate()
+            }
         // AI 面板开关（⌥⌘A / 菜单 / 命令面板统一入口）
         .onReceive(NotificationCenter.default.publisher(for: .aiPanelToggle)) { _ in
             aiPanelVisible.toggle()
@@ -397,6 +401,21 @@ struct ContentView: View {
         aiModel.knowledgeProvider = { query in store.aiKnowledgeHits(for: query) }
         // 对话历史持久化位置（工作台 .ai-history/，点目录不进入索引）
         aiModel.historyBaseDir = { store.notesDir }
+    }
+
+    /// 手动更新：比对本地仓库与当前构建；有更新就退出 → 后台重建 → 自动重启
+    private func handleManualUpdate() {
+        switch AppUpdater.checkAndUpdate() {
+        case .upToDate(let sha):
+            store.showStatus(_L("已是最新（\(sha)）", "Up to date (\(sha))"))
+        case .updating(let from, let to):
+            store.showStatus(_L("发现新构建（\(from) → \(to)）：退出后在后台重建，完成后自动重启",
+                                "New build found (\(from) → \(to)): rebuilding in background, relaunching when done"))
+            store.flush()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { NSApp.terminate(nil) }
+        case .notConfigured(let why), .failed(let why):
+            store.showStatus(why)
+        }
     }
 
     private func removeMonitors() {

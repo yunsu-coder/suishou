@@ -2585,6 +2585,19 @@ final class NotesStore {
         #endif
     }
 
+    /// 仅用于"用户主动触发"的一次性反馈（手动更新等）：与旧版轻提示同机制，3.5 秒自动消失。
+    /// 常规流程仍然不弹任何东西（showHint 保持空操作）。
+    func showStatus(_ text: String) {
+        hintMessage = text
+        hintToken += 1
+        hintTask?.cancel()
+        hintTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 3_500_000_000)
+            guard let self, !Task.isCancelled else { return }
+            self.hintMessage = nil
+        }
+    }
+
     func hideHint() {
         hintTask?.cancel()
         hintMessage = nil

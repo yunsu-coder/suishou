@@ -97,6 +97,13 @@ done
 rm -rf "$APP/Contents/Resources/Resources"
 cp -R Sources/MarkNote/Resources "$APP/Contents/Resources/Resources" 2>/dev/null || true
 
+# ── 构建信息（App 内「检查更新（本地仓库）」用：提交号 / 构建时间 / 仓库路径） ──
+GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+if [ -n "$(git status --porcelain 2>/dev/null)" ]; then DIRTY=true; else DIRTY=false; fi
+cat > "$APP/Contents/Resources/build-info.json" << INFO
+{"gitSHA":"$GIT_SHA","builtAt":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","dirty":$DIRTY,"repoPath":"$(pwd)"}
+INFO
+
 # ── 签名（ad-hoc，本机直接运行） ──
 codesign --force --deep --sign - "$APP" >/dev/null 2>&1 || true
 

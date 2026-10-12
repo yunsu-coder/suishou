@@ -33,6 +33,8 @@ extension Notification.Name {
     static let findReplaceRequested = Notification.Name("findReplaceRequested")
     /// 主题彩蛋触发（侧栏主题图标连续点击）
     static let themeEasterEggTriggered = Notification.Name("themeEasterEggTriggered")
+    /// 手动更新（检查本地仓库 → 重建并重启）
+    static let checkUpdateRequested = Notification.Name("checkUpdateRequested")
 }
 
 /// 「插入」菜单支持的类型（随通知 object 传）
@@ -553,6 +555,13 @@ struct MarkNoteApp: App {
 
             CommandGroup(replacing: .appInfo) {
                 Button(_LL("关于 随手…", "About MarkNote…")) { Self.showAbout() }
+            }
+
+            CommandGroup(after: .appInfo) {
+                Button(_LL("检查更新（本地仓库）…", "Check for Updates (Local Repo)…")) {
+                    NotificationCenter.default.post(name: .checkUpdateRequested, object: nil)
+                }
+                .keyboardShortcut("u", modifiers: [.command, .shift])
             }
 
             CommandGroup(replacing: .help) {
