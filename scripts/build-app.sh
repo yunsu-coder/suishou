@@ -110,9 +110,23 @@ codesign --force --deep --sign - "$DEST" >/dev/null 2>&1 || true
 # ── 重新注册 LaunchServices（每次重签名后绑定失效 → Finder 打开方式/双击生效） ──
 LSREG="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 "$LSREG" -f "$DEST" >/dev/null 2>&1 || true
+
+# ── 同步部署到系统 /Applications（防「同一 App 两份、Spotlight/启动台启动到旧版」） ──
+# 背景：曾出现过 /Applications 里残留 9 月旧构建，用户在启动台点开的是旧版 →
+# 插件主题（新格式主题包）加载失败，表现为"插件主题启动失效"。两边必须同源。
+SYS_DEST="/Applications/随手.app"
+if [ -w /Applications ]; then
+  rm -rf "$SYS_DEST"
+  cp -R "$APP" "$SYS_DEST"
+  codesign --force --deep --sign - "$SYS_DEST" >/dev/null 2>&1 || true
+  "$LSREG" -f "$SYS_DEST" >/dev/null 2>&1 || true
+fi
 # 强制「.md 默认打开 = 随手」（写入系统 LaunchServices 默认库，不依赖 LS 的 Owner 猜测）
 defaults write com.apple.LaunchServices/com.apple.launchservices.secure LSHandlers -array-add '<dict><key>LSHandlerContentType</key><string>net.daringfireball.markdown</string><key>LSHandlerRoleAll</key><string>com.gzhysu.marknote</string></dict>' 2>/dev/null || true
 
 echo "==> 完成: $APP"
 echo "    open \"$APP\"                       # 开发目录调试版"
 echo "    open \"$DEST\"                       # 应用目录部署版（推荐，无 TCC 弹窗）"
+if [ -w /Applications ]; then
+  echo "    open \"$SYS_DEST\"                       # 系统应用目录（Spotlight / 启动台直达）"
+fi
