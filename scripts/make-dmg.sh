@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # 打包 随手.dmg(含 build/随手.app)
-# 用法: ./scripts/make-dmg.sh [版本号, 默认 2.0.0]
+# 用法: ./scripts/make-dmg.sh [版本号, 默认 2.1.0]
 set -e
 cd "$(dirname "$0")/.."
 
-VERSION="${1:-2.0.0}"
+VERSION="${1:-2.1.0}"
 BUILD_DIR="build/dmg"
 APP="build/随手.app"
 
